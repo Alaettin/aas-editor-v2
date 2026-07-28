@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Download,
@@ -25,6 +25,8 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tree } from "@/components/Tree/Tree";
 import { Inspector } from "@/components/Inspector/Inspector";
+import { IssuePanel } from "@/components/Issues/IssuePanel";
+import { ExportDialog, needsExportWarning } from "@/components/ExportDialog";
 import { nodeCount, useEditor } from "@/store/editor";
 
 /**
@@ -34,6 +36,7 @@ import { nodeCount, useEditor } from "@/store/editor";
 export function AppShell() {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [exportFormat, setExportFormat] = useState<"json" | "xml" | "aasx" | null>(null);
 
   const model = useEditor((state) => state.model);
   const meta = useEditor((state) => state.meta);
@@ -44,6 +47,7 @@ export function AppShell() {
   const theme = useEditor((state) => state.theme);
   const canUndo = useEditor((state) => state.history.past.length > 0);
   const canRedo = useEditor((state) => state.history.future.length > 0);
+  const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
 
   const openFile = useEditor((state) => state.openFile);
   const exportAs = useEditor((state) => state.exportAs);
@@ -51,6 +55,18 @@ export function AppShell() {
   const redo = useEditor((state) => state.redo);
   const setDensity = useEditor((state) => state.setDensity);
   const setTheme = useEditor((state) => state.setTheme);
+  const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
+
+  /** Warnen statt blockieren: gibt es nichts zu sagen, wird sofort exportiert. */
+  const requestExport = (format: "json" | "xml" | "aasx") => {
+    const constraints = issues.filter((issue) => issue.severity === "constraint").length;
+    const warnungen = issues.length - constraints;
+    if (needsExportWarning(format, meta?.attachments.length ?? 0, constraints, warnungen)) {
+      setExportFormat(format);
+    } else {
+      void exportAs(format);
+    }
+  };
 
   // Hell und Dunkel sowie die Dichte haengen am Wurzelelement, damit die Tokens greifen.
   useEffect(() => {
@@ -104,13 +120,13 @@ export function AppShell() {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start">
             <DropdownMenuGroup>
-              <DropdownMenuItem onSelect={() => void exportAs("json")}>
+              <DropdownMenuItem onSelect={() => requestExport("json")}>
                 {t("export.json")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void exportAs("xml")}>
+              <DropdownMenuItem onSelect={() => requestExport("xml")}>
                 {t("export.xml")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => void exportAs("aasx")}>
+              <DropdownMenuItem onSelect={() => requestExport("aasx")}>
                 {t("export.aasx")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -172,16 +188,29 @@ export function AppShell() {
 
       <main className="min-h-0 flex-1">
         {model ? (
-          <ResizablePanelGroup orientation="horizontal">
-            <ResizablePanel defaultSize="38" minSize="20">
-              <div className="h-full bg-sidebar">
-                <Tree />
-              </div>
+          <ResizablePanelGroup orientation="vertical">
+            <ResizablePanel defaultSize={issuePanelOpen ? "70" : "100"} minSize="30">
+              <ResizablePanelGroup orientation="horizontal">
+                <ResizablePanel defaultSize="38" minSize="20">
+                  <div className="h-full bg-sidebar">
+                    <Tree />
+                  </div>
+                </ResizablePanel>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize="62" minSize="30">
+                  <Inspector />
+                </ResizablePanel>
+              </ResizablePanelGroup>
             </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize="62" minSize="30">
-              <Inspector />
-            </ResizablePanel>
+
+            {issuePanelOpen ? (
+              <>
+                <ResizableHandle withHandle />
+                <ResizablePanel defaultSize="30" minSize="12">
+                  <IssuePanel />
+                </ResizablePanel>
+              </>
+            ) : null}
           </ResizablePanelGroup>
         ) : (
           <Empty className="h-full">
@@ -217,7 +246,14 @@ export function AppShell() {
           <span>{t("status.keineDatei")}</span>
         )}
 
-        <span className="ml-auto flex items-center gap-3">
+        {/* Die Zaehler sind der Weg ins Befund-Panel. */}
+        <button
+          type="button"
+          data-issues-toggle
+          disabled={!model}
+          onClick={() => setIssuePanelOpen(!issuePanelOpen)}
+          className="ml-auto flex items-center gap-3 rounded-xs px-1 hover:bg-accent disabled:hover:bg-transparent"
+        >
           {constraints > 0 ? (
             <span className="text-destructive" data-numeric>
               {t("status.constraints", { count: constraints })}
@@ -229,7 +265,7 @@ export function AppShell() {
             </span>
           ) : null}
           {model && issues.length === 0 ? <span>{t("status.keineBefunde")}</span> : null}
-        </span>
+        </button>
       </footer>
 
       {error ? (
@@ -240,6 +276,8 @@ export function AppShell() {
           {error}
         </div>
       ) : null}
+
+      <ExportDialog format={exportFormat} onClose={() => setExportFormat(null)} />
 
       <input
         ref={inputRef}

@@ -5,7 +5,7 @@ import type { JsonValue } from "@aas-editor/core";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useEditor } from "@/store/editor";
+import { useEditor, NO_ATTACHMENTS } from "@/store/editor";
 import type { FieldEditorProps } from "./Primitives";
 
 /**
@@ -15,7 +15,7 @@ import type { FieldEditorProps } from "./Primitives";
  */
 export function AttachmentEditor({ value, onChange }: FieldEditorProps) {
   const { t } = useTranslation();
-  const attachments = useEditor((state) => state.meta?.attachments ?? []);
+  const attachments = useEditor((state) => state.meta?.attachments ?? NO_ATTACHMENTS);
   const path = typeof value === "string" ? value : "";
   const found = attachments.find((entry) => entry.path === normalize(path));
 

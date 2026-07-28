@@ -94,11 +94,27 @@
     "submodels": "Verweise auf die Submodels dieser Shell.",
     "isCaseOf": "Verweise auf verwandte Definitionen."
   },
+  "befund": {
+    "titel": "Befunde",
+    "schliessen": "Panel schliessen",
+    "original": "Originalmeldung",
+    "originalAus": "Originalmeldung ausblenden",
+    "leerTitel": "Keine Befunde",
+    "leerText": "Die Umgebung erfuellt alle Constraints des Metamodells."
+  },
   "export": {
     "json": "Als JSON",
     "xml": "Als XML",
     "aasx": "Als AASX",
-    "anhangWarnung": "Achtung: Anhaenge gehen verloren"
+    "warnungTitel": "Vor dem Export",
+    "warnungAnhaenge_one": "Ein Anhang geht verloren: JSON und XML koennen Supplementary Files nicht mitschreiben. Fuer einen vollstaendigen Export AASX waehlen.",
+    "warnungAnhaenge_other": "{{count}} Anhaenge gehen verloren: JSON und XML koennen Supplementary Files nicht mitschreiben. Fuer einen vollstaendigen Export AASX waehlen.",
+    "warnungConstraints_one": "Eine Constraint-Verletzung ist offen. Die Datei ist dann nicht metamodell-konform.",
+    "warnungConstraints_other": "{{count}} Constraint-Verletzungen sind offen. Die Datei ist dann nicht metamodell-konform.",
+    "warnungWarnungen_one": "Eine Datenwarnung ist offen, etwa eine doppelte id oder ein fehlender Anhang.",
+    "warnungWarnungen_other": "{{count}} Datenwarnungen sind offen, etwa doppelte ids oder fehlende Anhaenge.",
+    "warnungHinweis": "Der Export laesst sich trotzdem durchfuehren.",
+    "trotzdem": "Trotzdem exportieren"
   },
   "fehler": {
     "titel": "Das hat nicht geklappt",

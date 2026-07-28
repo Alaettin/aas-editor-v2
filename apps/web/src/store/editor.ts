@@ -29,6 +29,15 @@ import { aasWorker, type AttachmentInfo, type OpenResult } from "@/worker/bridge
  * von der Modellgroesse (Plan Abschnitt 4).
  */
 
+/**
+ * Stabile Leerliste fuer Selektoren.
+ *
+ * `state.meta?.attachments ?? []` erzeugt bei jedem Rendern ein neues Array. Zustand
+ * vergleicht mit `Object.is`, sieht also jedes Mal eine Aenderung und rendert erneut,
+ * bis React mit "Maximum update depth exceeded" abbricht.
+ */
+export const NO_ATTACHMENTS: readonly AttachmentInfo[] = [];
+
 export type Density = "compact" | "cozy";
 export type Theme = "light" | "dark";
 export type Status = "leer" | "laedt" | "bereit" | "fehler";
@@ -53,6 +62,14 @@ interface EditorState {
   issues: readonly ValidationIssue[];
   dirty: boolean;
 
+  /**
+   * Auftrag an den Inspector: Gruppe aufklappen, hinscrollen, fokussieren. Er quittiert
+   * ihn nach dem Rendern ueber `clearFocusRequest`. Ohne diesen Umweg muesste der Sprung
+   * wissen, wann das Formular fertig gerendert ist.
+   */
+  focusRequest: { nodeId: NodeId; field: string; token: number } | null;
+  issuePanelOpen: boolean;
+
   density: Density;
   theme: Theme;
 
@@ -73,6 +90,11 @@ interface EditorState {
 
   undo: () => void;
   redo: () => void;
+
+  /** Sprung aus dem Befund-Panel: auswaehlen, sichtbar machen, Feld fokussieren. */
+  goToIssue: (issue: ValidationIssue) => void;
+  clearFocusRequest: () => void;
+  setIssuePanelOpen: (open: boolean) => void;
 
   setDensity: (density: Density) => void;
   setTheme: (theme: Theme) => void;
@@ -130,6 +152,8 @@ export const useEditor = create<EditorState>()((set, get) => {
     expanded: {},
     issues: [],
     dirty: false,
+    focusRequest: null,
+    issuePanelOpen: false,
 
     density: "cozy",
     theme:
@@ -300,6 +324,24 @@ export const useEditor = create<EditorState>()((set, get) => {
         set({ selection: step.model.rootId });
       }
     },
+
+    goToIssue: (issue) => {
+      if (!issue.nodeId) return;
+      get().expandTo(issue.nodeId);
+      set((state) => ({
+        selection: issue.nodeId,
+        // Der Zaehler macht zwei Spruenge auf dasselbe Feld unterscheidbar, sonst
+        // passierte beim zweiten Klick nichts.
+        focusRequest: {
+          nodeId: issue.nodeId as NodeId,
+          field: issue.field,
+          token: (state.focusRequest?.token ?? 0) + 1,
+        },
+      }));
+    },
+
+    clearFocusRequest: () => set({ focusRequest: null }),
+    setIssuePanelOpen: (open) => set({ issuePanelOpen: open }),
 
     setDensity: (density) => set({ density }),
     setTheme: (theme) => set({ theme }),

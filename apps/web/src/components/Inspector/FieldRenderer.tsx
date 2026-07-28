@@ -1,7 +1,9 @@
 import { useTranslation } from "react-i18next";
 import { ENUMS, type FieldSpec, type JsonObject, type JsonValue } from "@aas-editor/core";
+import type { ValidationIssue } from "@aas-editor/core/validation";
 
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field";
+import { IssueText } from "@/components/Issues/IssueText";
 import { EnumEditor, TextEditor } from "./fields/Primitives";
 import { LangStringsEditor } from "./fields/LangStrings";
 import { ReferenceEditor, ReferenceListEditor } from "./fields/Reference";
@@ -24,25 +26,51 @@ export interface FieldRendererProps {
   /** Die Daten des umgebenden Objekts, fuer `typedBy` */
   readonly data: JsonObject;
   readonly onChange: (key: string, value: JsonValue | undefined) => void;
-  readonly invalid?: boolean;
+  /** Befunde, die genau an diesem Feld haengen */
+  readonly issues?: readonly ValidationIssue[];
 }
 
-export function FieldRenderer({ spec, data, onChange, invalid }: FieldRendererProps) {
+export function FieldRenderer({ spec, data, onChange, issues }: FieldRendererProps) {
   const { t } = useTranslation();
   const value = data[spec.key];
   const set = (next: JsonValue | undefined) => onChange(spec.key, next);
   const id = `feld-${spec.key}`;
 
+  const constraints = issues?.filter((issue) => issue.severity === "constraint") ?? [];
+  const warnings = issues?.filter((issue) => issue.severity === "warnung") ?? [];
+  const invalid = constraints.length > 0;
+
   const control = renderControl(spec, value, data, set, invalid, id);
   const orientation = spec.kind === "boolean" ? "horizontal" : "vertical";
 
   return (
-    <Field data-invalid={invalid || undefined} orientation={orientation}>
+    <Field
+      data-invalid={invalid || undefined}
+      data-field-key={spec.key}
+      orientation={orientation}
+    >
       <FieldLabel htmlFor={id}>
         {spec.key}
         {spec.required ? <span className="text-destructive"> *</span> : null}
       </FieldLabel>
       {control}
+
+      {constraints.length > 0 ? (
+        <FieldError>
+          <div className="flex flex-col gap-1">
+            {constraints.map((issue, index) => (
+              <IssueText key={index} issue={issue} />
+            ))}
+          </div>
+        </FieldError>
+      ) : null}
+
+      {warnings.map((issue, index) => (
+        <FieldDescription key={index} className="text-warning">
+          <IssueText issue={issue} />
+        </FieldDescription>
+      ))}
+
       {spec.hint ? <FieldDescription>{t(spec.hint)}</FieldDescription> : null}
     </Field>
   );
