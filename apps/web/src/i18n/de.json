@@ -144,7 +144,11 @@
     "elemente": "Elemente",
     "befehle": "Befehle",
     "panelAuf": "Befunde einblenden",
-    "panelZu": "Befunde ausblenden"
+    "panelZu": "Befunde ausblenden",
+    "sichten": "Sichten",
+    "zuFormular": "Zum Formular wechseln",
+    "zuTabelle": "Zur Tabelle wechseln",
+    "zuGraph": "Zum Graphen wechseln"
   },
   "einfuegen": {
     "titel": "Einfuegen: bereits vergebene id",
@@ -171,5 +175,28 @@
     "ohneAnhaenge_other": "Die {{count}} Anhaenge sind nicht mitgespeichert, nur ihre Pfade. Fuer einen vollstaendigen AASX-Export die Datei erneut oeffnen.",
     "fortsetzen": "Fortsetzen",
     "verwerfen": "Verwerfen"
+  },
+  "sicht": {
+    "formular": "Formular",
+    "tabelle": "Tabelle",
+    "graph": "Graph"
+  },
+  "tabelle": {
+    "keinBehaelter": "Kein Behaelter gewaehlt",
+    "keinBehaelterText": "Waehle links ein Submodel, eine SubmodelElementCollection oder eine SubmodelElementList. Die Tabelle zeigt deren Eintraege.",
+    "leer": "Dieser Behaelter ist noch leer.",
+    "eintraege_one": "1 Eintrag",
+    "eintraege_other": "{{count}} Eintraege",
+    "markiert_one": "1 markiert",
+    "markiert_other": "{{count}} markiert",
+    "markieren": "Zeile markieren",
+    "imFormular": "im Formular"
+  },
+  "graph": {
+    "leerTitel": "Nichts zu zeigen",
+    "leerText": "Die Karte zeigt Shells, Submodels und ConceptDescriptions mit ihren Verweisen. In dieser Umgebung gibt es keine.",
+    "umfang": "{{knoten}} Knoten, {{kanten}} Kanten",
+    "dauer": "Layout {{ms}} ms",
+    "allesZeigen": "Alle {{count}} zeigen"
   }
 }

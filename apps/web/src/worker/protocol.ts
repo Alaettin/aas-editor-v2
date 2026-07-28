@@ -1,4 +1,4 @@
-import type { EditorModel, Patch, UpgradeNote } from "@aas-editor/core";
+import type { EditorModel, Graph, LayoutResult, Patch, UpgradeNote } from "@aas-editor/core";
 import type { AasFormat, ImportWarning, MetamodelVersion } from "@aas-editor/core/io/types";
 import type { ValidationIssue } from "@aas-editor/core/validation";
 
@@ -45,6 +45,13 @@ export interface AasWorkerApi {
   applyPatches(patches: readonly Patch[]): Promise<void>;
   validate(): Promise<readonly ValidationIssue[]>;
   exportAs(format: AasFormat): Promise<ExportedFile>;
+
+  /**
+   * Berechnet das Graph-Layout. elkjs (456 KB gzip) wird dabei erst geladen, wenn der
+   * Graph das erste Mal geoeffnet wird, und rechnet hier statt im Hauptthread
+   * (Plan Abschnitt 11).
+   */
+  layoutGraph(graph: Graph): Promise<LayoutResult>;
   /** Nur fuer die Testseite und Diagnose */
   nodeCount(): Promise<number>;
 }

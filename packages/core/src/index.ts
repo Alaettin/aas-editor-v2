@@ -24,6 +24,7 @@ export * from "./model/operations.js";
 export * from "./model/clipboard.js";
 export * from "./search.js";
 export * from "./semantics.js";
+export * from "./graph.js";
 export * from "./schema/enums.js";
 export * from "./schema/fields.js";
 export * from "./schema/elements.js";

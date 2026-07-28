@@ -10,6 +10,9 @@ import {
   Rows3,
   ShieldAlert,
   Sun,
+  Table2,
+  Workflow,
+  FileText,
   Undo2,
 } from "lucide-react";
 import { search } from "@aas-editor/core";
@@ -51,6 +54,7 @@ export function CommandPalette() {
   const setTheme = useEditor((state) => state.setTheme);
   const setDensity = useEditor((state) => state.setDensity);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
+  const setView = useEditor((state) => state.setView);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
 
   useEffect(() => {
@@ -122,6 +126,35 @@ export function CommandPalette() {
           ) : null}
 
           {treffer.length > 0 ? <CommandSeparator /> : null}
+
+          <CommandGroup heading={t("palette.sichten")}>
+            <CommandItem
+              value="sicht formular eigenschaften"
+              disabled={!model}
+              onSelect={() => ausfuehren(() => setView("formular"))}
+            >
+              <FileText />
+              {t("palette.zuFormular")}
+            </CommandItem>
+            <CommandItem
+              value="sicht tabelle"
+              disabled={!model}
+              onSelect={() => ausfuehren(() => setView("tabelle"))}
+            >
+              <Table2 />
+              {t("palette.zuTabelle")}
+            </CommandItem>
+            <CommandItem
+              value="sicht graph beziehungen"
+              disabled={!model}
+              onSelect={() => ausfuehren(() => setView("graph"))}
+            >
+              <Workflow />
+              {t("palette.zuGraph")}
+            </CommandItem>
+          </CommandGroup>
+
+          <CommandSeparator />
 
           <CommandGroup heading={t("palette.befehle")}>
             <CommandItem

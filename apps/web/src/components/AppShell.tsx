@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Download,
@@ -25,11 +25,23 @@ import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Tree } from "@/components/Tree/Tree";
 import { Inspector } from "@/components/Inspector/Inspector";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IssuePanel } from "@/components/Issues/IssuePanel";
 import { ExportDialog, needsExportWarning } from "@/components/ExportDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { RestoreDialog } from "@/components/RestoreDialog";
-import { nodeCount, useEditor } from "@/store/editor";
+import { nodeCount, useEditor, type View } from "@/store/editor";
+
+/**
+ * Tabelle und Graph werden erst geladen, wenn man sie oeffnet. Zusammen sind sie 115 KB
+ * gzip, dazu elkjs mit 456 KB im Worker. Im Startbundle haetten sie nichts zu suchen,
+ * und `pnpm budget` wuerde es sofort melden.
+ */
+const TableView = lazy(() => import("@/components/Table/TableView"));
+const GraphView = lazy(() => import("@/components/Graph/GraphView"));
+
+const SICHTEN: readonly View[] = ["formular", "tabelle", "graph"];
 
 /**
  * Rahmen der Anwendung: Kopfleiste, geteilte Arbeitsflaeche, Statusleiste.
@@ -50,6 +62,7 @@ export function AppShell() {
   const canUndo = useEditor((state) => state.history.past.length > 0);
   const canRedo = useEditor((state) => state.history.future.length > 0);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
+  const view = useEditor((state) => state.view);
 
   const openFile = useEditor((state) => state.openFile);
   const exportAs = useEditor((state) => state.exportAs);
@@ -58,6 +71,7 @@ export function AppShell() {
   const setDensity = useEditor((state) => state.setDensity);
   const setTheme = useEditor((state) => state.setTheme);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
+  const setView = useEditor((state) => state.setView);
 
   /** Warnen statt blockieren: gibt es nichts zu sagen, wird sofort exportiert. */
   const requestExport = (format: "json" | "xml" | "aasx") => {
@@ -155,6 +169,20 @@ export function AppShell() {
           <TooltipContent>{t("app.wiederholen")} (Strg+Y)</TooltipContent>
         </Tooltip>
 
+        <Tabs
+          value={view}
+          onValueChange={(next) => setView(next as View)}
+          className="ml-4"
+        >
+          <TabsList>
+            {SICHTEN.map((sicht) => (
+              <TabsTrigger key={sicht} value={sicht} disabled={!model} data-view={sicht}>
+                {t(`sicht.${sicht}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
         <div className="ml-auto flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -200,7 +228,11 @@ export function AppShell() {
                 </ResizablePanel>
                 <ResizableHandle withHandle />
                 <ResizablePanel defaultSize="62" minSize="30">
-                  <Inspector />
+                  <Suspense fallback={<SichtLaedt />}>
+                    {view === "formular" ? <Inspector /> : null}
+                    {view === "tabelle" ? <TableView /> : null}
+                    {view === "graph" ? <GraphView /> : null}
+                  </Suspense>
                 </ResizablePanel>
               </ResizablePanelGroup>
             </ResizablePanel>
@@ -296,6 +328,18 @@ export function AppShell() {
           event.target.value = "";
         }}
       />
+    </div>
+  );
+}
+
+/** Platzhalter, waehrend Tabelle oder Graph nachgeladen werden. */
+function SichtLaedt() {
+  return (
+    <div className="flex h-full flex-col gap-3 p-4">
+      <Skeleton className="h-6 w-48" />
+      <Skeleton className="h-4 w-full" />
+      <Skeleton className="h-4 w-5/6" />
+      <Skeleton className="flex-1 w-full" />
     </div>
   );
 }
