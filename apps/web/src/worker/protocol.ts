@@ -36,6 +36,12 @@ export interface ExportedFile {
 
 export interface AasWorkerApi {
   open(bytes: Uint8Array, fileName?: string): Promise<OpenResult>;
+  /**
+   * Setzt den Spiegel auf ein fertiges Modell. Gebraucht beim Wiederherstellen eines
+   * Entwurfs aus IndexedDB: der Worker hat ihn nie gesehen. Der einzige Fall neben dem
+   * Oeffnen, in dem das Vollmodell ueber die Bruecke geht.
+   */
+  setModel(model: EditorModel): Promise<void>;
   applyPatches(patches: readonly Patch[]): Promise<void>;
   validate(): Promise<readonly ValidationIssue[]>;
   exportAs(format: AasFormat): Promise<ExportedFile>;

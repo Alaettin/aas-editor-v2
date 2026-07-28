@@ -11,7 +11,8 @@
     "erscheinung": "Darstellung",
     "hell": "Hell",
     "dunkel": "Dunkel",
-    "hilfe": "Tastaturwege"
+    "hilfe": "Tastaturwege",
+    "palette": "Kommando-Palette (Strg+K)"
   },
   "status": {
     "knoten": "{{count}} Elemente",
@@ -45,7 +46,14 @@
     "loeschenTitel": "{{name}} loeschen?",
     "loeschenText": "Das Element und alle darin enthaltenen Elemente werden entfernt. Rueckgaengig machen ist moeglich.",
     "abbrechen": "Abbrechen",
-    "ohneName": "ohne idShort"
+    "ohneName": "ohne idShort",
+    "filter": "Filtern ...",
+    "filterLeeren": "Filter leeren",
+    "treffer_one": "1 Zeile",
+    "treffer_other": "{{count}} Zeilen",
+    "kopieren": "Kopieren",
+    "ausschneiden": "Ausschneiden",
+    "einfuegen": "Einfuegen"
   },
   "inspektor": {
     "titel": "Eigenschaften",
@@ -92,7 +100,15 @@
     "orderRelevant": "Ist die Reihenfolge der Eintraege bedeutungstragend?",
     "derivedFrom": "Verweis auf die Shell, von der diese abgeleitet ist.",
     "submodels": "Verweise auf die Submodels dieser Shell.",
-    "isCaseOf": "Verweise auf verwandte Definitionen."
+    "isCaseOf": "Verweise auf verwandte Definitionen.",
+    "preferredName": "Klarname des Begriffs, mindestens auf Englisch (Constraint AASc-002).",
+    "definition": "Fachliche Definition, bei IEC 61360 mindestens auf Englisch.",
+    "dataTypeIec": "Datentyp nach IEC 61360, nicht zu verwechseln mit valueType.",
+    "unit": "Einheit als Text, etwa mm oder °C.",
+    "valueFormat": "Formatangabe, etwa NR2..5.",
+    "iecValue": "Fester Wert des Begriffs. Schliesst sich mit valueList aus (AASc-3a-010).",
+    "valueList": "Zulaessige Werte. Ist sie gefuellt, wird das Wertfeld der Property zur Auswahl.",
+    "levelType": "Welche Auspraegungen der Wert kennt: min, nom, typ, max."
   },
   "befund": {
     "titel": "Befunde",
@@ -119,5 +135,41 @@
   "fehler": {
     "titel": "Das hat nicht geklappt",
     "importFehlgeschlagen": "Die Datei liess sich nicht lesen."
+  },
+  "palette": {
+    "titel": "Kommando-Palette",
+    "beschreibung": "Elemente suchen und Befehle ausfuehren",
+    "platzhalter": "Suchen oder Befehl eingeben ...",
+    "nichts": "Nichts gefunden.",
+    "elemente": "Elemente",
+    "befehle": "Befehle",
+    "panelAuf": "Befunde einblenden",
+    "panelZu": "Befunde ausblenden"
+  },
+  "einfuegen": {
+    "titel": "Einfuegen: bereits vergebene id",
+    "kollision_one": "Eine id aus der Zwischenablage ist in dieser Umgebung schon vergeben.",
+    "kollision_other": "{{count}} ids aus der Zwischenablage sind in dieser Umgebung schon vergeben.",
+    "ueberspringen": "Ueberspringen",
+    "ersetzen": "Ersetzen",
+    "neueId": "Neue id vergeben",
+    "unmoeglichTitel": "Hier laesst sich nichts einfuegen",
+    "unmoeglichText": "Ein Element vom Typ {{kind}} ist an dieser Stelle nicht zulaessig. Waehle ein passendes Elternelement."
+  },
+  "semantik": {
+    "ohneNamen": "ConceptDescription ohne preferredName",
+    "zurDefinition": "Zur Definition",
+    "ausValueList_one": "Ein Wert aus der valueList der ConceptDescription, die valueId wird mitgesetzt.",
+    "ausValueList_other": "{{count}} Werte aus der valueList der ConceptDescription, die valueId wird mitgesetzt.",
+    "wert": "Wert",
+    "andereSpezifikation": "Andere Data Specification"
+  },
+  "entwurf": {
+    "titel": "Ungespeicherten Stand fortsetzen?",
+    "text": "Vom {{zeitpunkt}} liegt ein Stand zu {{datei}} mit {{count}} Elementen vor.",
+    "ohneAnhaenge_one": "Der Anhang ist nicht mitgespeichert, nur sein Pfad. Fuer einen vollstaendigen AASX-Export die Datei erneut oeffnen.",
+    "ohneAnhaenge_other": "Die {{count}} Anhaenge sind nicht mitgespeichert, nur ihre Pfade. Fuer einen vollstaendigen AASX-Export die Datei erneut oeffnen.",
+    "fortsetzen": "Fortsetzen",
+    "verwerfen": "Verwerfen"
   }
 }

@@ -27,6 +27,8 @@ import { Tree } from "@/components/Tree/Tree";
 import { Inspector } from "@/components/Inspector/Inspector";
 import { IssuePanel } from "@/components/Issues/IssuePanel";
 import { ExportDialog, needsExportWarning } from "@/components/ExportDialog";
+import { CommandPalette } from "@/components/CommandPalette";
+import { RestoreDialog } from "@/components/RestoreDialog";
 import { nodeCount, useEditor } from "@/store/editor";
 
 /**
@@ -220,6 +222,7 @@ export function AppShell() {
             </EmptyHeader>
             <EmptyContent>
               <Button onClick={() => inputRef.current?.click()}>{t("leer.knopf")}</Button>
+              <p className="mt-2 text-2xs text-muted-foreground">{t("app.palette")}</p>
             </EmptyContent>
           </Empty>
         )}
@@ -278,6 +281,9 @@ export function AppShell() {
       ) : null}
 
       <ExportDialog format={exportFormat} onClose={() => setExportFormat(null)} />
+
+      <CommandPalette />
+      <RestoreDialog />
 
       <input
         ref={inputRef}

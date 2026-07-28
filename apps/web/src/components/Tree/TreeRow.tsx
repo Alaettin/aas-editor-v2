@@ -80,7 +80,16 @@ export const TreeRowView = memo(function TreeRowView({
         <span className="size-4 shrink-0" />
       )}
 
-      <span className="truncate">{row.label}</span>
+      <span className={cn("truncate", row.matched && "font-medium text-primary")}>{row.label}</span>
+
+      {row.disambiguator ? (
+        <span
+          className="shrink-0 rounded-xs bg-warning-muted px-1 py-px font-mono text-2xs text-warning"
+          title="Gleicher idShort wie ein Geschwisterelement"
+        >
+          {row.disambiguator}
+        </span>
+      ) : null}
 
       <span className="shrink-0 rounded-xs bg-muted px-1 py-px text-2xs text-muted-foreground">
         {row.kind}

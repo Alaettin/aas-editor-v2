@@ -8,6 +8,8 @@ import { buildRows, indexRows, type TreeRow } from "@/store/rows";
 import { TreeRowView } from "./TreeRow";
 import { TreeContextMenu } from "./TreeContextMenu";
 import { DeleteDialog } from "./DeleteDialog";
+import { PasteDialog } from "./PasteDialog";
+import { TreeFilter } from "./TreeFilter";
 
 /**
  * Der virtualisierte Baum.
@@ -30,6 +32,8 @@ export function Tree() {
   const expanded = useEditor((state) => state.expanded);
   const selection = useEditor((state) => state.selection);
   const issues = useEditor((state) => state.issues);
+  const filter = useEditor((state) => state.filter);
+  const clipboard = useEditor((state) => state.clipboard);
 
   const select = useEditor((state) => state.select);
   const toggleExpanded = useEditor((state) => state.toggleExpanded);
@@ -37,15 +41,21 @@ export function Tree() {
   const duplicateElement = useEditor((state) => state.duplicateElement);
   const moveElement = useEditor((state) => state.moveElement);
   const addElement = useEditor((state) => state.addElement);
+  const copyNode = useEditor((state) => state.copyNode);
+  const cutNode = useEditor((state) => state.cutNode);
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [menuRow, setMenuRow] = useState<TreeRow | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TreeRow | null>(null);
+  const [pasteTarget, setPasteTarget] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ nodeId: string; over: string | null; where: DropWhere } | null>(
     null,
   );
 
-  const rows = useMemo(() => (model ? buildRows(model, expanded) : []), [model, expanded]);
+  const rows = useMemo(
+    () => (model ? buildRows(model, expanded, filter) : []),
+    [model, expanded, filter],
+  );
   const rowIndex = useMemo(() => indexRows(rows), [rows]);
 
   /** Fehler- und Warnungszaehler je Knoten, inklusive aller Elternknoten. */
@@ -140,6 +150,27 @@ export function Tree() {
             if (row.parentId) duplicateElement(row.nodeId);
           }
           break;
+        case "c":
+        case "C":
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            if (row.parentId) copyNode(row.nodeId);
+          }
+          break;
+        case "x":
+        case "X":
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            if (row.parentId) cutNode(row.nodeId);
+          }
+          break;
+        case "v":
+        case "V":
+          if ((event.ctrlKey || event.metaKey) && clipboard) {
+            event.preventDefault();
+            setPasteTarget(row.nodeId);
+          }
+          break;
         case "F2":
         case "Enter":
           event.preventDefault();
@@ -149,7 +180,19 @@ export function Tree() {
           break;
       }
     },
-    [model, rows, rowIndex, selection, move, setExpanded, select, duplicateElement],
+    [
+      model,
+      rows,
+      rowIndex,
+      selection,
+      move,
+      setExpanded,
+      select,
+      duplicateElement,
+      copyNode,
+      cutNode,
+      clipboard,
+    ],
   );
 
   // --- Drag and drop, nativ ---------------------------------------------------------
@@ -193,11 +236,17 @@ export function Tree() {
 
   return (
     <div className="flex h-full flex-col">
+      <TreeFilter visibleCount={rows.length} />
+
       <TreeContextMenu
         row={menuRow}
         onAdd={(parentId, slot, kind) => addElement(parentId, slot, kind)}
         onDuplicate={(nodeId) => duplicateElement(nodeId)}
         onDelete={(row) => setPendingDelete(row)}
+        onCopy={(nodeId) => copyNode(nodeId)}
+        onCut={(nodeId) => cutNode(nodeId)}
+        onPaste={(nodeId) => setPasteTarget(nodeId)}
+        canPaste={clipboard !== null}
       >
         <div
           ref={parentRef}
@@ -247,6 +296,8 @@ export function Tree() {
       </TreeContextMenu>
 
       <DeleteDialog row={pendingDelete} onClose={() => setPendingDelete(null)} />
+
+      <PasteDialog targetId={pasteTarget} onClose={() => setPasteTarget(null)} />
     </div>
   );
 }

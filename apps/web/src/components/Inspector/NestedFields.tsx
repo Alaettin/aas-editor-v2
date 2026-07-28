@@ -1,21 +1,25 @@
-import type { FieldSpec, JsonObject, JsonValue } from "@aas-editor/core";
+import { NESTED_SPECS, type JsonObject, type JsonValue } from "@aas-editor/core";
 
 import { FieldGroup } from "@/components/ui/field";
 import { FieldRenderer } from "./FieldRenderer";
 
 /**
- * Die Felder eines eingebetteten Objekts (Qualifier, Extension, AssetInformation ...).
- * Derselbe Renderer wie oben, nur ohne Gruppenueberschriften.
+ * Die Felder eines eingebetteten Objekts (Qualifier, Extension, AssetInformation,
+ * DataSpecificationIec61360 ...). Derselbe Renderer wie oben, nur ohne
+ * Gruppenueberschriften.
  */
 export function NestedFields({
-  spec,
+  nested,
   data,
   onChange,
 }: {
-  readonly spec: readonly FieldSpec[];
+  /** Schluessel in NESTED_SPECS, etwa "Qualifier" */
+  readonly nested: string;
   readonly data: JsonObject;
   readonly onChange: (key: string, value: JsonValue | undefined) => void;
 }) {
+  const spec = NESTED_SPECS[nested] ?? [];
+
   return (
     <FieldGroup className="gap-3">
       {spec.map((field) => (

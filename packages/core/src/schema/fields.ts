@@ -37,8 +37,12 @@ export type FieldKind =
   | "attachment"
   /** Blob: Inhalt im Modell selbst, base64 */
   | "blob"
-  /** EmbeddedDataSpecification-Liste. Der IEC-61360-Inhalt folgt in Phase 5. */
-  | "dataSpecificationList";
+  /** EmbeddedDataSpecification-Liste, samt DataSpecificationIec61360 */
+  | "dataSpecificationList"
+  /** ValueList einer DataSpecificationIec61360: Wertepaare aus Wert und valueId */
+  | "valueList"
+  /** LevelType: vier Flaggen min, nom, typ, max */
+  | "levelType";
 
 export interface FieldSpec {
   /** Schluessel im JSON und in `node.data`, identisch zum Namen in aas-core */

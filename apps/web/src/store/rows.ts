@@ -1,4 +1,12 @@
-import { childSlotsOf, type EditorModel, type NodeId } from "@aas-editor/core";
+import {
+  childSlotsOf,
+  isJsonObject,
+  search,
+  type EditorModel,
+  type EditorNode,
+  type JsonValue,
+  type NodeId,
+} from "@aas-editor/core";
 
 /**
  * Der Baum als flache Liste sichtbarer Zeilen.
@@ -17,6 +25,13 @@ export interface TreeRow {
   readonly label: string;
   /** Fachliche id, nur bei Identifiables gesetzt */
   readonly id: string | null;
+  /**
+   * Unterscheidungsmerkmal, wenn Geschwister denselben idShort tragen (Plan Abschnitt 6).
+   * Version aus `administration`, sonst gekuerzte `id`, sonst `semanticId`.
+   */
+  readonly disambiguator: string | null;
+  /** Treffer der laufenden Suche, nur zur Hervorhebung */
+  readonly matched: boolean;
   readonly hasChildren: boolean;
   readonly expanded: boolean;
   /** Slot im Elternteil, null bei der Wurzel */
@@ -29,8 +44,14 @@ export interface TreeRow {
 export function buildRows(
   model: EditorModel,
   expanded: Record<NodeId, true>,
+  filter = "",
 ): TreeRow[] {
   const rows: TreeRow[] = [];
+
+  // Beim Filtern zeigt der Baum die Treffer **mit ihrer Elternkette**, damit sie im
+  // Zusammenhang stehen bleiben. Ein Treffer ohne sein Submodel waere wertlos.
+  const treffer = filter.trim() === "" ? null : new Set(search(model, filter, 500).map((h) => h.nodeId));
+  const sichtbar = treffer ? withAncestors(model, treffer) : null;
 
   const visit = (
     nodeId: NodeId,
@@ -41,17 +62,21 @@ export function buildRows(
   ): void => {
     const node = model.nodes[nodeId];
     if (!node) return;
+    if (sichtbar && !sichtbar.has(nodeId)) return;
 
     const slots = childSlotsOf(node.kind);
     let hasChildren = false;
     for (const entry of slots) {
-      if ((node.children[entry.name]?.length ?? 0) > 0) {
+      const ids = node.children[entry.name];
+      if (!ids) continue;
+      if (sichtbar ? ids.some((id) => sichtbar.has(id)) : ids.length > 0) {
         hasChildren = true;
         break;
       }
     }
 
-    const isOpen = Boolean(expanded[nodeId]);
+    // Beim Filtern wird alles aufgeklappt, sonst faende man die Treffer nicht.
+    const isOpen = sichtbar ? true : Boolean(expanded[nodeId]);
     const idShort = node.data["idShort"];
     const id = node.data["id"];
 
@@ -61,6 +86,8 @@ export function buildRows(
       kind: node.kind,
       label: typeof idShort === "string" && idShort.length > 0 ? idShort : node.kind,
       id: typeof id === "string" ? id : null,
+      disambiguator: disambiguatorOf(model, node, parentId, slot),
+      matched: treffer ? treffer.has(nodeId) : false,
       hasChildren,
       expanded: isOpen,
       slot,
@@ -80,6 +107,66 @@ export function buildRows(
 
   visit(model.rootId, 0, null, 0, null);
   return rows;
+}
+
+/** Die Treffer plus alle ihre Vorfahren, damit der Baum zusammenhaengend bleibt. */
+function withAncestors(model: EditorModel, treffer: ReadonlySet<NodeId>): Set<NodeId> {
+  const out = new Set<NodeId>();
+  for (const nodeId of treffer) {
+    let current: NodeId | null = nodeId;
+    while (current !== null && !out.has(current)) {
+      out.add(current);
+      current = model.nodes[current]?.parent ?? null;
+    }
+  }
+  return out;
+}
+
+/**
+ * Unterscheidungsmerkmal, wenn Geschwister denselben idShort tragen.
+ *
+ * Plan Abschnitt 6: gleicher idShort bei verschiedener id ist **kein Fehler**, sondern
+ * ein legitimer Fall (Versionierung, parallele Varianten). Statt einer Warnung zeigt die
+ * Oberflaeche, was die beiden unterscheidet.
+ */
+function disambiguatorOf(
+  model: EditorModel,
+  node: EditorNode,
+  parentId: NodeId | null,
+  slot: string | null,
+): string | null {
+  const idShort = node.data["idShort"];
+  if (typeof idShort !== "string" || idShort === "" || !parentId || !slot) return null;
+
+  const geschwister = model.nodes[parentId]?.children[slot] ?? [];
+  const doppelt = geschwister.some(
+    (id) => id !== node.nodeId && model.nodes[id]?.data["idShort"] === idShort,
+  );
+  if (!doppelt) return null;
+
+  const administration = node.data["administration"];
+  if (isJsonObject(administration)) {
+    const version = administration["version"];
+    const revision = administration["revision"];
+    if (typeof version === "string" && version) {
+      return typeof revision === "string" && revision ? `v${version}.${revision}` : `v${version}`;
+    }
+  }
+
+  const id = node.data["id"];
+  if (typeof id === "string" && id) return shortenMiddle(id, 28);
+
+  return semanticIdOf(node.data["semanticId"]);
+}
+
+function semanticIdOf(reference: JsonValue | undefined): string | null {
+  if (!isJsonObject(reference)) return null;
+  const keys = reference["keys"];
+  if (!Array.isArray(keys) || keys.length === 0) return null;
+  const first = keys[0];
+  if (!isJsonObject(first)) return null;
+  const value = first["value"];
+  return typeof value === "string" && value ? shortenMiddle(value, 28) : null;
 }
 
 /** Ordnet jeder nodeId ihre Zeilennummer zu, fuer Auswahl und Tastaturwege. */

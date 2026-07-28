@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { canContain, childSlotsOf, SUBMODEL_ELEMENT_KINDS } from "@aas-editor/core";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Clipboard, Copy, Plus, Scissors, Trash2 } from "lucide-react";
 
 import {
   ContextMenu,
@@ -9,6 +9,7 @@ import {
   ContextMenuGroup,
   ContextMenuItem,
   ContextMenuSeparator,
+  ContextMenuShortcut,
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
@@ -40,6 +41,10 @@ export interface TreeContextMenuProps {
   readonly onAdd: (parentId: string, slot: string, kind: string) => void;
   readonly onDuplicate: (nodeId: string) => void;
   readonly onDelete: (row: TreeRow) => void;
+  readonly onCopy: (nodeId: string) => void;
+  readonly onCut: (nodeId: string) => void;
+  readonly onPaste: (nodeId: string) => void;
+  readonly canPaste: boolean;
 }
 
 export function TreeContextMenu({
@@ -48,6 +53,10 @@ export function TreeContextMenu({
   onAdd,
   onDuplicate,
   onDelete,
+  onCopy,
+  onCut,
+  onPaste,
+  canPaste,
 }: TreeContextMenuProps) {
   const { t } = useTranslation();
   const model = useEditor((state) => state.model);
@@ -96,6 +105,29 @@ export function TreeContextMenu({
               )}
             </ContextMenuGroup>
 
+            <ContextMenuSeparator />
+            <ContextMenuGroup>
+              {row?.parentId ? (
+                <>
+                  <ContextMenuItem onSelect={() => onCopy(row.nodeId)}>
+                    <Copy data-icon="inline-start" />
+                    {t("baum.kopieren")}
+                    <ContextMenuShortcut>Strg+C</ContextMenuShortcut>
+                  </ContextMenuItem>
+                  <ContextMenuItem onSelect={() => onCut(row.nodeId)}>
+                    <Scissors data-icon="inline-start" />
+                    {t("baum.ausschneiden")}
+                    <ContextMenuShortcut>Strg+X</ContextMenuShortcut>
+                  </ContextMenuItem>
+                </>
+              ) : null}
+              <ContextMenuItem disabled={!canPaste} onSelect={() => row && onPaste(row.nodeId)}>
+                <Clipboard data-icon="inline-start" />
+                {t("baum.einfuegen")}
+                <ContextMenuShortcut>Strg+V</ContextMenuShortcut>
+              </ContextMenuItem>
+            </ContextMenuGroup>
+
             {row?.parentId ? (
               <>
                 <ContextMenuSeparator />
@@ -103,6 +135,7 @@ export function TreeContextMenu({
                   <ContextMenuItem onSelect={() => onDuplicate(row.nodeId)}>
                     <Copy data-icon="inline-start" />
                     {t("baum.duplizieren")}
+                    <ContextMenuShortcut>Strg+D</ContextMenuShortcut>
                   </ContextMenuItem>
                   <ContextMenuItem variant="destructive" onSelect={() => onDelete(row)}>
                     <Trash2 data-icon="inline-start" />

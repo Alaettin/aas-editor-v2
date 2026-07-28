@@ -154,16 +154,24 @@ function randomSuffix(): string {
   return `${counter.toString(36)}${Math.floor(Math.random() * 0xffffff).toString(36)}`;
 }
 
-/** Macht einen idShort unter den Geschwistern eindeutig, indem er durchnummeriert wird. */
+/**
+ * Macht einen idShort unter den Geschwistern eindeutig, indem er durchnummeriert wird.
+ *
+ * `exclude` nimmt den Knoten aus, der gerade benannt wird. Ohne das wuerde ein Knoten mit
+ * sich selbst kollidieren, sobald er bereits eingehaengt ist, und aus "Gruppe" wuerde
+ * beim Einfuegen unweigerlich "Gruppe1".
+ */
 export function uniqueIdShort(
   model: EditorModel,
   parentId: NodeId,
   slot: string,
   wanted: string,
+  exclude?: NodeId,
 ): string {
   const parent = getNode(model, parentId);
   const taken = new Set(
     (parent.children[slot] ?? [])
+      .filter((childId) => childId !== exclude)
       .map((childId) => model.nodes[childId]?.data["idShort"])
       .filter((value): value is string => typeof value === "string"),
   );

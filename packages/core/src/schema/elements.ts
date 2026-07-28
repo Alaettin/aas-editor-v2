@@ -251,4 +251,32 @@ export const NESTED_SPECS: Readonly<Record<string, readonly FieldSpec[]>> = {
     { key: "referredSemanticId", kind: "reference" },
     // `keys` bekommt einen eigenen Editor, es ist die Kernstruktur einer Reference.
   ],
+
+  /**
+   * Der Inhalt einer ConceptDescription nach IEC 61360.
+   *
+   * `value` und `valueList` schliessen sich gegenseitig aus, das fordert Constraint
+   * AASc-3a-010. Beide stehen trotzdem in der Maske, denn welches von beiden gilt,
+   * entscheidet der Inhalt, nicht das Formular. Die Validierung sagt es, wenn beides
+   * gefuellt ist.
+   */
+  DataSpecificationIec61360: [
+    { key: "preferredName", kind: "langStrings", required: true, hint: "feld.preferredName" },
+    { key: "shortName", kind: "langStrings" },
+    { key: "definition", kind: "langStrings", hint: "feld.definition" },
+    { key: "dataType", kind: "enum", enum: "DataTypeIec61360", hint: "feld.dataTypeIec" },
+    { key: "unit", kind: "text", hint: "feld.unit" },
+    { key: "unitId", kind: "reference" },
+    { key: "symbol", kind: "text" },
+    { key: "valueFormat", kind: "text", hint: "feld.valueFormat" },
+    { key: "value", kind: "text", hint: "feld.iecValue" },
+    { key: "valueList", kind: "valueList", hint: "feld.valueList" },
+    { key: "levelType", kind: "levelType", hint: "feld.levelType" },
+    { key: "sourceOfDefinition", kind: "text" },
+  ],
+
+  ValueReferencePair: [
+    { key: "value", kind: "text", required: true },
+    { key: "valueId", kind: "reference", required: true, hint: "feld.valueId" },
+  ],
 };

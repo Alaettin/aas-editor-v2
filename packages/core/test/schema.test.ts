@@ -2,6 +2,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import * as types from "@aas-core-works/aas-core3.1-typescript/types";
+
 import { childSlotsOf, SUBMODEL_ELEMENT_KINDS } from "../src/model/kinds.js";
 import { ELEMENT_SPECS, NESTED_SPECS, specOf } from "../src/schema/elements.js";
 import { fieldsOf } from "../src/schema/fields.js";
@@ -94,20 +96,65 @@ describe("Typbeschreibungen", () => {
   });
 });
 
-describe("Untermasken der eingebetteten Objekte", () => {
-  const nested = ["Qualifier", "Extension", "SpecificAssetId", "AdministrativeInformation"];
+/**
+ * Fuer die Untermasken ist die SDK die genauere Quelle als `maximal.json`.
+ *
+ * Grund: `DataSpecificationIec61360.valueList` fehlt in `maximal.json`, weil Constraint
+ * AASc-3a-010 sie mit `value` unvereinbar macht und der Generator sich fuer `value`
+ * entschieden hat. Eine Instanz der Klasse kennt dagegen alle Eigenschaften.
+ */
+function propertiesOfSdkClass(kind: string): string[] {
+  const factories: Record<string, () => object> = {
+    Qualifier: () => new types.Qualifier("t", types.DataTypeDefXsd.String),
+    Extension: () => new types.Extension("n"),
+    SpecificAssetId: () => new types.SpecificAssetId("n", "v"),
+    AdministrativeInformation: () => new types.AdministrativeInformation(),
+    AssetInformation: () => new types.AssetInformation(types.AssetKind.Instance),
+    DataSpecificationIec61360: () => new types.DataSpecificationIec61360([]),
+    ValueReferencePair: () => new types.ValueReferencePair("v", new types.Reference(
+      types.ReferenceTypes.ExternalReference,
+      [new types.Key(types.KeyTypes.GlobalReference, "x")],
+    )),
+  };
 
-  it.each(nested)("%s: jedes Feld der Testdaten ist erreichbar", (kind) => {
-    const keys = keysOfMaximal(kind);
-    expect(keys.length).toBeGreaterThan(0);
+  const factory = factories[kind];
+  if (!factory) throw new Error(`Kein Bauplan fuer ${kind}`);
+  return Object.keys(factory());
+}
+
+describe("Untermasken der eingebetteten Objekte", () => {
+  const nested = [
+    "Qualifier",
+    "Extension",
+    "SpecificAssetId",
+    "AdministrativeInformation",
+    "AssetInformation",
+    "DataSpecificationIec61360",
+    "ValueReferencePair",
+  ];
+
+  it.each(nested)("%s: jede Eigenschaft der SDK-Klasse ist bearbeitbar", (kind) => {
+    const properties = propertiesOfSdkClass(kind);
+    expect(properties.length).toBeGreaterThan(0);
 
     const covered = new Set((NESTED_SPECS[kind] ?? []).map((field) => field.key));
-    expect(keys.filter((key) => !covered.has(key))).toEqual([]);
+    expect(properties.filter((key) => !covered.has(key)), `${kind}: nicht bearbeitbar`).toEqual([]);
   });
 
-  it("AssetInformation ist vollstaendig", () => {
-    const keys = keysOfMaximal("AssetInformation");
-    const covered = new Set((NESTED_SPECS["AssetInformation"] ?? []).map((f) => f.key));
-    expect(keys.filter((key) => !covered.has(key))).toEqual([]);
+  it.each(nested)("%s: beschreibt keine Felder, die die SDK nicht kennt", (kind) => {
+    const properties = new Set(propertiesOfSdkClass(kind));
+    const erfunden = (NESTED_SPECS[kind] ?? [])
+      .map((field) => field.key)
+      .filter((key) => !properties.has(key));
+    expect(erfunden).toEqual([]);
+  });
+
+  it("erfasst valueList, obwohl maximal.json sie nicht enthaelt", () => {
+    // Die Falle, wegen der dieser Test nicht mehr gegen maximal.json prueft.
+    expect(keysOfMaximal("DataSpecificationIec61360")).not.toContain("valueList");
+    expect(propertiesOfSdkClass("DataSpecificationIec61360")).toContain("valueList");
+    expect(
+      (NESTED_SPECS["DataSpecificationIec61360"] ?? []).map((f) => f.key),
+    ).toContain("valueList");
   });
 });

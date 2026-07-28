@@ -7,13 +7,16 @@ import { IssueText } from "@/components/Issues/IssueText";
 import { EnumEditor, TextEditor } from "./fields/Primitives";
 import { LangStringsEditor } from "./fields/LangStrings";
 import { ReferenceEditor, ReferenceListEditor } from "./fields/Reference";
-import {
-  DataSpecificationListEditor,
-  NestedObjectEditor,
-  ObjectListEditor,
-} from "./fields/ObjectList";
+import { NestedObjectEditor, ObjectListEditor } from "./fields/ObjectList";
 import { AttachmentEditor, BlobEditor } from "./fields/Attachment";
 import { BooleanEditor } from "./fields/Primitives";
+import {
+  DataSpecificationEditor,
+  LevelTypeEditor,
+  SemanticHint,
+  ValueListEditor,
+  ValueWithChoices,
+} from "./fields/Semantics";
 
 /**
  * Der generische Renderer: eine Feldbeschreibung hinein, das passende Eingabefeld
@@ -40,7 +43,7 @@ export function FieldRenderer({ spec, data, onChange, issues }: FieldRendererPro
   const warnings = issues?.filter((issue) => issue.severity === "warnung") ?? [];
   const invalid = constraints.length > 0;
 
-  const control = renderControl(spec, value, data, set, invalid, id);
+  const control = renderControl(spec, value, data, set, invalid, id, onChange);
   const orientation = spec.kind === "boolean" ? "horizontal" : "vertical";
 
   return (
@@ -72,6 +75,9 @@ export function FieldRenderer({ spec, data, onChange, issues }: FieldRendererPro
       ))}
 
       {spec.hint ? <FieldDescription>{t(spec.hint)}</FieldDescription> : null}
+
+      {/* Was die semanticId ueber dieses Element verraet, sofern die CD greifbar ist. */}
+      {spec.key === "semanticId" ? <SemanticHint reference={value} /> : null}
     </Field>
   );
 }
@@ -83,11 +89,12 @@ function renderControl(
   set: (next: JsonValue | undefined) => void,
   invalid: boolean | undefined,
   id: string,
+  onChange: (key: string, value: JsonValue | undefined) => void,
 ): React.ReactNode {
   switch (spec.kind) {
     case "text":
-    case "textarea":
-      return (
+    case "textarea": {
+      const textfeld = (
         <TextEditor
           id={id}
           value={value}
@@ -99,6 +106,24 @@ function renderControl(
             : {})}
         />
       );
+
+      // Der Wert einer Property wird zur Auswahl, wenn die ConceptDescription eine
+      // valueList mitbringt. Die valueId wird dann automatisch mitgesetzt (AASd-007).
+      if (spec.key === "value" && "semanticId" in data) {
+        return (
+          <ValueWithChoices
+            id={id}
+            value={value}
+            onChange={set}
+            invalid={invalid}
+            semanticId={data["semanticId"]}
+            onValueIdChange={(valueId) => onChange("valueId", valueId)}
+            fallback={textfeld}
+          />
+        );
+      }
+      return textfeld;
+    }
 
     case "enum":
       return (
@@ -187,6 +212,12 @@ function renderControl(
       return <BlobEditor value={value} onChange={set} />;
 
     case "dataSpecificationList":
-      return <DataSpecificationListEditor value={value} onChange={set} />;
+      return <DataSpecificationEditor value={value} onChange={set} />;
+
+    case "valueList":
+      return <ValueListEditor value={value} onChange={set} />;
+
+    case "levelType":
+      return <LevelTypeEditor value={value} onChange={set} />;
   }
 }

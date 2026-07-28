@@ -17,6 +17,18 @@ export function normalize(environment: JsonObject): EditorModel {
   return model;
 }
 
+/**
+ * Normalisiert ein einzelnes Element als Wurzel, statt eine ganze Umgebung.
+ *
+ * Gebraucht beim Einfuegen aus der Zwischenablage: ein kopierter Teilbaum ist kein
+ * Environment, soll aber durch denselben Normalisierer laufen. Es gibt nur einen.
+ */
+export function normalizeFragment(json: JsonObject, kind: string): EditorModel {
+  const model: EditorModel = { rootId: "n0", nodes: {}, nextNodeId: 0 };
+  buildNode(model, json, kind, null, null);
+  return model;
+}
+
 function buildNode(
   model: EditorModel,
   source: JsonObject,
@@ -77,6 +89,14 @@ function unwrapOperationVariable(entry: JsonValue, kind: string, index: number):
 
 export function denormalize(model: EditorModel): JsonObject {
   return buildJson(model, model.rootId);
+}
+
+/**
+ * Dasselbe fuer einen beliebigen Teilbaum. Ergebnis ist gewoehnliches AAS-JSON, kein
+ * Editor-Format: ein kopierter Teilbaum laesst sich damit auch woanders einfuegen.
+ */
+export function denormalizeFrom(model: EditorModel, nodeId: NodeId): JsonObject {
+  return buildJson(model, nodeId);
 }
 
 function buildJson(model: EditorModel, nodeId: NodeId): JsonObject {

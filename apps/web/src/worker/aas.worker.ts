@@ -57,6 +57,13 @@ const api: AasWorkerApi = {
     return openResult;
   },
 
+  async setModel(next: EditorModel) {
+    model = next;
+    // Ein wiederhergestellter Entwurf bringt keine Anhangs-Bytes mit, siehe autosave.ts.
+    attachments = new Map();
+    thumbnail = null;
+  },
+
   async applyPatches(patches: readonly Patch[]) {
     model = applyPatches(requireModel(), patches as Patch[]);
   },
