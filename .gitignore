@@ -2,7 +2,12 @@ node_modules/
 dist/
 coverage/
 .env
+.env.*
+!.env.example
 *.local
+
+# Maschinenlokale Symlinks auf .agents/skills, von `npx skills add` angelegt
+.claude/skills/
 .DS_Store
 *.log
 
