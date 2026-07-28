@@ -1,0 +1,16 @@
+# Reverse Proxy mit automatischem HTTPS.
+# Lokal laeuft es unter :80, in Produktion die echte Domain in AAS_EDITOR_DOMAIN setzen.
+# Die Vorbelegung steht im Compose-File, nicht hier: eine gesetzte, aber leere Variable
+# wuerde die Caddyfile-Vorbelegung schlagen und die Zeile zu einem globalen Block machen.
+{$AAS_EDITOR_DOMAIN} {
+	encode zstd gzip
+
+	handle {
+		reverse_proxy app:3200
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

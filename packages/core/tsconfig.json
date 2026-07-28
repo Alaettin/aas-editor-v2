@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "noEmit": true,
+    // WebWorker statt DOM: der Kern muss im Worker laufen, also stehen ihm TextEncoder,
+    // TextDecoder und URL zu, aber weder document noch window.
+    "lib": ["ES2023", "WebWorker"],
+    "types": []
+  },
+  "include": ["src/**/*.ts"]
+}

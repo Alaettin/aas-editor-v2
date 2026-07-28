@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+.env
+*.local
+.DS_Store
+*.log
+
+# Offizielle aas-core-Testdaten, per `pnpm test-data` geholt
+test-data/
+
+# SQLite und Anhaenge zur Laufzeit
+data/

@@ -1,0 +1,29 @@
+{
+  "name": "@aas-editor/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./io": "./src/io/index.ts",
+    "./aas-core": "./src/model/aasCore.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aas-core-works/aas-core3.0-typescript": "1.0.5",
+    "@aas-core-works/aas-core3.1-typescript": "1.0.1",
+    "aas-package3-typescript": "1.0.0",
+    "immer": "^11.1.15"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "typescript": "5.9.3",
+    "vitest": "^4.1.10"
+  }
+}
