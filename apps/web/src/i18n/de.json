@@ -1,0 +1,107 @@
+{
+  "app": {
+    "titel": "AAS Editor",
+    "oeffnen": "Oeffnen",
+    "exportieren": "Exportieren",
+    "rueckgaengig": "Rueckgaengig",
+    "wiederholen": "Wiederholen",
+    "dichte": "Dichte",
+    "dichteKompakt": "Kompakt",
+    "dichteKomfortabel": "Komfortabel",
+    "erscheinung": "Darstellung",
+    "hell": "Hell",
+    "dunkel": "Dunkel",
+    "hilfe": "Tastaturwege"
+  },
+  "status": {
+    "knoten": "{{count}} Elemente",
+    "anhaenge": "{{count}} Anhaenge",
+    "keineDatei": "Keine Datei geoeffnet",
+    "quelle": "Quelle: {{format}}, Metamodell {{version}}",
+    "versionUnbekannt": "ohne Versionsmarker",
+    "gespeichertNein": "Nicht gespeichert",
+    "wirdGelesen": "Wird gelesen ...",
+    "constraints": "{{count}} Constraints",
+    "warnungen": "{{count}} Warnungen",
+    "keineBefunde": "Keine Befunde"
+  },
+  "leer": {
+    "titel": "Keine Umgebung geoeffnet",
+    "text": "JSON, XML oder AASX hier ablegen. Metamodell 3.0 und 3.1 werden gelesen, exportiert wird immer 3.1.",
+    "knopf": "Datei waehlen"
+  },
+  "baum": {
+    "titel": "Struktur",
+    "leer": "Diese Umgebung ist leer.",
+    "neu": "Neu",
+    "neuIn": "In {{slot}} anlegen",
+    "duplizieren": "Duplizieren",
+    "loeschen": "Loeschen",
+    "umbenennen": "Umbenennen",
+    "aufklappen": "Aufklappen",
+    "zuklappen": "Zuklappen",
+    "alleAufklappen": "Alle aufklappen",
+    "alleZuklappen": "Alle zuklappen",
+    "loeschenTitel": "{{name}} loeschen?",
+    "loeschenText": "Das Element und alle darin enthaltenen Elemente werden entfernt. Rueckgaengig machen ist moeglich.",
+    "abbrechen": "Abbrechen",
+    "ohneName": "ohne idShort"
+  },
+  "inspektor": {
+    "titel": "Eigenschaften",
+    "nichtsGewaehlt": "Kein Element gewaehlt.",
+    "nichtsGewaehltText": "Waehle links ein Element aus, um seine Eigenschaften zu bearbeiten.",
+    "hinzufuegen": "Hinzufuegen",
+    "entfernen": "Entfernen",
+    "leer": "Noch nichts hinterlegt.",
+    "pflicht": "Pflichtfeld",
+    "sprache": "Sprache",
+    "text": "Text",
+    "schluessel": "Keys",
+    "schluesselTyp": "Typ",
+    "schluesselWert": "Wert",
+    "datei": "Datei",
+    "dateiWaehlen": "Datei waehlen",
+    "dateiErsetzen": "Ersetzen",
+    "keinAnhang": "Kein Anhang im Paket unter diesem Pfad.",
+    "groesse": "{{size}}",
+    "phase5": "Der Inhalt nach IEC 61360 wird in einer spaeteren Ausbaustufe bearbeitbar."
+  },
+  "gruppe": {
+    "allgemein": "Allgemein",
+    "wert": "Wert",
+    "semantik": "Semantik",
+    "qualifier": "Qualifier",
+    "erweiterungen": "Erweiterungen",
+    "verwaltung": "Verwaltung",
+    "asset": "Asset"
+  },
+  "feld": {
+    "idShort": "Kurzname innerhalb des Elternteils. Bei Identifiables muss er nicht eindeutig sein, dort zaehlt die id.",
+    "id": "Weltweit eindeutige Kennung, meist eine IRI oder IRDI.",
+    "category": "Seit Metamodell 3.0 als veraltet gekennzeichnet.",
+    "semanticId": "Verweis auf die ConceptDescription, die dieses Element fachlich definiert.",
+    "valueId": "Verweis auf den Wert in einem Katalog, verlangt von Constraint AASd-007.",
+    "contentType": "MIME-Typ, etwa application/pdf.",
+    "fileValue": "Pfad in den Paketcontainer, etwa /aasx/files/handbuch.pdf. Der Inhalt liegt daneben, nicht im Modell.",
+    "blobValue": "Der Inhalt liegt im Modell selbst und ueberlebt jeden Export.",
+    "observed": "Das Element, dessen Aenderung das Ereignis ausloest.",
+    "zeitstempel": "Zeitstempel nach xs:dateTime.",
+    "dauer": "Zeitspanne nach xs:duration, etwa PT1H.",
+    "globalAssetId": "Weltweit eindeutige Kennung des Assets.",
+    "orderRelevant": "Ist die Reihenfolge der Eintraege bedeutungstragend?",
+    "derivedFrom": "Verweis auf die Shell, von der diese abgeleitet ist.",
+    "submodels": "Verweise auf die Submodels dieser Shell.",
+    "isCaseOf": "Verweise auf verwandte Definitionen."
+  },
+  "export": {
+    "json": "Als JSON",
+    "xml": "Als XML",
+    "aasx": "Als AASX",
+    "anhangWarnung": "Achtung: Anhaenge gehen verloren"
+  },
+  "fehler": {
+    "titel": "Das hat nicht geklappt",
+    "importFehlgeschlagen": "Die Datei liess sich nicht lesen."
+  }
+}
