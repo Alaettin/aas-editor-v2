@@ -55,9 +55,11 @@ export function Tree() {
 
   const parentRef = useRef<HTMLDivElement>(null);
   const [menuRow, setMenuRow] = useState<TreeRow | null>(null);
-  const [drag, setDrag] = useState<{ nodeId: string; over: string | null; where: DropWhere } | null>(
-    null,
-  );
+  const [drag, setDrag] = useState<{
+    nodeId: string;
+    over: string | null;
+    where: DropWhere;
+  } | null>(null);
 
   const rows = useMemo(
     () => (model ? buildRows(model, expanded, filter) : []),
@@ -233,6 +235,20 @@ export function Tree() {
     [drag, model, moveElement],
   );
 
+  const onDragEnd = useCallback(() => setDrag(null), []);
+
+  // Beide Rueckrufe standen frueher als Literale im JSX. Damit bekam jede sichtbare Zeile
+  // bei jedem Durchlauf neue Eigenschaften, und das `memo` an TreeRowView war wirkungslos.
+  const onContextMenu = useCallback(
+    (target: TreeRow) => {
+      // Kein preventDefault: Radix soll das Menue oeffnen. Hier wird nur festgehalten,
+      // fuer welche Zeile es gilt.
+      select(target.nodeId);
+      setMenuRow(target);
+    },
+    [select],
+  );
+
   if (!model) return null;
 
   return (
@@ -271,40 +287,37 @@ export function Tree() {
           className="h-full flex-1 overflow-auto p-1 outline-none"
         >
           <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>
-          {virtualizer.getVirtualItems().map((item) => {
-            const row = rows[item.index];
-            if (!row) return null;
-            const count = counts.get(row.nodeId);
-            return (
-              <div
-                key={item.key}
-                ref={virtualizer.measureElement}
-                data-index={item.index}
-                className="absolute top-0 left-0 w-full"
-                style={{ transform: `translateY(${item.start}px)` }}
-              >
-                <TreeRowView
-                  row={row}
-                  selected={row.nodeId === selection}
-                  errorCount={count?.errors ?? 0}
-                  warningCount={count?.warnings ?? 0}
-                  dropHint={drag?.over === row.nodeId ? drag.where : "none"}
-                  onSelect={select}
-                  onToggle={toggleExpanded}
-                  onDragStart={onDragStart}
-                  onDragOver={onDragOver}
-                  onDrop={onDrop}
-                  onDragEnd={() => setDrag(null)}
-                  onContextMenu={(target) => {
-                    // Kein preventDefault: Radix soll das Menue oeffnen. Hier wird nur
-                    // festgehalten, fuer welche Zeile es gilt.
-                    select(target.nodeId);
-                    setMenuRow(target);
-                  }}
-                />
-              </div>
-            );
-          })}
+            {virtualizer.getVirtualItems().map((item) => {
+              const row = rows[item.index];
+              if (!row) return null;
+              const count = counts.get(row.nodeId);
+              return (
+                // Kein `measureElement`: die Zeilenhoehe steht fest in `--row-height`, also
+                // ist `estimateSize` exakt. Ein ResizeObserver je Zeile waere reine Last,
+                // und beim Rollen die teuerste davon. Dichtewechsel deckt `measure()` ab.
+                <div
+                  key={item.key}
+                  data-index={item.index}
+                  className="absolute top-0 left-0 w-full"
+                  style={{ transform: `translateY(${item.start}px)` }}
+                >
+                  <TreeRowView
+                    row={row}
+                    selected={row.nodeId === selection}
+                    errorCount={count?.errors ?? 0}
+                    warningCount={count?.warnings ?? 0}
+                    dropHint={drag?.over === row.nodeId ? drag.where : "none"}
+                    onSelect={select}
+                    onToggle={toggleExpanded}
+                    onDragStart={onDragStart}
+                    onDragOver={onDragOver}
+                    onDrop={onDrop}
+                    onDragEnd={onDragEnd}
+                    onContextMenu={onContextMenu}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       </TreeContextMenu>

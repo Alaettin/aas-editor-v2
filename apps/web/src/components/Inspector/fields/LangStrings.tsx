@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { FieldEditorProps } from "./Primitives";
+import { useEntwurf } from "./useEntwurf";
 
 /**
  * Sprachabhaengige Texte: displayName, description und der Wert einer
@@ -42,50 +43,17 @@ export function LangStringsEditor({
       ) : null}
 
       {list.map((entry, index) => (
-        <div key={index} className="flex items-start gap-2">
-          <Input
-            aria-label={t("inspektor.sprache")}
-            className="w-20 shrink-0 font-mono text-xs"
-            placeholder="de"
-            value={entry.language ?? ""}
-            onChange={(event) => {
-              const next = [...list];
-              next[index] = { ...entry, language: event.target.value };
-              replace(next);
-            }}
-          />
-          {multiline ? (
-            <Textarea
-              aria-label={t("inspektor.text")}
-              rows={2}
-              value={entry.text ?? ""}
-              onChange={(event) => {
-                const next = [...list];
-                next[index] = { ...entry, text: event.target.value };
-                replace(next);
-              }}
-            />
-          ) : (
-            <Input
-              aria-label={t("inspektor.text")}
-              value={entry.text ?? ""}
-              onChange={(event) => {
-                const next = [...list];
-                next[index] = { ...entry, text: event.target.value };
-                replace(next);
-              }}
-            />
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("inspektor.entfernen")}
-            onClick={() => replace(list.filter((_, i) => i !== index))}
-          >
-            <X />
-          </Button>
-        </div>
+        <SprachZeile
+          key={index}
+          eintrag={entry}
+          multiline={multiline}
+          onAendern={(naechster) => {
+            const next = [...list];
+            next[index] = naechster;
+            replace(next);
+          }}
+          onEntfernen={() => replace(list.filter((_, i) => i !== index))}
+        />
       ))}
 
       <div>
@@ -99,6 +67,71 @@ export function LangStringsEditor({
           {t("inspektor.hinzufuegen")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Eine Zeile fuer sich, damit beide Felder ihren eigenen Entwurf halten koennen.
+ *
+ * Vorher schrieb jedes Zeichen sofort in das Modell. Bei zehntausend Elementen lief damit
+ * je Tastendruck der ganze Aenderungsweg, siehe `useEntwurf`.
+ */
+function SprachZeile({
+  eintrag,
+  multiline,
+  onAendern,
+  onEntfernen,
+}: {
+  readonly eintrag: LangString;
+  readonly multiline: boolean;
+  readonly onAendern: (eintrag: LangString) => void;
+  readonly onEntfernen: () => void;
+}) {
+  const { t } = useTranslation();
+  const sprache = useEntwurf(eintrag.language ?? "", (wert) =>
+    onAendern({ ...eintrag, language: wert }),
+  );
+  const text = useEntwurf(eintrag.text ?? "", (wert) => onAendern({ ...eintrag, text: wert }));
+
+  return (
+    <div className="flex items-start gap-2">
+      <Input
+        aria-label={t("inspektor.sprache")}
+        className="w-20 shrink-0 font-mono text-xs"
+        placeholder="de"
+        value={sprache.wert}
+        onChange={(event) => sprache.setzen(event.target.value)}
+        onBlur={sprache.abgeben}
+        onKeyDown={sprache.aufTaste}
+      />
+      {multiline ? (
+        <Textarea
+          aria-label={t("inspektor.text")}
+          rows={2}
+          value={text.wert}
+          onChange={(event) => text.setzen(event.target.value)}
+          onBlur={text.abgeben}
+          onKeyDown={text.aufTaste}
+        />
+      ) : (
+        <Input
+          aria-label={t("inspektor.text")}
+          value={text.wert}
+          onChange={(event) => text.setzen(event.target.value)}
+          onBlur={text.abgeben}
+          onKeyDown={text.aufTaste}
+        />
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t("inspektor.entfernen")}
+        onClick={onEntfernen}
+      >
+        <X />
+      </Button>
     </div>
   );
 }

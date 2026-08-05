@@ -58,8 +58,29 @@ export function buildRows(
 
   // Beim Filtern zeigt der Baum die Treffer **mit ihrer Elternkette**, damit sie im
   // Zusammenhang stehen bleiben. Ein Treffer ohne sein Submodel waere wertlos.
-  const treffer = filter.trim() === "" ? null : new Set(search(model, filter, 500).map((h) => h.nodeId));
+  const treffer =
+    filter.trim() === "" ? null : new Set(search(model, filter, 500).map((h) => h.nodeId));
   const sichtbar = treffer ? withAncestors(model, treffer) : null;
+
+  // Wie oft ein idShort unter denselben Geschwistern vorkommt, je Slot einmal gezaehlt.
+  // Frueher lief das je Zeile ueber die ganze Geschwisterliste: in einer Sammlung mit
+  // zweitausend Kindern sind das vier Millionen Zugriffe je Baumaufbau.
+  const haeufigkeit = new Map<string, Map<string, number>>();
+  const zaehleGeschwister = (parentId: NodeId, slot: string): Map<string, number> => {
+    const schluessel = `${parentId}/${slot}`;
+    const vorhanden = haeufigkeit.get(schluessel);
+    if (vorhanden) return vorhanden;
+
+    const zaehler = new Map<string, number>();
+    for (const id of model.nodes[parentId]?.children[slot] ?? []) {
+      const idShort = model.nodes[id]?.data["idShort"];
+      if (typeof idShort === "string" && idShort !== "") {
+        zaehler.set(idShort, (zaehler.get(idShort) ?? 0) + 1);
+      }
+    }
+    haeufigkeit.set(schluessel, zaehler);
+    return zaehler;
+  };
 
   const visit = (
     nodeId: NodeId,
@@ -95,7 +116,10 @@ export function buildRows(
       kind: node.kind,
       label: typeof idShort === "string" && idShort.length > 0 ? idShort : node.kind,
       id: typeof id === "string" ? id : null,
-      disambiguator: disambiguatorOf(model, node, parentId, slot),
+      disambiguator: disambiguatorOf(
+        node,
+        parentId && slot ? zaehleGeschwister(parentId, slot) : null,
+      ),
       matched: treffer ? treffer.has(nodeId) : false,
       hasChildren,
       childCount,
@@ -140,19 +164,12 @@ function withAncestors(model: EditorModel, treffer: ReadonlySet<NodeId>): Set<No
  * Oberflaeche, was die beiden unterscheidet.
  */
 function disambiguatorOf(
-  model: EditorModel,
   node: EditorNode,
-  parentId: NodeId | null,
-  slot: string | null,
+  haeufigkeit: ReadonlyMap<string, number> | null,
 ): string | null {
   const idShort = node.data["idShort"];
-  if (typeof idShort !== "string" || idShort === "" || !parentId || !slot) return null;
-
-  const geschwister = model.nodes[parentId]?.children[slot] ?? [];
-  const doppelt = geschwister.some(
-    (id) => id !== node.nodeId && model.nodes[id]?.data["idShort"] === idShort,
-  );
-  if (!doppelt) return null;
+  if (typeof idShort !== "string" || idShort === "" || !haeufigkeit) return null;
+  if ((haeufigkeit.get(idShort) ?? 0) < 2) return null;
 
   const administration = node.data["administration"];
   if (isJsonObject(administration)) {

@@ -24,6 +24,19 @@ export interface History {
 
 export const emptyHistory: History = { past: [], future: [] };
 
+/**
+ * Deckel fuer die Rueckgaengig-Kette.
+ *
+ * Ohne ihn waechst `past` unbegrenzt, und jede Aenderung kopiert ein groesseres Feld.
+ * Zweihundert Schritte sind mehr, als jemand am Stueck zurueckgeht, und halten den
+ * Speicher gedeckelt: jeder Eintrag haelt seine Patches am Leben.
+ */
+export const HISTORY_MAX = 200;
+
+function begrenze(past: readonly Change[]): readonly Change[] {
+  return past.length <= HISTORY_MAX ? past : past.slice(past.length - HISTORY_MAX);
+}
+
 export interface ApplyResult {
   readonly model: EditorModel;
   readonly history: History;
@@ -44,7 +57,7 @@ export function applyChange(
   const change: Change = { label, patches, inverse };
   return {
     model: next,
-    history: { past: [...history.past, change], future: [] },
+    history: { past: begrenze([...history.past, change]), future: [] },
     change,
   };
 }
@@ -71,7 +84,7 @@ export function redo(model: EditorModel, history: History): StepResult | null {
   if (!change) return null;
   return {
     model: applyPatches(model, change.patches as Patch[]),
-    history: { past: [...history.past, change], future: history.future.slice(1) },
+    history: { past: begrenze([...history.past, change]), future: history.future.slice(1) },
     patches: change.patches,
   };
 }

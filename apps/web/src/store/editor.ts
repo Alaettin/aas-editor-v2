@@ -61,12 +61,7 @@ export type Status = "leer" | "laedt" | "bereit" | "fehler";
  * nirgends abgelegt.
  */
 export type ServerStatus =
-  | "ohneProjekt"
-  | "gespeichert"
-  | "geaendert"
-  | "speichert"
-  | "konflikt"
-  | "fehler";
+  "ohneProjekt" | "gespeichert" | "geaendert" | "speichert" | "konflikt" | "fehler";
 
 interface OpenMeta {
   readonly format: OpenResult["format"];
@@ -86,6 +81,8 @@ interface EditorState {
   selection: NodeId | null;
   expanded: Record<NodeId, true>;
   issues: readonly ValidationIssue[];
+  /** Ob gerade geprueft wird. Bei grossen Modellen dauert das sichtbar lange. */
+  pruefung: "ruht" | "laeuft";
   dirty: boolean;
 
   /**
@@ -200,16 +197,36 @@ const autosave = createAutosave();
 /** Welches Projekt gerade geladen wird, gegen doppelte Effektaufrufe. */
 let laufendeLadung: string | null = null;
 
+/**
+ * Laufende Nummer der Validierung. Kommt ein ueberholtes Ergebnis zurueck, wird es
+ * verworfen: sonst ueberschreibt eine langsame alte Pruefung die frische.
+ */
+let validateLauf = 0;
+/** Wie lange die letzte Pruefung gedauert hat, Grundlage der Entprellung. */
+let letzteValidierungsdauer = 0;
+
 function scheduleValidation(set: (partial: Partial<EditorState>) => void): void {
   clearTimeout(validateTimer);
+  // Bei kleinen Modellen ist die Pruefung nach einem Wimpernschlag da, dann darf sie
+  // frueh laufen. Dauert sie spuerbar, waere derselbe Takt nur Leerlauf.
+  const verzoegerung = letzteValidierungsdauer > 150 ? 800 : 300;
+  const lauf = ++validateLauf;
+
   validateTimer = setTimeout(() => {
+    set({ pruefung: "laeuft" });
+    const begonnen = performance.now();
     void aasWorker()
       .validate()
-      .then((issues) => set({ issues }))
+      .then((issues) => {
+        letzteValidierungsdauer = performance.now() - begonnen;
+        if (lauf !== validateLauf) return;
+        set({ issues, pruefung: "ruht" });
+      })
       .catch(() => {
         // Eine fehlgeschlagene Validierung darf die Bearbeitung nicht anhalten.
+        if (lauf === validateLauf) set({ pruefung: "ruht" });
       });
-  }, 300);
+  }, verzoegerung);
 }
 
 export const useEditor = create<EditorState>()((set, get) => {
@@ -246,17 +263,21 @@ export const useEditor = create<EditorState>()((set, get) => {
     void aasWorker().applyPatches(result.change.patches);
     scheduleValidation(set);
 
-    const meta = get().meta;
-    if (meta) {
-      autosave({
-        model: result.model,
-        fileName: meta.fileName,
-        format: meta.format,
-        attachmentPaths: meta.attachments.map((entry) => entry.path),
-        savedAt: Date.now(),
-        nodeCount: countNodes(result.model),
-        projektId: get().projektId,
-        revision: get().revision,
+    // Der Entwurf wird erst gebaut, wenn wirklich geschrieben wird. `countNodes` laeuft
+    // ueber alle Knoten und hat im Tastendruck nichts zu suchen.
+    if (get().meta) {
+      autosave(() => {
+        const meta = get().meta;
+        return {
+          model: result.model,
+          fileName: meta?.fileName ?? "",
+          format: meta?.format ?? "json",
+          attachmentPaths: meta?.attachments.map((entry) => entry.path) ?? [],
+          savedAt: Date.now(),
+          nodeCount: countNodes(result.model),
+          projektId: get().projektId,
+          revision: get().revision,
+        };
       });
     }
   };
@@ -271,6 +292,7 @@ export const useEditor = create<EditorState>()((set, get) => {
     selection: null,
     expanded: {},
     issues: [],
+    pruefung: "ruht",
     dirty: false,
     focusRequest: null,
     issuePanelOpen: false,
@@ -432,7 +454,11 @@ export const useEditor = create<EditorState>()((set, get) => {
         // Gespeichert heisst gesichert, der lokale Entwurf wird nicht mehr gebraucht.
         void clearDraft();
       } catch (error) {
-        if (error instanceof ApiError && error.status === 409 && error.code === "revision-konflikt") {
+        if (
+          error instanceof ApiError &&
+          error.status === 409 &&
+          error.code === "revision-konflikt"
+        ) {
           set({
             serverStatus: "konflikt",
             serverKonflikt: {
@@ -483,7 +509,10 @@ export const useEditor = create<EditorState>()((set, get) => {
     },
 
     konfliktSchliessen: () =>
-      set({ serverKonflikt: null, serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert" }),
+      set({
+        serverKonflikt: null,
+        serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert",
+      }),
 
     async versionAnlegen(label) {
       const { projektId } = get();
@@ -775,9 +804,13 @@ export const useEditor = create<EditorState>()((set, get) => {
       if (!get().model) return;
       // Der entprellte Lauf wuerde sonst gleich danach dasselbe noch einmal rechnen.
       clearTimeout(validateTimer);
+      const lauf = ++validateLauf;
+      set({ pruefung: "laeuft" });
       try {
-        set({ issues: await aasWorker().validate() });
+        const issues = await aasWorker().validate();
+        if (lauf === validateLauf) set({ issues, pruefung: "ruht" });
       } catch (error) {
+        if (lauf === validateLauf) set({ pruefung: "ruht" });
         set({ error: (error as Error).message });
       }
     },
@@ -805,7 +838,10 @@ function aufgeklappteWurzel(model: EditorModel): Record<NodeId, true> {
 }
 
 /** Hoechstens vier gleichzeitig, damit ein Modell mit vielen Anhaengen den Browser nicht flutet. */
-async function inGruppen<T>(werte: readonly T[], arbeit: (wert: T) => Promise<void>): Promise<void> {
+async function inGruppen<T>(
+  werte: readonly T[],
+  arbeit: (wert: T) => Promise<void>,
+): Promise<void> {
   const offen = [...werte];
   const laeufer = Array.from({ length: Math.min(4, offen.length) }, async () => {
     for (let naechster = offen.shift(); naechster !== undefined; naechster = offen.shift()) {

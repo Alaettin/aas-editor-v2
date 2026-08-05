@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { XSD_INPUT_HINT, type JsonValue } from "@aas-editor/core";
 
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useEntwurf } from "./useEntwurf";
 
 /**
  * Die einfachen Feldarten.
@@ -38,17 +38,16 @@ export function TextEditor({
   xsdType,
 }: FieldEditorProps & { readonly xsdType?: string }) {
   const aktuell = typeof value === "string" ? value : "";
-  const [draft, setDraft] = useState(aktuell);
-
-  // Aenderungen von aussen (Undo, Auswahlwechsel) uebernehmen.
-  useEffect(() => setDraft(aktuell), [aktuell]);
+  const entwurf = useEntwurf(aktuell, (naechster) =>
+    onChange(naechster === "" ? undefined : naechster),
+  );
 
   const hint = xsdType ? XSD_INPUT_HINT[xsdType] : undefined;
 
   if (hint === "boolean") {
     return (
       <BooleanEditor
-        value={draft === "true"}
+        value={entwurf.wert === "true"}
         onChange={(next) => onChange(next ? "true" : "false")}
         id={id}
       />
@@ -61,15 +60,10 @@ export function TextEditor({
       data-field={dataAttr}
       aria-invalid={invalid}
       type={hint === "number" ? "number" : hint === "date" ? "date" : "text"}
-      value={draft}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => {
-        if (draft !== aktuell) onChange(draft === "" ? undefined : draft);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") event.currentTarget.blur();
-        if (event.key === "Escape") setDraft(aktuell);
-      }}
+      value={entwurf.wert}
+      onChange={(event) => entwurf.setzen(event.target.value)}
+      onBlur={entwurf.abgeben}
+      onKeyDown={entwurf.aufTaste}
       className={xsdType || dataAttr === "id" ? "font-mono text-xs" : undefined}
     />
   );

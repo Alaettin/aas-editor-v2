@@ -2,7 +2,6 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 
 import { LoginRoute } from "./LoginRoute";
-import { ProjectsRoute } from "./ProjectsRoute";
 import { RequireAuth } from "./RequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -15,6 +14,17 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 const EditorRoute = lazy(() =>
   import("./EditorRoute").then((modul) => ({ default: modul.EditorRoute })),
+);
+
+/**
+ * Die Projektliste ebenfalls, aus demselben Grund.
+ *
+ * Erste Seite ist immer die Anmeldung. Die Liste zog bisher ihren eigenen Chunk und den
+ * kompletten AlertDialog von Radix in den Startgraphen, zusammen rund 52 KB gzip, die
+ * beim Anmelden niemand braucht.
+ */
+const ProjectsRoute = lazy(() =>
+  import("./ProjectsRoute").then((modul) => ({ default: modul.ProjectsRoute })),
 );
 
 function EditorLaedt() {
@@ -33,7 +43,14 @@ export const router = createBrowserRouter([
     element: <RequireAuth />,
     children: [
       { path: "/", element: <Navigate to="/projekte" replace /> },
-      { path: "/projekte", element: <ProjectsRoute /> },
+      {
+        path: "/projekte",
+        element: (
+          <Suspense fallback={<EditorLaedt />}>
+            <ProjectsRoute />
+          </Suspense>
+        ),
+      },
       {
         path: "/editor/:id",
         element: (

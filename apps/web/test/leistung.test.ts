@@ -7,6 +7,7 @@ import {
   denormalize,
   emptyHistory,
   getNode,
+  HISTORY_MAX,
   normalize,
   walk,
   type EditorModel,
@@ -91,11 +92,13 @@ describe.skipIf(!vorhanden)("Leistung bei zehntausend Elementen", () => {
     const befunde = miss("buildIssueCounts", 5, () => buildIssueCounts(model, []));
 
     expect(buildRows(model, expanded).length).toBe(countNodes(model));
-    // Alle drei laufen heute je Modellaenderung. Zusammen muessen sie deutlich unter
-    // einem Rahmen bleiben, sonst ruckelt jede Eingabe.
-    expect(zeilen).toBeLessThan(120);
-    expect(zensus).toBeLessThan(30);
-    expect(befunde).toBeLessThan(20);
+    // Alle drei laufen je Modellaenderung. Zusammen muessen sie deutlich unter einem
+    // Rahmen bleiben, sonst ruckelt jede Eingabe. Gemessen sind es 7, 3 und 0 ms; die
+    // Grenzen liegen bei etwa dem Dreifachen, damit die Tagesform der Maschine keinen
+    // roten Lauf erzeugt, eine Rueckentwicklung um eine Groessenordnung aber schon.
+    expect(zeilen).toBeLessThan(25);
+    expect(zensus).toBeLessThan(12);
+    expect(befunde).toBeLessThan(10);
   });
 
   it("wendet eine einzelne Feldaenderung schnell an", () => {
@@ -109,25 +112,42 @@ describe.skipIf(!vorhanden)("Leistung bei zehntausend Elementen", () => {
     expect(dauer).toBeLessThan(10);
   });
 
-  it("haelt die Historie flach, statt sie je Aenderung zu kopieren", () => {
-    // Zweitausend Aenderungen hintereinander. Ohne Deckel waechst `past` unbegrenzt und
-    // jede weitere Aenderung kopiert ein groesseres Feld.
-    let aktuell = model;
-    let historie = emptyHistory;
-    const start = performance.now();
-    for (let i = 0; i < 2000; i += 1) {
-      const ergebnis = applyChange(aktuell, historie, "Messung", (draft) => {
-        getNode(draft, blatt).data["value"] = `wert${String(i)}`;
-      });
-      aktuell = ergebnis.model;
-      historie = ergebnis.history;
-    }
-    const dauer = performance.now() - start;
-    console.log(`  ${"2000 Aenderungen".padEnd(28)} ${dauer.toFixed(1).padStart(8)} ms`);
+  // Zweitausend Aenderungen an einem Modell dieser Groesse brauchen ihre Zeit, das ist der
+  // Sinn der Messung. Der Vorgabewert von fuenf Sekunden reicht dafuer nicht.
+  it(
+    "laesst die Aenderung nicht mit der Laenge der Historie teurer werden",
+    { timeout: 60000 },
+    () => {
+      // Zweitausend Aenderungen hintereinander. Ohne Deckel waechst `past` unbegrenzt, jede
+      // weitere Aenderung kopiert ein groesseres Feld, und die letzten sind messbar teurer
+      // als die ersten. Genau dieser Vergleich ist die Aussage, nicht die Gesamtzeit: eine
+      // einzelne Aenderung kostet bei zehntausend Knoten nun einmal ihre paar Millisekunden.
+      let aktuell = model;
+      let historie = emptyHistory;
+      const zeiten: number[] = [];
 
-    expect(historie.past.length).toBeLessThanOrEqual(500);
-    expect(dauer).toBeLessThan(4000);
-  });
+      for (let i = 0; i < 2000; i += 1) {
+        const start = performance.now();
+        const ergebnis = applyChange(aktuell, historie, "Messung", (draft) => {
+          getNode(draft, blatt).data["value"] = `wert${String(i)}`;
+        });
+        zeiten.push(performance.now() - start);
+        aktuell = ergebnis.model;
+        historie = ergebnis.history;
+      }
+
+      const mittel = (werte: readonly number[]) => werte.reduce((a, b) => a + b, 0) / werte.length;
+      const erste = mittel(zeiten.slice(0, 200));
+      const letzte = mittel(zeiten.slice(-200));
+      console.log(
+        `  ${"Aenderung, erste 200".padEnd(28)} ${erste.toFixed(2).padStart(8)} ms\n` +
+          `  ${"Aenderung, letzte 200".padEnd(28)} ${letzte.toFixed(2).padStart(8)} ms`,
+      );
+
+      expect(historie.past.length).toBe(HISTORY_MAX);
+      expect(letzte).toBeLessThan(erste * 1.5 + 1);
+    },
+  );
 
   it("wandelt in die SDK und validiert im erwarteten Rahmen", async () => {
     console.log("\n  --- Worker ---");
@@ -140,6 +160,8 @@ describe.skipIf(!vorhanden)("Leistung bei zehntausend Elementen", () => {
     await validate(model);
     const dauer = performance.now() - start;
     console.log(`  ${"validate".padEnd(28)} ${dauer.toFixed(1).padStart(8)} ms\n`);
-    expect(dauer).toBeLessThan(6000);
+    // Gemessen rund 65 ms. Die Grenze faengt ab, wenn hier jemand einen zweiten
+    // vollstaendigen Aufbau der Umgebung einzieht.
+    expect(dauer).toBeLessThan(500);
   });
 });

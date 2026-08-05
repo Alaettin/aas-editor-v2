@@ -18,6 +18,7 @@ import { useEditor } from "@/store/editor";
 import { shortenMiddle } from "@/store/rows";
 import type { FieldEditorProps } from "./Primitives";
 import { ReferenceEditor } from "./Reference";
+import { useEntwurf } from "./useEntwurf";
 import { NestedFields } from "../NestedFields";
 
 /**
@@ -53,9 +54,7 @@ export function SemanticHint({ reference }: { readonly reference: JsonValue | un
           {t("semantik.zurDefinition")}
         </button>
       </div>
-      {info.definition ? (
-        <p className="text-2xs text-muted-foreground">{info.definition}</p>
-      ) : null}
+      {info.definition ? <p className="text-2xs text-muted-foreground">{info.definition}</p> : null}
     </div>
   );
 }
@@ -142,27 +141,15 @@ export function ValueListEditor({ value, onChange }: FieldEditorProps) {
 
       {paare.map((paar, index) => (
         <div key={index} className="rounded-md border border-border p-2">
-          <div className="mb-2 flex items-center gap-2">
-            <Input
-              aria-label={t("semantik.wert")}
-              placeholder={t("semantik.wert")}
-              value={typeof paar["value"] === "string" ? paar["value"] : ""}
-              onChange={(event) => {
-                const next = [...paare];
-                next[index] = { ...paar, value: event.target.value };
-                schreiben(next);
-              }}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={t("inspektor.entfernen")}
-              onClick={() => schreiben(paare.filter((_, i) => i !== index))}
-            >
-              <X />
-            </Button>
-          </div>
+          <WertZeile
+            wert={typeof paar["value"] === "string" ? paar["value"] : ""}
+            onAendern={(naechster) => {
+              const next = [...paare];
+              next[index] = { ...paar, value: naechster };
+              schreiben(next);
+            }}
+            onEntfernen={() => schreiben(paare.filter((_, i) => i !== index))}
+          />
           <ReferenceEditor
             value={paar["valueId"]}
             onChange={(next) => {
@@ -199,6 +186,42 @@ export function ValueListEditor({ value, onChange }: FieldEditorProps) {
           {t("inspektor.hinzufuegen")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** Ein Wert der valueList, mit eigenem Entwurf statt Schreiben je Zeichen. */
+function WertZeile({
+  wert,
+  onAendern,
+  onEntfernen,
+}: {
+  readonly wert: string;
+  readonly onAendern: (wert: string) => void;
+  readonly onEntfernen: () => void;
+}) {
+  const { t } = useTranslation();
+  const entwurf = useEntwurf(wert, onAendern);
+
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <Input
+        aria-label={t("semantik.wert")}
+        placeholder={t("semantik.wert")}
+        value={entwurf.wert}
+        onChange={(event) => entwurf.setzen(event.target.value)}
+        onBlur={entwurf.abgeben}
+        onKeyDown={entwurf.aufTaste}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t("inspektor.entfernen")}
+        onClick={onEntfernen}
+      >
+        <X />
+      </Button>
     </div>
   );
 }

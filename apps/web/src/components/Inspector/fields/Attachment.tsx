@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEditor, NO_ATTACHMENTS } from "@/store/editor";
 import type { FieldEditorProps } from "./Primitives";
+import { useEntwurf } from "./useEntwurf";
 
 /**
  * File-Element: der Wert ist ein **Pfad** in den Paketcontainer, nicht der Inhalt
@@ -18,14 +19,19 @@ export function AttachmentEditor({ value, onChange }: FieldEditorProps) {
   const attachments = useEditor((state) => state.meta?.attachments ?? NO_ATTACHMENTS);
   const path = typeof value === "string" ? value : "";
   const found = attachments.find((entry) => entry.path === normalize(path));
+  const entwurf = useEntwurf(path, (naechster) =>
+    onChange(naechster === "" ? undefined : naechster),
+  );
 
   return (
     <div className="flex flex-col gap-2">
       <Input
         className="font-mono text-xs"
         placeholder="/aasx/files/handbuch.pdf"
-        value={path}
-        onChange={(event) => onChange(event.target.value === "" ? undefined : event.target.value)}
+        value={entwurf.wert}
+        onChange={(event) => entwurf.setzen(event.target.value)}
+        onBlur={entwurf.abgeben}
+        onKeyDown={entwurf.aufTaste}
       />
       {path === "" ? null : found ? (
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -64,12 +70,7 @@ export function BlobEditor({ value, onChange }: FieldEditorProps) {
           {base64 === "" ? t("inspektor.dateiWaehlen") : t("inspektor.dateiErsetzen")}
         </Button>
         {base64 === "" ? null : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange(undefined)}
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={() => onChange(undefined)}>
             <X data-icon="inline-start" />
             {t("inspektor.entfernen")}
           </Button>

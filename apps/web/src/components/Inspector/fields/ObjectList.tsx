@@ -21,13 +21,7 @@ export interface ObjectListProps extends FieldEditorProps {
   readonly labelKey: string;
 }
 
-export function ObjectListEditor({
-  value,
-  onChange,
-  nested,
-  template,
-  labelKey,
-}: ObjectListProps) {
+export function ObjectListEditor({ value, onChange, nested, template, labelKey }: ObjectListProps) {
   const { t } = useTranslation();
   const list = (Array.isArray(value) ? value : []) as JsonObject[];
 
@@ -110,12 +104,7 @@ export function NestedObjectEditor({
 
   if (!data) {
     return (
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => onChange({ ...template })}
-      >
+      <Button type="button" variant="outline" size="sm" onClick={() => onChange({ ...template })}>
         <Plus data-icon="inline-start" />
         {t("inspektor.hinzufuegen")}
       </Button>

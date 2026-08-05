@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Background,
@@ -103,29 +103,50 @@ function GraphInner() {
 
   const beschnitten = Boolean(voll && graph && graph.nodes.length < voll.nodes.length);
 
+  /**
+   * Alles, was die Karte sichtbar veraendert: Knoten, ihre Beschriftung, ihr Bestand und
+   * die Kanten. Eine Aenderung tief in einem Teilmodell laesst das unberuehrt und darf
+   * deshalb kein neues Layout ausloesen. Vorher rechnete elk nach jedem Tastendruck.
+   */
+  const signatur = useMemo(() => {
+    if (!graph) return "";
+    const knoten = graph.nodes.map((n) => `${n.id}:${n.label}:${String(n.childCount)}`).join("|");
+    const kanten = graph.edges.map((e) => `${e.id}:${String(e.count)}`).join("|");
+    return `${knoten}##${kanten}`;
+  }, [graph]);
+
+  const gerechneteSignatur = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!graph) return;
+    if (!graph || signatur === gerechneteSignatur.current) return;
     let abgebrochen = false;
 
     setLaedt(true);
     setFehler(null);
-    aasWorker()
-      .layoutGraph(graph)
-      .then((ergebnis) => {
-        if (abgebrochen) return;
-        setLayout(ergebnis);
-        setLaedt(false);
-      })
-      .catch((error: unknown) => {
-        if (abgebrochen) return;
-        setFehler((error as Error).message);
-        setLaedt(false);
-      });
+    // Kurz warten: waehrend des Tippens aendert sich eine Beschriftung mehrfach, und jedes
+    // Layout waere Arbeit fuer einen Zustand, den niemand sieht.
+    const timer = setTimeout(() => {
+      gerechneteSignatur.current = signatur;
+      aasWorker()
+        .layoutGraph(graph)
+        .then((ergebnis) => {
+          if (abgebrochen) return;
+          setLayout(ergebnis);
+          setLaedt(false);
+        })
+        .catch((error: unknown) => {
+          if (abgebrochen) return;
+          gerechneteSignatur.current = null;
+          setFehler((error as Error).message);
+          setLaedt(false);
+        });
+    }, 250);
 
     return () => {
       abgebrochen = true;
+      clearTimeout(timer);
     };
-  }, [graph]);
+  }, [graph, signatur]);
 
   const nodes = useMemo<Node[]>(() => {
     if (!layout) return [];
@@ -192,10 +213,7 @@ function GraphInner() {
     });
   }, [selection, layout, eingepasst, setCenter]);
 
-  const onNodeClick = useCallback(
-    (_: unknown, node: Node) => goToNode(node.id),
-    [goToNode],
-  );
+  const onNodeClick = useCallback((_: unknown, node: Node) => goToNode(node.id), [goToNode]);
 
   if (!graph || graph.nodes.length === 0) {
     return (

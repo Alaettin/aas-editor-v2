@@ -5,6 +5,7 @@ import { KEY_TYPES, REFERENCE_TYPES, type JsonObject, type JsonValue } from "@aa
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EnumEditor, type FieldEditorProps } from "./Primitives";
+import { useEntwurf } from "./useEntwurf";
 
 /**
  * Reference-Editor.
@@ -85,41 +86,18 @@ export function ReferenceEditor({ value, onChange }: FieldEditorProps) {
       </div>
 
       {reference.keys.map((key, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <div className="w-44 shrink-0">
-            <EnumEditor
-              value={key.type}
-              onChange={(next) => {
-                const keys = [...reference.keys];
-                keys[index] = { ...key, type: (next as string) ?? "" };
-                update({ ...reference, keys });
-              }}
-              options={KEY_TYPES}
-              allowEmpty={false}
-            />
-          </div>
-          <Input
-            aria-label={t("inspektor.schluesselWert")}
-            className="font-mono text-xs"
-            value={key.value ?? ""}
-            onChange={(event) => {
-              const keys = [...reference.keys];
-              keys[index] = { ...key, value: event.target.value };
-              update({ ...reference, keys });
-            }}
-          />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            aria-label={t("inspektor.entfernen")}
-            onClick={() =>
-              update({ ...reference, keys: reference.keys.filter((_, i) => i !== index) })
-            }
-          >
-            <X />
-          </Button>
-        </div>
+        <SchluesselZeile
+          key={index}
+          schluessel={key}
+          onAendern={(naechster) => {
+            const keys = [...reference.keys];
+            keys[index] = naechster;
+            update({ ...reference, keys });
+          }}
+          onEntfernen={() =>
+            update({ ...reference, keys: reference.keys.filter((_, i) => i !== index) })
+          }
+        />
       ))}
 
       <div>
@@ -144,6 +122,56 @@ export function ReferenceEditor({ value, onChange }: FieldEditorProps) {
           {t("inspektor.schluessel")}
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Ein Schluessel als eigene Zeile. Der Wert haelt seinen Entwurf, bis das Feld verlassen
+ * wird, siehe `useEntwurf`: eine Key-URL ist lang, und jedes Zeichen loeste vorher den
+ * ganzen Aenderungsweg aus.
+ */
+function SchluesselZeile({
+  schluessel,
+  onAendern,
+  onEntfernen,
+}: {
+  readonly schluessel: Key;
+  readonly onAendern: (schluessel: Key) => void;
+  readonly onEntfernen: () => void;
+}) {
+  const { t } = useTranslation();
+  const wert = useEntwurf(schluessel.value ?? "", (naechster) =>
+    onAendern({ ...schluessel, value: naechster }),
+  );
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-44 shrink-0">
+        <EnumEditor
+          value={schluessel.type}
+          onChange={(next) => onAendern({ ...schluessel, type: (next as string) ?? "" })}
+          options={KEY_TYPES}
+          allowEmpty={false}
+        />
+      </div>
+      <Input
+        aria-label={t("inspektor.schluesselWert")}
+        className="font-mono text-xs"
+        value={wert.wert}
+        onChange={(event) => wert.setzen(event.target.value)}
+        onBlur={wert.abgeben}
+        onKeyDown={wert.aufTaste}
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        aria-label={t("inspektor.entfernen")}
+        onClick={onEntfernen}
+      >
+        <X />
+      </Button>
     </div>
   );
 }

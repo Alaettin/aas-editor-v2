@@ -73,11 +73,14 @@ export async function clearDraft(): Promise<void> {
  * Entprelltes Speichern. Richtwert 2 s nach der letzten Aenderung: haeufig genug, dass
  * kaum Arbeit verlorengeht, selten genug, dass IndexedDB nicht bei jedem Tastendruck
  * schreibt.
+ *
+ * Uebergeben wird eine Funktion, nicht der fertige Entwurf: sein Aufbau kostet einen Lauf
+ * ueber alle Knoten, und der gehoert hinter die Entprellung, nicht in den Tastendruck.
  */
-export function createAutosave(delay = 2000): (draft: Draft) => void {
+export function createAutosave(delay = 2000): (entwurf: () => Draft) => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
-  return (draft: Draft) => {
+  return (entwurf: () => Draft) => {
     clearTimeout(timer);
-    timer = setTimeout(() => void saveDraft(draft), delay);
+    timer = setTimeout(() => void saveDraft(entwurf()), delay);
   };
 }
