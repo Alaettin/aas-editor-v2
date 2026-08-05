@@ -16,10 +16,12 @@
     "dev": "pnpm --filter @aas-editor/web dev",
     "dev:server": "pnpm --filter @aas-editor/server dev",
     "test-data": "node scripts/fetch-test-data.mjs",
-    "budget": "node scripts/check-bundle-budget.mjs"
+    "budget": "node scripts/check-bundle-budget.mjs",
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.8.0",

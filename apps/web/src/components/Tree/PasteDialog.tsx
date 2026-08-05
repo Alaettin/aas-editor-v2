@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { canContain, childSlotsOf, findPasteConflicts, type PasteStrategy } from "@aas-editor/core";
 
@@ -21,17 +21,14 @@ import { useEditor } from "@/store/editor";
  * bereits vergeben ist, fragt der Dialog: ueberspringen, ersetzen oder neue id
  * (Plan Abschnitt 6). Geprueft wird ausschliesslich die `id`, nie der `idShort`.
  */
-export function PasteDialog({
-  targetId,
-  onClose,
-}: {
-  readonly targetId: string | null;
-  readonly onClose: () => void;
-}) {
+export function PasteDialog() {
   const { t } = useTranslation();
   const model = useEditor((state) => state.model);
   const clipboard = useEditor((state) => state.clipboard);
   const pasteInto = useEditor((state) => state.pasteInto);
+  const targetId = useEditor((state) => state.pasteTargetId);
+  const requestPaste = useEditor((state) => state.requestPaste);
+  const onClose = useCallback(() => requestPaste(null), [requestPaste]);
 
   /** In welchen Slot des Ziels passt das Fragment ueberhaupt? */
   const ziel = useMemo(() => {

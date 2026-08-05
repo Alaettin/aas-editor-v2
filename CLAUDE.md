@@ -70,3 +70,13 @@ pnpm dev:server     # Backend
 - Oberflaechensprache Deutsch ueber react-i18next, AAS-Fachbegriffe bleiben unuebersetzt.
 - Keine Gedankenstriche in generierten Texten und Kommentaren.
 - Design-Tokens ausschliesslich aus `apps/web/src/styles/tokens.css`, keine Einzelwerte im Code.
+- **Farben und Schriften folgen AXON**: Core Blue `#1C5DB3` (AssetAdministrationShell),
+  PF Green `#00A587` (Submodel), Nova Violet `#8D3CC6` (ConceptDescription), Sunrise Orange
+  `#F77039` (Befunde). Raleway traegt nur Wortmarke und Formulartitel, IBM Plex Sans die
+  Oberflaeche, IBM Plex Mono alle Kennungen und Zahlen. Die Werte stehen als Hex in
+  `tokens.css` und werden nicht berechnet, sie sind Markenvorgabe.
+- **Der Typfarbcode ist ein System**: `lib/typeOf.ts` ist die einzige Abbildung Typ auf Ton,
+  in keiner Sicht steht ein eigenes `switch`. Chips laufen ueber `ui/chip.tsx`, nicht ueber
+  eigene Spans.
+- **Befunde sind orange, nicht rot.** Rot bleibt destruktiven Aktionen vorbehalten. Gefuellt
+  heisst Constraint, weich heisst Datenwarnung.

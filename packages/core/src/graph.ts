@@ -1,6 +1,6 @@
 import { isIdentifiableKind } from "./model/kinds.js";
 import { isJsonArray, isJsonObject, type JsonValue } from "./model/json.js";
-import { walk, type EditorModel, type NodeId } from "./model/store.js";
+import { walk, type EditorModel, type EditorNode, type NodeId } from "./model/store.js";
 import { referenceTarget } from "./semantics.js";
 
 /**
@@ -24,6 +24,11 @@ export interface GraphNode {
   readonly label: string;
   /** Fachliche id, fuer den Tooltip */
   readonly aasId: string | null;
+  /**
+   * Wie viele Kinder der Knoten traegt: Submodels je Shell, Elemente je Submodel. Die
+   * Karte im Graphen zeigt das in ihrer dritten Zeile, und das soll eine echte Zahl sein.
+   */
+  readonly childCount: number;
 }
 
 export type GraphEdgeKind =
@@ -55,6 +60,21 @@ export interface Graph {
   readonly edges: readonly GraphEdge[];
 }
 
+/**
+ * Was die Karte im Graphen als Bestand nennt.
+ *
+ * Bei einem Submodel sind das die Kindelemente, bei einer Shell die Zahl der verwiesenen
+ * Submodels: die haengen nicht als Kinder darunter, sondern stehen als Referenzliste im
+ * Knoten selbst.
+ */
+function childCountOf(node: EditorNode): number {
+  if (node.kind === "AssetAdministrationShell") {
+    const verweise = node.data["submodels"];
+    return isJsonArray(verweise) ? verweise.length : 0;
+  }
+  return Object.values(node.children).reduce((summe, ids) => summe + ids.length, 0);
+}
+
 export function buildGraph(model: EditorModel): Graph {
   const nodes: GraphNode[] = [];
   /** fachliche id auf nodeId, damit Referenzen aufloesbar werden */
@@ -71,6 +91,7 @@ export function buildGraph(model: EditorModel): Graph {
         kind: node.kind as GraphNodeKind,
         label: typeof idShort === "string" && idShort ? idShort : node.kind,
         aasId: typeof id === "string" ? id : null,
+        childCount: childCountOf(node),
       });
       if (typeof id === "string") byAasId.set(id, node.nodeId);
       traeger.set(node.nodeId, node.nodeId);
@@ -207,6 +228,20 @@ export interface LayoutResult {
   readonly durationMs: number;
 }
 
-/** Masse eines Knotens im Layout. Muessen zur Darstellung passen. */
-export const NODE_WIDTH = 200;
-export const NODE_HEIGHT = 52;
+/**
+ * Masse eines Knotens im Layout. Muessen zur Darstellung passen, sonst legen sich Kanten
+ * ueber die Karten.
+ *
+ * Zwei Groessen, weil die Karte eines Identifiable drei Zeilen traegt (Typ und Name,
+ * Kennung, Bestand) und die einer ConceptDescription nur zwei.
+ */
+export const NODE_SIZE: Record<GraphNodeKind, { readonly width: number; readonly height: number }> =
+  {
+    AssetAdministrationShell: { width: 240, height: 74 },
+    Submodel: { width: 240, height: 74 },
+    ConceptDescription: { width: 200, height: 46 },
+  };
+
+export function nodeSize(kind: GraphNodeKind): { readonly width: number; readonly height: number } {
+  return NODE_SIZE[kind];
+}

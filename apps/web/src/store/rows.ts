@@ -33,12 +33,20 @@ export interface TreeRow {
   /** Treffer der laufenden Suche, nur zur Hervorhebung */
   readonly matched: boolean;
   readonly hasChildren: boolean;
+  /** Zahl der Kinder ueber alle Slots, fuer den Zaehler rechts in der Zeile */
+  readonly childCount: number;
   readonly expanded: boolean;
   /** Slot im Elternteil, null bei der Wurzel */
   readonly slot: string | null;
   /** Position innerhalb des Slots */
   readonly index: number;
   readonly parentId: NodeId | null;
+}
+
+/** Anzeigename eines Knotens: idShort, sonst der Typ. Wie in der Baumzeile. */
+export function labelOf(node: EditorNode): string {
+  const idShort = node.data["idShort"];
+  return typeof idShort === "string" && idShort.length > 0 ? idShort : node.kind;
 }
 
 export function buildRows(
@@ -66,13 +74,14 @@ export function buildRows(
 
     const slots = childSlotsOf(node.kind);
     let hasChildren = false;
+    let childCount = 0;
     for (const entry of slots) {
       const ids = node.children[entry.name];
       if (!ids) continue;
-      if (sichtbar ? ids.some((id) => sichtbar.has(id)) : ids.length > 0) {
-        hasChildren = true;
-        break;
-      }
+      // Der Zaehler nennt den tatsaechlichen Bestand, auch wenn ein Filter laeuft: die
+      // gefilterte Zahl waere eine andere Aussage und wuerde beim Tippen springen.
+      childCount += ids.length;
+      if (sichtbar ? ids.some((id) => sichtbar.has(id)) : ids.length > 0) hasChildren = true;
     }
 
     // Beim Filtern wird alles aufgeklappt, sonst faende man die Treffer nicht.
@@ -89,6 +98,7 @@ export function buildRows(
       disambiguator: disambiguatorOf(model, node, parentId, slot),
       matched: treffer ? treffer.has(nodeId) : false,
       hasChildren,
+      childCount,
       expanded: isOpen,
       slot,
       index,

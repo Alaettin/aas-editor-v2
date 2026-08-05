@@ -4,8 +4,10 @@ Web-basierter Editor fuer Asset Administration Shells (AAS) auf Basis der TypeSc
 aas-core-works. Import aus JSON, XML und AASX in Metamodell 3.0 und 3.1, Export immer in 3.1,
 Validierung gegen die aas-core-Constraints, alles clientseitig im Web Worker.
 
-Stand: Phase 0 bis 7. Oberflaeche mit Baum, Formular, Tabelle und Graph, Live-Validierung,
-dazu Anmeldung und Projekte auf dem Server samt Versionen und Anhaengen.
+Stand: Phase 0 bis 8. Oberflaeche in der AXON-Farbwelt mit Menuezeile,
+Explorer, Formular, Tabelle und Graph, Live-Validierung, dazu Anmeldung und Projekte auf dem
+Server samt Versionen und Anhaengen. Der KI-Assistent ist als Oberflaeche vorhanden, aber
+**noch nicht angebunden** und sagt das an jeder Stelle.
 
 ## Anmeldung und Projekte
 
@@ -52,7 +54,10 @@ pnpm dev:server   # Backend auf http://localhost:3200
 ```bash
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
 pnpm budget       # initiales JavaScript gegen das 250-KB-gzip-Budget
+pnpm e2e          # Browserabnahme der Oberflaeche, braucht laufende Entwicklungsserver
 ```
+
+Beim ersten `pnpm e2e` einmal `pnpm exec playwright install chromium` ausfuehren.
 
 ## Betrieb
 

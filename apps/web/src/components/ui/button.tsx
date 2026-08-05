@@ -18,6 +18,11 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
+        /* Umrandet und warnfarben: der Loeschen-Knopf im Formularkopf */
+        "danger-outline":
+          "border-warning/40 bg-card text-warning-text hover:bg-warning-muted focus-visible:border-warning focus-visible:ring-warning/20",
+        /* Geisterknopf fuer "+ Hinzufuegen" und "+ Sprache" */
+        ghostAccent: "bg-type-aas-surface text-type-aas-text hover:bg-type-aas-surface/70",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
@@ -27,6 +32,8 @@ const buttonVariants = cva(
         sm: "h-7 gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] in-data-[slot=button-group]:rounded-lg has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         lg: "h-9 gap-1.5 px-2.5 has-data-[icon=inline-end]:pr-2 has-data-[icon=inline-start]:pl-2",
         icon: "size-8",
+        /* Die Symbolknoepfe der Werkzeugleiste, 28x28 wie im Mockup */
+        "icon-toolbar": "size-7 rounded-md [&_svg:not([class*='size-'])]:size-3.5",
         "icon-xs":
           "size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
         "icon-sm":

@@ -11,36 +11,43 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useEditor } from "@/store/editor";
-import type { TreeRow } from "@/store/rows";
+import { labelOf } from "@/store/rows";
 
-/** Rueckfrage vor dem Loeschen. Rueckgaengig bleibt trotzdem moeglich. */
-export function DeleteDialog({
-  row,
-  onClose,
-}: {
-  readonly row: TreeRow | null;
-  readonly onClose: () => void;
-}) {
+/**
+ * Rueckfrage vor dem Loeschen. Rueckgaengig bleibt trotzdem moeglich.
+ *
+ * Der Knoten kommt aus dem Store, nicht als Prop: geloescht wird aus dem Baum, aus dem
+ * Kontextmenue und aus der Menuezeile.
+ */
+export function DeleteDialog() {
   const { t } = useTranslation();
+  const model = useEditor((state) => state.model);
+  const nodeId = useEditor((state) => state.pendingDeleteId);
+  const requestDelete = useEditor((state) => state.requestDelete);
   const deleteElement = useEditor((state) => state.deleteElement);
+
+  const node = model && nodeId ? model.nodes[nodeId] : undefined;
+  const onClose = () => requestDelete(null);
 
   return (
     <AlertDialog
-      open={row !== null}
+      open={nodeId !== null}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t("baum.loeschenTitel", { name: row?.label ?? "" })}</AlertDialogTitle>
+          <AlertDialogTitle>
+            {t("baum.loeschenTitel", { name: node ? labelOf(node) : "" })}
+          </AlertDialogTitle>
           <AlertDialogDescription>{t("baum.loeschenText")}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t("baum.abbrechen")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
-              if (row) deleteElement(row.nodeId);
+              if (nodeId) deleteElement(nodeId);
               onClose();
             }}
           >

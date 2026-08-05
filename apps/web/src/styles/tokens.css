@@ -1,22 +1,38 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+
+/* Wortmarke und Formulartitel */
+@import "@fontsource/raleway/latin-700.css";
+/* Oberflaeche */
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+/* Kennungen, Pfade, Zahlen */
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
+@import "@fontsource/ibm-plex-mono/latin-600.css";
 
 /*
- * Design-Tokens, Plan Abschnitt 8.
+ * Design-Tokens, Plan Abschnitt 8 und Phase 8.
  *
  * Eine Vokabel im ganzen Projekt: die Namen sind die von shadcn/ui (background,
- * foreground, primary, muted, border, ring ...), die Werte sind unsere OKLCH-Rampe.
- * Dadurch folgen shadcn-Komponenten automatisch unserer Palette, und die Regel
+ * foreground, primary, muted, border, ring ...), die Werte kommen aus der AXON-Vorgabe.
+ * Dadurch folgen shadcn-Komponenten automatisch der Palette, und die Regel
  * "nie Komponentenfarben ueberschreiben, keine dark:-Overrides" bleibt einhaltbar.
  *
  * Regeln, die hier durchgehalten werden:
  * - Keine Einzelwerte im Komponentencode. Alles kommt aus diesen Tokens.
  * - Genau eine Akzentfarbe, sie heisst `primary`. Weitere Farbe traegt Bedeutung
  *   (Gueltigkeit, Auswahl, Typ), sie dekoriert nicht.
- * - Dunkelmodus ist keine Invertierung, sondern eine eigene Rampe.
+ * - Dunkelmodus ist keine Invertierung, sondern eine eigene, handkuratierte Rampe.
  * - Bewegung diszipliniert, 150 bis 200 ms, prefers-reduced-motion wird respektiert.
+ * - **Hex statt OKLCH.** Die Werte stammen aus einer externen Markenvorgabe und muessen
+ *   dagegen pruefbar bleiben. Neue Werte werden nicht berechnet, sondern uebernommen.
+ *
+ * Die drei Typfarben (AssetAdministrationShell blau, Submodel gruen, ConceptDescription
+ * violett) sind das Rueckgrat: Baumpunkt, Chip, Tabellenbadge, Graphknoten und Legende
+ * benutzen dieselben Tokens. Die shadcn-Namen liegen als Alias darauf.
  *
  * Achtung: shadcns `accent` ist eine gedaempfte Hover-Flaeche, **nicht** die Markenfarbe.
  * Die Markenfarbe ist `primary`.
@@ -27,110 +43,179 @@
 /* --- Hell: der Ausgangszustand --------------------------------------------------- */
 
 :root {
-  --background: oklch(99% 0.002 250);
-  --foreground: oklch(24% 0.012 255);
+  /* Typfarben, die Grundlage von allem darunter */
+  --type-aas: #1c5db3;
+  --type-aas-surface: #e8f0fa;
+  --type-aas-text: #1c5db3;
+  --type-aas-mono: #5a83b8;
+  --type-sm: #00a587;
+  --type-sm-surface: #e0f5f0;
+  --type-sm-text: #00806a;
+  --type-sm-border: #bce5dc;
+  --type-cd: #8d3cc6;
+  --type-cd-surface: #f3e9fa;
+  --type-cd-text: #8d3cc6;
+  --type-cd-border: #e2cbf3;
+  --type-cd-card: #f9f5fc;
 
-  --card: oklch(100% 0 0);
-  --card-foreground: oklch(24% 0.012 255);
-  --popover: oklch(100% 0 0);
-  --popover-foreground: oklch(24% 0.012 255);
+  --background: #f4f5f7;
+  --foreground: #1b1d26;
+
+  --card: #ffffff;
+  --card-foreground: #1b1d26;
+  --popover: #ffffff;
+  --popover-foreground: #1b1d26;
 
   /* Die eine Markenfarbe */
-  --primary: oklch(54% 0.16 244);
-  --primary-foreground: oklch(100% 0 0);
+  --primary: var(--type-aas);
+  --primary-foreground: #ffffff;
 
-  --secondary: oklch(97% 0.003 250);
-  --secondary-foreground: oklch(30% 0.012 255);
+  --secondary: #fafafb;
+  --secondary-foreground: #3a3e4a;
 
-  --muted: oklch(97% 0.003 250);
-  --muted-foreground: oklch(52% 0.011 255);
+  --muted: #fafafb;
+  --muted-foreground: #6a6f7a;
 
   /* Hover- und Auswahlflaeche, bewusst gedaempft */
-  --accent: oklch(96.5% 0.004 250);
-  --accent-foreground: oklch(24% 0.012 255);
+  --accent: #f0f1f3;
+  --accent-foreground: #1b1d26;
 
-  --destructive: oklch(52% 0.19 25);
-  --destructive-foreground: oklch(100% 0 0);
+  /* Rot ist destruktiven Aktionen und geloeschten Diff-Zeilen vorbehalten */
+  --destructive: #b23b3b;
+  --destructive-foreground: #ffffff;
+  --destructive-muted: #fdf3f2;
 
-  --border: oklch(91% 0.005 250);
-  --input: oklch(88% 0.006 250);
-  --ring: oklch(58% 0.17 244);
+  --border: #dfe2e7;
+  --input: #dfe2e7;
+  --ring: var(--type-aas);
 
   /* Editor-eigene Bedeutungsfarben, es gibt sie bei shadcn nicht */
-  --selected: oklch(94% 0.022 240);
-  --selected-foreground: oklch(24% 0.012 255);
-  --warning: oklch(60% 0.14 75);
-  --warning-foreground: oklch(100% 0 0);
-  --warning-muted: oklch(96% 0.04 85);
-  --success: oklch(52% 0.13 150);
-  --success-foreground: oklch(100% 0 0);
-  --success-muted: oklch(95% 0.04 150);
-  --destructive-muted: oklch(95.5% 0.03 25);
+  --selected: var(--type-aas-surface);
+  --selected-foreground: var(--type-aas-text);
+  /* Befunde sind orange, nicht rot: gefuellt heisst Constraint, weich heisst Warnung */
+  --warning: #f77039;
+  --warning-foreground: #ffffff;
+  --warning-muted: #fff9f6;
+  --warning-text: #d4552a;
+  --success: var(--type-sm);
+  --success-foreground: #ffffff;
+  --success-muted: var(--type-sm-surface);
+  --success-text: var(--type-sm-text);
 
-  --sidebar: oklch(97% 0.003 250);
-  --sidebar-foreground: oklch(24% 0.012 255);
-  --sidebar-primary: oklch(54% 0.16 244);
-  --sidebar-primary-foreground: oklch(100% 0 0);
-  --sidebar-accent: oklch(94% 0.006 250);
-  --sidebar-accent-foreground: oklch(24% 0.012 255);
-  --sidebar-border: oklch(91% 0.005 250);
-  --sidebar-ring: oklch(58% 0.17 244);
+  /* Feinere Abstufungen, die shadcn nicht kennt */
+  --border-subtle: #e8eaee;
+  --border-row: #f0f1f3;
+  --foreground-faint: #9aa0ac;
+  --mono-foreground: #8b90a0;
+  --input-fill: #fafafb;
+  --segment-track: #efefef;
+  --segment-active: #ffffff;
+  --segment-active-foreground: var(--type-aas-text);
+  --graph-grid: #dadde2;
+  --logo-gradient: linear-gradient(135deg, #1c5db3 55%, #8d3cc6);
 
-  --shadow-raised: 0 1px 2px 0 oklch(0% 0 0 / 0.06);
-  --shadow-overlay: 0 8px 24px -6px oklch(0% 0 0 / 0.18);
+  /* Diff: hinzugefuegt gruen, entfernt in den destruktiven Toenen */
+  --diff-add: #00806a;
+  --diff-add-surface: #f0faf7;
+  --diff-del: var(--destructive);
+  --diff-del-surface: var(--destructive-muted);
+
+  --sidebar: #fafafb;
+  --sidebar-foreground: #1b1d26;
+  --sidebar-primary: var(--type-aas);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f1f3;
+  --sidebar-accent-foreground: #1b1d26;
+  --sidebar-border: #dfe2e7;
+  --sidebar-ring: var(--type-aas);
+
+  --shadow-raised: 0 2px 8px rgb(27 29 38 / 0.08);
+  --shadow-overlay: 0 24px 64px -12px rgb(27 29 38 / 0.28);
 }
 
 /* --- Dunkel: eigene Rampe, keine Invertierung ------------------------------------ */
 
 .dark {
-  --background: oklch(17% 0.008 255);
-  --foreground: oklch(93% 0.006 250);
+  --type-aas: #5b93dd;
+  --type-aas-surface: #1e2c42;
+  --type-aas-text: #7fb0ec;
+  --type-aas-mono: #5a83b8;
+  --type-sm: #2fbfa3;
+  --type-sm-surface: #12332c;
+  --type-sm-text: #2fbfa3;
+  --type-sm-border: #235a4e;
+  --type-cd: #b06fe0;
+  --type-cd-surface: #2e2140;
+  --type-cd-text: #b06fe0;
+  --type-cd-border: #4a2e63;
+  --type-cd-card: #20182b;
 
-  --card: oklch(21% 0.009 255);
-  --card-foreground: oklch(93% 0.006 250);
-  --popover: oklch(21% 0.009 255);
-  --popover-foreground: oklch(93% 0.006 250);
+  --background: #14161d;
+  --foreground: #e8eaf0;
 
-  --primary: oklch(72% 0.13 244);
-  --primary-foreground: oklch(16% 0.01 255);
+  --card: #1b1d26;
+  --card-foreground: #e8eaf0;
+  --popover: #1b1d26;
+  --popover-foreground: #e8eaf0;
 
-  --secondary: oklch(24% 0.01 255);
-  --secondary-foreground: oklch(93% 0.006 250);
+  --primary: var(--type-aas);
+  --primary-foreground: #14161d;
 
-  --muted: oklch(24% 0.01 255);
-  --muted-foreground: oklch(70% 0.01 250);
+  --secondary: #171922;
+  --secondary-foreground: #b8bcc8;
 
-  --accent: oklch(25% 0.011 255);
-  --accent-foreground: oklch(93% 0.006 250);
+  --muted: #171922;
+  --muted-foreground: #8b90a0;
 
-  --destructive: oklch(70% 0.16 25);
-  --destructive-foreground: oklch(16% 0.01 255);
+  --accent: #262a36;
+  --accent-foreground: #e8eaf0;
 
-  --border: oklch(29% 0.01 255);
-  --input: oklch(34% 0.012 255);
-  --ring: oklch(72% 0.13 244);
+  --destructive: #f97066;
+  --destructive-foreground: #14161d;
+  --destructive-muted: #2a1518;
 
-  --selected: oklch(30% 0.035 244);
-  --selected-foreground: oklch(93% 0.006 250);
-  --warning: oklch(78% 0.13 80);
-  --warning-foreground: oklch(16% 0.01 255);
-  --warning-muted: oklch(29% 0.05 80);
-  --success: oklch(72% 0.13 150);
-  --success-foreground: oklch(16% 0.01 255);
-  --success-muted: oklch(27% 0.05 150);
-  --destructive-muted: oklch(28% 0.06 25);
+  --border: #2e3240;
+  --input: #2e3240;
+  --ring: var(--type-aas);
 
-  --sidebar: oklch(19% 0.008 255);
-  --sidebar-foreground: oklch(93% 0.006 250);
-  --sidebar-primary: oklch(72% 0.13 244);
-  --sidebar-primary-foreground: oklch(16% 0.01 255);
-  --sidebar-accent: oklch(25% 0.011 255);
-  --sidebar-accent-foreground: oklch(93% 0.006 250);
-  --sidebar-border: oklch(29% 0.01 255);
-  --sidebar-ring: oklch(72% 0.13 244);
+  --selected: var(--type-aas-surface);
+  --selected-foreground: var(--type-aas-text);
+  --warning: #f98a5e;
+  --warning-foreground: #14161d;
+  --warning-muted: #241b18;
+  --warning-text: #f98a5e;
+  --success: var(--type-sm);
+  --success-foreground: #14161d;
+  --success-muted: var(--type-sm-surface);
+  --success-text: var(--type-sm-text);
 
-  --shadow-raised: 0 1px 2px 0 oklch(0% 0 0 / 0.4);
-  --shadow-overlay: 0 8px 24px -6px oklch(0% 0 0 / 0.6);
+  --border-subtle: #262a36;
+  --border-row: #1e212b;
+  --foreground-faint: #6a6f7a;
+  --mono-foreground: #6a6f7a;
+  --input-fill: #171922;
+  --segment-track: #14161d;
+  --segment-active: #262a36;
+  --segment-active-foreground: var(--type-aas-text);
+  --graph-grid: #232733;
+  --logo-gradient: linear-gradient(135deg, #5b93dd 55%, #b06fe0);
+
+  --diff-add: #2fbfa3;
+  --diff-add-surface: #10251e;
+  --diff-del: var(--destructive);
+  --diff-del-surface: var(--destructive-muted);
+
+  --sidebar: #171922;
+  --sidebar-foreground: #e8eaf0;
+  --sidebar-primary: var(--type-aas);
+  --sidebar-primary-foreground: #14161d;
+  --sidebar-accent: #262a36;
+  --sidebar-accent-foreground: #e8eaf0;
+  --sidebar-border: #2e3240;
+  --sidebar-ring: var(--type-aas);
+
+  --shadow-raised: 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-overlay: 0 24px 64px -12px rgb(0 0 0 / 0.55);
 }
 
 /* --- Was Tailwind daraus an Utilities macht -------------------------------------- */
@@ -161,10 +246,40 @@
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
   --color-warning-muted: var(--warning-muted);
+  --color-warning-text: var(--warning-text);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
   --color-success-muted: var(--success-muted);
+  --color-success-text: var(--success-text);
   --color-destructive-muted: var(--destructive-muted);
+
+  --color-type-aas: var(--type-aas);
+  --color-type-aas-surface: var(--type-aas-surface);
+  --color-type-aas-text: var(--type-aas-text);
+  --color-type-aas-mono: var(--type-aas-mono);
+  --color-type-sm: var(--type-sm);
+  --color-type-sm-surface: var(--type-sm-surface);
+  --color-type-sm-text: var(--type-sm-text);
+  --color-type-sm-border: var(--type-sm-border);
+  --color-type-cd: var(--type-cd);
+  --color-type-cd-surface: var(--type-cd-surface);
+  --color-type-cd-text: var(--type-cd-text);
+  --color-type-cd-border: var(--type-cd-border);
+  --color-type-cd-card: var(--type-cd-card);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-row: var(--border-row);
+  --color-foreground-faint: var(--foreground-faint);
+  --color-mono-foreground: var(--mono-foreground);
+  --color-input-fill: var(--input-fill);
+  --color-segment-track: var(--segment-track);
+  --color-segment-active: var(--segment-active);
+  --color-segment-active-foreground: var(--segment-active-foreground);
+  --color-graph-grid: var(--graph-grid);
+  --color-diff-add: var(--diff-add);
+  --color-diff-add-surface: var(--diff-add-surface);
+  --color-diff-del: var(--diff-del);
+  --color-diff-del-surface: var(--diff-del-surface);
 
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
@@ -177,30 +292,44 @@
 }
 
 @theme {
-  /* Typografie: eine Textschrift, eine Monospace fuer IDs, Pfade und Semantik-Referenzen */
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", monospace;
+  /* Typografie nach AXON: Raleway nur fuer die Wortmarke und den Formulartitel */
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", monospace;
+  --font-display: "Raleway", var(--font-sans);
 
-  --text-2xs: 0.6875rem;
-  --text-2xs--line-height: 1rem;
-  --text-xs: 0.75rem;
-  --text-xs--line-height: 1.125rem;
-  --text-sm: 0.8125rem;
-  --text-sm--line-height: 1.25rem;
-  --text-base: 0.9375rem;
-  --text-base--line-height: 1.5rem;
-  --text-lg: 1.125rem;
-  --text-lg--line-height: 1.625rem;
-  --text-xl: 1.375rem;
-  --text-xl--line-height: 1.875rem;
+  /* Die Groessen der Mockups, in rem gerechnet bei 16px Wurzel */
+  --text-3xs: 0.5938rem; /* 9.5px, Constraint-Chips, Kantenpillen */
+  --text-3xs--line-height: 0.875rem;
+  --text-2xs: 0.6563rem; /* 10.5px, Zaehler, Metazeilen */
+  --text-2xs--line-height: 0.9375rem;
+  --text-xs: 0.6875rem; /* 11px, Mono-Werte, Statusleiste */
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.75rem; /* 12px, Menue, Knoepfe, Feldbeschriftungen */
+  --text-sm--line-height: 1.125rem;
+  --text-base: 0.7813rem; /* 12.5px, Baum, Tabellenzellen, Formularwerte */
+  --text-base--line-height: 1.25rem;
+  --text-md: 0.8125rem; /* 13px, Wortmarke, Knotentitel */
+  --text-md--line-height: 1.25rem;
+  --text-lg: 0.8438rem; /* 13.5px, Tabellenueberschrift */
+  --text-lg--line-height: 1.375rem;
+  --text-xl: 1.1875rem; /* 19px, Formulartitel */
+  --text-xl--line-height: 1.625rem;
 
   --spacing: 0.25rem;
 
-  --radius: 0.375rem;
-  --radius-xs: 0.1875rem;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
+  /* Radienleiter der Mockups. Vollstaendig deklariert, damit rounded-xl und
+     rounded-4xl nicht mehr auf Tailwind-Vorgaben durchfallen. */
+  --radius-xs: 4px; /* Badges, kbd, Ankreuzfeld */
+  --radius-sm: 5px; /* Menueeintrag, Logokachel */
+  --radius-md: 6px; /* Werkzeugknopf, Baumzeile, Geisterknopf */
+  --radius: 7px; /* Eingaben und Knoepfe */
+  --radius-lg: 7px;
+  --radius-xl: 8px; /* Segmentschiene, Diffkasten */
+  --radius-2xl: 9px; /* CD-Knoten, Zoomstapel, Legende, Chateingabe */
+  --radius-3xl: 10px; /* AAS- und Submodel-Knoten */
+  --radius-4xl: 11px; /* Formular- und Inspektorkarten */
+  --radius-5xl: 12px; /* Chatblasen */
+  --radius-6xl: 14px; /* Kommando-Palette */
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --duration-quick: 150ms;
@@ -210,9 +339,14 @@
 @layer base {
   :root {
     color-scheme: light;
-    /* Dichte: umgeschaltet ueber data-density am Wurzelelement */
-    --row-height: 1.75rem;
-    --tree-indent: 1rem;
+    /*
+     * Dichte: umgeschaltet ueber data-density am Wurzelelement. In px, damit die
+     * Haarlinien der Einrueckungsfuehrung auf ganze Geraetepixel fallen.
+     */
+    --row-height: 27px;
+    --tree-indent: 19px;
+    --table-row-height: 38px;
+    --table-header-height: 34px;
   }
 
   .dark {
@@ -220,13 +354,26 @@
   }
 
   [data-density="compact"] {
-    --row-height: 1.5rem;
-    --tree-indent: 0.875rem;
+    --row-height: 24px;
+    --tree-indent: 16px;
+    --table-row-height: 32px;
+    --table-header-height: 30px;
   }
 
   [data-density="cozy"] {
-    --row-height: 2rem;
-    --tree-indent: 1.125rem;
+    --row-height: 27px;
+    --tree-indent: 19px;
+    --table-row-height: 38px;
+    --table-header-height: 34px;
+  }
+
+  /* Feste Hoehen des Rahmens, damit kein Layoutwert im TSX steht */
+  :root {
+    --h-menubar: 32px;
+    --h-toolbar: 40px;
+    --h-statusbar: 28px;
+    --h-panel-header: 32px;
+    --h-chat-header: 40px;
   }
 
   * {
@@ -263,5 +410,24 @@
       animation-duration: 0.01ms !important;
       transition-duration: 0.01ms !important;
     }
+  }
+}
+
+@layer components {
+  /*
+   * Einrueckungsfuehrung im Baum.
+   *
+   * Das Mockup schachtelt je Ebene ein Element mit linkem Rand. In einer virtualisierten
+   * Liste mit absolut positionierten Zeilen geht das nicht. Stattdessen traegt jede Zeile
+   * ein einziges Element der Breite `depth * --tree-indent`, dessen Verlauf genau so viele
+   * Haarlinien zeichnet. Weil die Zeilen lueckenlos uebereinander kacheln, setzen sich die
+   * Segmente benachbarter Zeilen optisch zu durchgehenden Linien zusammen.
+   */
+  [data-tree-guides] {
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--border-subtle) 0 1px,
+      transparent 1px var(--tree-indent)
+    );
   }
 }

@@ -16,3 +16,7 @@ test-data/
 
 # SQLite und Anhaenge zur Laufzeit
 data/
+
+# Playwright
+test-results/
+playwright-report/

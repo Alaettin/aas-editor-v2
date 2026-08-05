@@ -2,8 +2,7 @@ import * as Comlink from "comlink";
 import {
   applyPatches,
   countNodes,
-  NODE_HEIGHT,
-  NODE_WIDTH,
+  nodeSize,
   type EditorModel,
   type Graph,
   type LayoutResult,
@@ -121,8 +120,7 @@ const api: AasWorkerApi = {
       },
       children: graph.nodes.map((node) => ({
         id: node.id,
-        width: NODE_WIDTH,
-        height: NODE_HEIGHT,
+        ...nodeSize(node.kind),
       })),
       edges: graph.edges.map((edge) => ({
         id: edge.id,
@@ -140,8 +138,7 @@ const api: AasWorkerApi = {
       ...node,
       x: positionen.get(node.id)?.x ?? 0,
       y: positionen.get(node.id)?.y ?? 0,
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
+      ...nodeSize(node.kind),
     }));
 
     // Die Ausdehnung aus den Knoten ableiten statt aus der Wurzel: ELK gibt sie nicht

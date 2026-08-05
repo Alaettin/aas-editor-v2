@@ -168,6 +168,23 @@ interface EditorState {
   setDensity: (density: Density) => void;
   setTheme: (theme: Theme) => void;
   setView: (view: View) => void;
+
+  /**
+   * Zwei Rueckfragen, die von mehreren Stellen ausgeloest werden koennen: aus dem Baum,
+   * aus dem Kontextmenue und aus der Menuezeile. Deshalb liegt der Zustand hier und nicht
+   * im Baum.
+   */
+  pendingDeleteId: NodeId | null;
+  pasteTargetId: NodeId | null;
+  requestDelete: (nodeId: NodeId | null) => void;
+  requestPaste: (nodeId: NodeId | null) => void;
+
+  /** Validierung sofort anstossen, statt auf die Entprellung zu warten. */
+  revalidate: () => Promise<void>;
+
+  /** Zoomstufe des Graphen, fuer die Statusleiste ausserhalb des ReactFlowProvider. */
+  graphZoom: number;
+  setGraphZoom: (zoom: number) => void;
 }
 
 /**
@@ -748,6 +765,25 @@ export const useEditor = create<EditorState>()((set, get) => {
     setDensity: (density) => set({ density }),
     setTheme: (theme) => set({ theme }),
     setView: (view) => set({ view }),
+
+    pendingDeleteId: null,
+    pasteTargetId: null,
+    requestDelete: (nodeId) => set({ pendingDeleteId: nodeId }),
+    requestPaste: (nodeId) => set({ pasteTargetId: nodeId }),
+
+    async revalidate() {
+      if (!get().model) return;
+      // Der entprellte Lauf wuerde sonst gleich danach dasselbe noch einmal rechnen.
+      clearTimeout(validateTimer);
+      try {
+        set({ issues: await aasWorker().validate() });
+      } catch (error) {
+        set({ error: (error as Error).message });
+      }
+    },
+
+    graphZoom: 1,
+    setGraphZoom: (graphZoom) => set({ graphZoom }),
   };
 });
 

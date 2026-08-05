@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { ValidationIssue } from "@aas-editor/core/validation";
 
+import { Chip } from "@/components/ui/chip";
+
 /**
  * Ein Befund in Worten: Kennung, verstaendlicher Satz, und die Rohmeldung der SDK zum
  * Aufklappen (Plan Abschnitt 7).
@@ -27,12 +29,16 @@ export function IssueText({
   return (
     <span className="inline">
       {issue.constraintId ? (
-        <span
+        <Chip
           data-numeric
-          className="mr-1.5 rounded-xs bg-muted px-1 py-px text-2xs text-muted-foreground"
+          tone="warn"
+          fill={issue.severity === "constraint" ? "solid" : "soft"}
+          pill
+          mono
+          className="mr-1.5"
         >
           {issue.constraintId}
-        </span>
+        </Chip>
       ) : null}
       {issue.title}
       {hasRaw ? (

@@ -3,12 +3,17 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "react-i18next";
 import { canContain, childSlotsOf, isAncestor, SUBMODEL_ELEMENT_KINDS } from "@aas-editor/core";
 
+import { ChevronsDownUp } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
+import { useCssPx } from "@/lib/useCssPx";
+import { buildCensus } from "@/store/census";
 import { useEditor } from "@/store/editor";
+import { buildIssueCounts } from "@/store/issueCounts";
 import { buildRows, indexRows, type TreeRow } from "@/store/rows";
 import { TreeRowView } from "./TreeRow";
 import { TreeContextMenu } from "./TreeContextMenu";
-import { DeleteDialog } from "./DeleteDialog";
-import { PasteDialog } from "./PasteDialog";
 import { TreeFilter } from "./TreeFilter";
 
 /**
@@ -44,10 +49,12 @@ export function Tree() {
   const copyNode = useEditor((state) => state.copyNode);
   const cutNode = useEditor((state) => state.cutNode);
 
+  const expandAll = useEditor((state) => state.expandAll);
+  const requestDelete = useEditor((state) => state.requestDelete);
+  const requestPaste = useEditor((state) => state.requestPaste);
+
   const parentRef = useRef<HTMLDivElement>(null);
   const [menuRow, setMenuRow] = useState<TreeRow | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<TreeRow | null>(null);
-  const [pasteTarget, setPasteTarget] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ nodeId: string; over: string | null; where: DropWhere } | null>(
     null,
   );
@@ -59,31 +66,25 @@ export function Tree() {
   const rowIndex = useMemo(() => indexRows(rows), [rows]);
 
   /** Fehler- und Warnungszaehler je Knoten, inklusive aller Elternknoten. */
-  const counts = useMemo(() => {
-    const map = new Map<string, { errors: number; warnings: number }>();
-    if (!model) return map;
+  const counts = useMemo(() => buildIssueCounts(model, issues), [issues, model]);
 
-    for (const issue of issues) {
-      if (!issue.nodeId) continue;
-      let current: string | null = issue.nodeId;
-      while (current !== null) {
-        const entry = map.get(current) ?? { errors: 0, warnings: 0 };
-        if (issue.severity === "constraint") entry.errors += 1;
-        else entry.warnings += 1;
-        map.set(current, entry);
-        current = model.nodes[current]?.parent ?? null;
-      }
-    }
-    return map;
-  }, [issues, model]);
+  const zensus = useMemo(() => buildCensus(model), [model]);
+
+  // Die Zeilenhoehe steht in tokens.css und haengt an der Dichte. Sie hier zu wiederholen
+  // hiesse, sie bei jedem Dichtewechsel aus dem Takt laufen zu lassen.
+  const rowHeight = useCssPx("--row-height", 27);
 
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 28,
+    estimateSize: () => rowHeight,
     overscan: ROW_OVERSCAN,
     getItemKey: (index) => rows[index]?.nodeId ?? index,
   });
+
+  useEffect(() => {
+    virtualizer.measure();
+  }, [rowHeight, virtualizer]);
 
   // Die Auswahl im Blick behalten, auch wenn sie ueber die Tastatur wandert.
   useEffect(() => {
@@ -141,7 +142,7 @@ export function Tree() {
           break;
         case "Delete":
           event.preventDefault();
-          if (row.parentId) setPendingDelete(row);
+          if (row.parentId) requestDelete(row.nodeId);
           break;
         case "d":
         case "D":
@@ -168,7 +169,7 @@ export function Tree() {
         case "V":
           if ((event.ctrlKey || event.metaKey) && clipboard) {
             event.preventDefault();
-            setPasteTarget(row.nodeId);
+            requestPaste(row.nodeId);
           }
           break;
         case "F2":
@@ -236,16 +237,29 @@ export function Tree() {
 
   return (
     <div className="flex h-full flex-col">
+      <div className="flex h-(--h-panel-header) shrink-0 items-center px-3">
+        <SectionLabel>{t("explorer.titel")}</SectionLabel>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          className="ml-auto"
+          aria-label={t("menu.allesZuklappen")}
+          onClick={() => expandAll(false)}
+        >
+          <ChevronsDownUp />
+        </Button>
+      </div>
+
       <TreeFilter visibleCount={rows.length} />
 
       <TreeContextMenu
         row={menuRow}
         onAdd={(parentId, slot, kind) => addElement(parentId, slot, kind)}
         onDuplicate={(nodeId) => duplicateElement(nodeId)}
-        onDelete={(row) => setPendingDelete(row)}
+        onDelete={(row) => requestDelete(row.nodeId)}
         onCopy={(nodeId) => copyNode(nodeId)}
         onCut={(nodeId) => cutNode(nodeId)}
-        onPaste={(nodeId) => setPasteTarget(nodeId)}
+        onPaste={(nodeId) => requestPaste(nodeId)}
         canPaste={clipboard !== null}
       >
         <div
@@ -295,9 +309,18 @@ export function Tree() {
         </div>
       </TreeContextMenu>
 
-      <DeleteDialog row={pendingDelete} onClose={() => setPendingDelete(null)} />
-
-      <PasteDialog targetId={pasteTarget} onClose={() => setPasteTarget(null)} />
+      {/* Typzensus: die erste Frage an eine fremde Datei, ohne Scrollen beantwortet. */}
+      <div className="flex h-(--h-panel-header) shrink-0 items-center gap-2.5 border-t border-border-subtle px-3 font-mono text-2xs">
+        <span className="text-type-aas-text" data-numeric>
+          {zensus.AssetAdministrationShell} AAS
+        </span>
+        <span className="text-type-sm-text" data-numeric>
+          {zensus.Submodel} SM
+        </span>
+        <span className="text-type-cd-text" data-numeric>
+          {zensus.ConceptDescription} CD
+        </span>
+      </div>
     </div>
   );
 }

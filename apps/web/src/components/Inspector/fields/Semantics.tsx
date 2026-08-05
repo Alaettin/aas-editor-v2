@@ -4,6 +4,7 @@ import { describeSemanticId, type JsonObject, type JsonValue } from "@aas-editor
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -40,9 +41,9 @@ export function SemanticHint({ reference }: { readonly reference: JsonValue | un
         <span className="font-medium">{info.preferredName ?? t("semantik.ohneNamen")}</span>
         {info.unit ? <span className="text-muted-foreground">[{info.unit}]</span> : null}
         {info.dataType ? (
-          <span className="rounded-xs bg-background px-1 font-mono text-2xs text-muted-foreground">
+          <Chip tone="cd" mono>
             {info.dataType}
-          </span>
+          </Chip>
         ) : null}
         <button
           type="button"

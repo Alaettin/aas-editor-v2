@@ -26,7 +26,11 @@
     "constraints": "{{count}} Constraints",
     "warnungen": "{{count}} Warnungen",
     "keineBefunde": "Keine Befunde",
-    "anhaengeLaden": "Anhaenge werden geladen ..."
+    "anhaengeLaden": "Anhaenge werden geladen ...",
+    "zoom": "Zoom {{prozent}} %",
+    "metamodell": "Metamodell",
+    "gespeichert": "gespeichert",
+    "ungespeichert": "ungespeichert"
   },
   "leer": {
     "titel": "Keine Umgebung geoeffnet",
@@ -181,7 +185,8 @@
   "sicht": {
     "formular": "Formular",
     "tabelle": "Tabelle",
-    "graph": "Graph"
+    "graph": "Graph",
+    "titel": "Sicht"
   },
   "tabelle": {
     "keinBehaelter": "Kein Behaelter gewaehlt",
@@ -192,14 +197,34 @@
     "markiert_one": "1 markiert",
     "markiert_other": "{{count}} markiert",
     "markieren": "Zeile markieren",
-    "imFormular": "im Formular"
+    "imFormular": "im Formular",
+    "spalten": "Spalten",
+    "mitBefund": "{{count}} mit Befund",
+    "enterOeffnet": "Enter oeffnet das Formular",
+    "zeileVon": "Zeile {{zeile}} von {{gesamt}}",
+    "spalte": {
+      "idShort": "idShort",
+      "modelType": "Typ",
+      "valueType": "valueType",
+      "value": "value",
+      "semanticId": "semanticId"
+    }
   },
   "graph": {
     "leerTitel": "Nichts zu zeigen",
     "leerText": "Die Karte zeigt Shells, Submodels und ConceptDescriptions mit ihren Verweisen. In dieser Umgebung gibt es keine.",
     "umfang": "{{knoten}} Knoten, {{kanten}} Kanten",
     "dauer": "Layout {{ms}} ms",
-    "allesZeigen": "Alle {{count}} zeigen"
+    "allesZeigen": "Alle {{count}} zeigen",
+    "submodels_one": "{{count}} Submodel",
+    "submodels_other": "{{count}} Submodels",
+    "elemente_one": "{{count}} Element",
+    "elemente_other": "{{count}} Elemente",
+    "befunde_one": "{{count}} Befund",
+    "befunde_other": "{{count}} Befunde",
+    "zoomRein": "Vergroessern",
+    "zoomRaus": "Verkleinern",
+    "einpassen": "Einpassen"
   },
   "anmeldung": {
     "hinweis": "Bitte anmelden, um an Projekten zu arbeiten.",
@@ -254,5 +279,93 @@
     "ueberschreiben": "Serverstand ueberschreiben (mit Schnappschuss)",
     "serverstand": "Serverstand laden, eigene Aenderungen verwerfen",
     "versionLabel": "vor dem Ueberschreiben"
+  },
+  "menu": {
+    "datei": "Datei",
+    "bearbeiten": "Bearbeiten",
+    "ansicht": "Ansicht",
+    "werkzeuge": "Werkzeuge",
+    "hilfe": "Hilfe",
+    "speichern": "Speichern",
+    "alsNeuesProjekt": "Als neues Projekt speichern",
+    "zurListe": "Zur Projektliste",
+    "ausschneiden": "Ausschneiden",
+    "kopieren": "Kopieren",
+    "einfuegen": "Einfuegen",
+    "neu": "Neu",
+    "duplizieren": "Duplizieren",
+    "loeschen": "Loeschen",
+    "filterFokussieren": "Filter fokussieren",
+    "befunde": "Befunde anzeigen",
+    "allesAufklappen": "Alles aufklappen",
+    "allesZuklappen": "Alles zuklappen",
+    "palette": "Kommando-Palette"
+  },
+  "werkzeug": {
+    "validieren": "Validieren",
+    "einstellungen": "Einstellungen"
+  },
+  "explorer": {
+    "titel": "Explorer"
+  },
+  "einstellungen": {
+    "text": "Erscheinung und Dichte. Alles Weitere steht in der Menuezeile."
+  },
+  "hilfe": {
+    "tastaturwege": "Tastaturwege",
+    "tastaturwegeText": "Was sich ohne Maus erreichen laesst.",
+    "ueber": "Ueber den Editor",
+    "ueberText": "Editor fuer Asset Administration Shells auf Basis der TypeScript-SDKs von aas-core-works.",
+    "metamodell": "Metamodell",
+    "farbwelt": "Farbwelt",
+    "gruppeAllgemein": "Allgemein",
+    "gruppeBaum": "Im Baum",
+    "palette": "Kommando-Palette oeffnen",
+    "assistent": "Assistent ein- und ausblenden",
+    "speichern": "Projekt speichern",
+    "rueckgaengig": "Rueckgaengig",
+    "wiederholen": "Wiederholen",
+    "bewegen": "Auswahl bewegen",
+    "aufklappen": "Aufklappen, sonst zum ersten Kind",
+    "zuklappen": "Zuklappen, sonst zum Elternteil",
+    "anfangEnde": "Erste und letzte sichtbare Zeile",
+    "loeschen": "Loeschen, mit Rueckfrage",
+    "duplizieren": "Duplizieren",
+    "zwischenablage": "Kopieren, ausschneiden, einfuegen",
+    "idShort": "idShort im Formular fokussieren"
+  },
+  "assistent": {
+    "titel": "Assistent",
+    "nichtVerbunden": "Nicht verbunden",
+    "kontext": "Kontext: {{name}}",
+    "ohneKontext": "nichts ausgewaehlt",
+    "beispiel": "Beispiel",
+    "beispielText": "So wird der Assistent aussehen. Es ist noch kein Modell angebunden.",
+    "beispielFrage": "Behebe die beiden Befunde im Submodel Nameplate",
+    "beispielAntwort": "Beide Befunde betreffen AASd-090. Vorschlag:",
+    "anwenden": "Anwenden",
+    "imFormular": "Im Formular pruefen",
+    "ohneAnbindung": "Ohne Anbindung kann nichts angewendet werden.",
+    "disclaimer": "Der Assistent ist eine Vorschau der Oberflaeche. Es ist kein Modell angebunden, es werden keine Aenderungen erzeugt.",
+    "platzhalter": "Noch nicht verbunden",
+    "chipBefunde": "Befunde erklaeren",
+    "chipVorlage": "Submodel aus Vorlage",
+    "chipUebersetzung": "Uebersetzungen ergaenzen"
+  },
+  "formular": {
+    "kontext": "Kontext",
+    "teilVon": "Teil von",
+    "position": "Position",
+    "kinder": "Kind-Elemente",
+    "projekt": "Projekt",
+    "keineDefinition": "Keine ConceptDescription in dieser Umgebung.",
+    "zurDefinition": "Zur Definition",
+    "befunde_one": "{{count}} Befund",
+    "befunde_other": "{{count}} Befunde",
+    "befundeImElement_one": "{{count}} in diesem Element",
+    "befundeImElement_other": "{{count}} in diesem Element",
+    "aufklappen": "Befunde aufklappen",
+    "zuklappen": "Befunde zuklappen",
+    "hinzufuegen": "Hinzufuegen"
   }
 }

@@ -1,12 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-  type ColumnDef,
-} from "@tanstack/react-table";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Columns3, Copy, Plus, Trash2 } from "lucide-react";
 import {
   canContain,
   childSlotsOf,
@@ -19,15 +13,21 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Chip } from "@/components/ui/chip";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { SectionLabel } from "@/components/ui/section-label";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { badgeToneOf, shortKind } from "@/lib/typeOf";
+import { useElementWidth } from "@/lib/useElementWidth";
+import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { shortenMiddle } from "@/store/rows";
 
@@ -37,12 +37,13 @@ import { shortenMiddle } from "@/store/rows";
  * Gezeigt werden die Kinder des gewaehlten Behaelters. Ist etwas anderes gewaehlt, wird
  * der naechste Behaelter darueber genommen, damit die Sicht nie leer wirkt.
  *
+ * Aufbau als CSS-Grid statt als `<table>`: klebender Kopf, `fr`-Spalten, Zeilentoenung
+ * ueber die volle Breite und der Spaltenkollaps sind damit geradeaus. Die Rollen bleiben
+ * gesetzt, fuer Vorleseprogramme ist es weiterhin eine Tabelle.
+ *
  * Jede Aenderung laeuft durch dieselben Store-Aktionen wie Baum und Formular, also durch
  * `applyChange`, Undo und den Patch-Kanal zum Worker. Es gibt keinen zweiten Weg ins
  * Modell.
- *
- * Wird ueber React.lazy geladen: TanStack Table sind 27 KB gzip, die im Startbundle
- * nichts zu suchen haben.
  */
 
 interface Zeile {
@@ -50,18 +51,55 @@ interface Zeile {
   readonly index: number;
 }
 
+type SpaltenId = "idShort" | "modelType" | "valueType" | "value" | "semanticId";
+
+const ALLE_SPALTEN: readonly SpaltenId[] = [
+  "idShort",
+  "modelType",
+  "valueType",
+  "value",
+  "semanticId",
+];
+
+/** Spaltenmasse aus dem Mockup, je Spalte eine Grid-Spur. */
+const SPALTENMASS: Record<SpaltenId, string> = {
+  idShort: "1.4fr",
+  modelType: "150px",
+  valueType: "90px",
+  value: "1.3fr",
+  semanticId: "1.1fr",
+};
+
+/**
+ * Unter dieser Breite fallen valueType und semanticId weg. Genau der Fall, den das Mockup
+ * fuer den geoeffneten Assistenten zeigt, hier aber allgemein: schmales Fenster, breiter
+ * Explorer oder offenes Befundpanel fuehren zu demselben Platzmangel.
+ */
+const SCHMAL = 720;
+
 export default function TableView() {
   const { t } = useTranslation();
   const model = useEditor((state) => state.model);
   const selection = useEditor((state) => state.selection);
   const issues = useEditor((state) => state.issues);
   const select = useEditor((state) => state.select);
+  const setView = useEditor((state) => state.setView);
   const updateField = useEditor((state) => state.updateField);
   const addElement = useEditor((state) => state.addElement);
   const deleteElement = useEditor((state) => state.deleteElement);
   const duplicateElement = useEditor((state) => state.duplicateElement);
 
+  const flaecheRef = useRef<HTMLDivElement>(null);
+  const breite = useElementWidth(flaecheRef);
+
   const [markiert, setMarkiert] = useState<Record<NodeId, true>>({});
+  const [sichtbar, setSichtbar] = useState<Record<SpaltenId, boolean>>({
+    idShort: true,
+    modelType: true,
+    valueType: true,
+    value: true,
+    semanticId: true,
+  });
 
   /** Der Behaelter, dessen Kinder die Tabelle zeigt. */
   const behaelter = useMemo(() => {
@@ -79,7 +117,9 @@ export default function TableView() {
   const slot = useMemo(() => {
     if (!behaelter) return null;
     const slots = childSlotsOf(behaelter.kind);
-    return slots.find((entry) => (behaelter.children[entry.name]?.length ?? 0) > 0) ?? slots[0] ?? null;
+    return (
+      slots.find((entry) => (behaelter.children[entry.name]?.length ?? 0) > 0) ?? slots[0] ?? null
+    );
   }, [behaelter]);
 
   const zeilen = useMemo<Zeile[]>(() => {
@@ -89,120 +129,27 @@ export default function TableView() {
       .filter((eintrag): eintrag is Zeile => eintrag.node !== undefined);
   }, [model, behaelter, slot]);
 
-  /** Befunde je Knoten, damit die Tabelle dieselben Zaehler zeigt wie der Baum. */
+  /** Befunde je Knoten: Zahl und die erste Constraint-Kennung fuer den Chip. */
   const befunde = useMemo(() => {
-    const map = new Map<NodeId, number>();
+    const map = new Map<NodeId, { anzahl: number; regel: string | null }>();
     for (const issue of issues) {
       if (!issue.nodeId) continue;
-      map.set(issue.nodeId, (map.get(issue.nodeId) ?? 0) + 1);
+      const eintrag = map.get(issue.nodeId) ?? { anzahl: 0, regel: null };
+      eintrag.anzahl += 1;
+      if (eintrag.regel === null && issue.constraintId) eintrag.regel = issue.constraintId;
+      map.set(issue.nodeId, eintrag);
     }
     return map;
   }, [issues]);
 
-  const spalten = useMemo<ColumnDef<Zeile>[]>(
-    () => [
-      {
-        id: "auswahl",
-        size: 36,
-        header: () => null,
-        cell: ({ row }) => (
-          <Checkbox
-            checked={Boolean(markiert[row.original.node.nodeId])}
-            aria-label={t("tabelle.markieren")}
-            onCheckedChange={(checked) =>
-              setMarkiert((current) => {
-                const next = { ...current };
-                if (checked === true) next[row.original.node.nodeId] = true;
-                else delete next[row.original.node.nodeId];
-                return next;
-              })
-            }
-          />
-        ),
-      },
-      {
-        id: "idShort",
-        header: "idShort",
-        cell: ({ row }) => (
-          <ZelleText
-            node={row.original.node}
-            feld="idShort"
-            onChange={(wert) => updateField(row.original.node.nodeId, "idShort", wert)}
-          />
-        ),
-      },
-      {
-        id: "modelType",
-        header: "Typ",
-        size: 160,
-        cell: ({ row }) => (
-          <span className="rounded-xs bg-muted px-1 py-px text-2xs text-muted-foreground">
-            {row.original.node.kind}
-          </span>
-        ),
-      },
-      {
-        id: "valueType",
-        header: "valueType",
-        size: 120,
-        cell: ({ row }) => (
-          <span className="font-mono text-2xs text-muted-foreground">
-            {typeof row.original.node.data["valueType"] === "string"
-              ? (row.original.node.data["valueType"] as string)
-              : "—"}
-          </span>
-        ),
-      },
-      {
-        id: "value",
-        header: "value",
-        cell: ({ row }) => (
-          <ZelleText
-            node={row.original.node}
-            feld="value"
-            onChange={(wert) => updateField(row.original.node.nodeId, "value", wert)}
-          />
-        ),
-      },
-      {
-        id: "semanticId",
-        header: "semanticId",
-        size: 220,
-        cell: ({ row }) => {
-          const wert = semanticIdText(row.original.node.data["semanticId"]);
-          return (
-            <span className="font-mono text-2xs text-muted-foreground" title={wert ?? undefined}>
-              {wert ? shortenMiddle(wert, 30) : "—"}
-            </span>
-          );
-        },
-      },
-      {
-        id: "befunde",
-        header: "",
-        size: 44,
-        cell: ({ row }) => {
-          const anzahl = befunde.get(row.original.node.nodeId) ?? 0;
-          return anzahl > 0 ? (
-            <span
-              data-numeric
-              className="rounded-xs bg-destructive-muted px-1 text-2xs text-destructive"
-            >
-              {anzahl}
-            </span>
-          ) : null;
-        },
-      },
-    ],
-    [markiert, befunde, t, updateField],
-  );
+  const markierte = Object.keys(markiert).filter((id) => zeilen.some((z) => z.node.nodeId === id));
 
-  const table = useReactTable({
-    data: zeilen,
-    columns: spalten,
-    getCoreRowModel: getCoreRowModel(),
-    getRowId: (zeile) => zeile.node.nodeId,
+  const spalten = ALLE_SPALTEN.filter((id) => {
+    if (!sichtbar[id]) return false;
+    if (breite > 0 && breite < SCHMAL && (id === "valueType" || id === "semanticId")) return false;
+    return true;
   });
+  const gridVorlage = ["32px", ...spalten.map((id) => SPALTENMASS[id])].join(" ");
 
   if (!behaelter || !slot) {
     return (
@@ -215,7 +162,6 @@ export default function TableView() {
     );
   }
 
-  const markierte = Object.keys(markiert).filter((id) => zeilen.some((z) => z.node.nodeId === id));
   const erlaubteTypen =
     behaelter.kind === "Environment"
       ? []
@@ -223,22 +169,26 @@ export default function TableView() {
           canContain(behaelter.kind, slot.name, kind, behaelter.data),
         );
 
+  const mitBefund = zeilen.filter((zeile) => befunde.has(zeile.node.nodeId)).length;
+  const position = zeilen.findIndex((zeile) => zeile.node.nodeId === selection);
+
   return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center gap-2 border-b border-border px-4 py-2">
-        <span className="truncate text-sm font-medium">
+    <div ref={flaecheRef} className="flex h-full flex-col overflow-hidden bg-card">
+      <header className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-2.5">
+        <span className="truncate text-lg font-semibold">
           {typeof behaelter.data["idShort"] === "string" && behaelter.data["idShort"]
             ? (behaelter.data["idShort"] as string)
             : behaelter.kind}
         </span>
-        <span className="rounded-xs bg-muted px-1 py-px text-2xs text-muted-foreground">
+        <Chip tone="sm" mono>
           {slot.name}
-        </span>
-        <span className="text-2xs text-muted-foreground" data-numeric>
+        </Chip>
+        <span className="text-sm text-muted-foreground" data-numeric>
           {t("tabelle.eintraege", { count: zeilen.length })}
+          {mitBefund > 0 ? ` · ${t("tabelle.mitBefund", { count: mitBefund })}` : ""}
         </span>
 
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1.5">
           {markierte.length > 0 ? (
             <>
               <span className="text-2xs text-muted-foreground" data-numeric>
@@ -271,7 +221,28 @@ export default function TableView() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" disabled={erlaubteTypen.length === 0}>
+              <Button variant="outline" size="sm">
+                <Columns3 data-icon="inline-start" />
+                {t("tabelle.spalten")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {ALLE_SPALTEN.map((id) => (
+                <DropdownMenuCheckboxItem
+                  key={id}
+                  checked={sichtbar[id]}
+                  disabled={id === "idShort"}
+                  onCheckedChange={(an) => setSichtbar((current) => ({ ...current, [id]: an }))}
+                >
+                  {t(`tabelle.spalte.${id}`)}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" disabled={erlaubteTypen.length === 0}>
                 <Plus data-icon="inline-start" />
                 {t("baum.neu")}
               </Button>
@@ -292,48 +263,157 @@ export default function TableView() {
         </div>
       </header>
 
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 bg-background">
-            {table.getHeaderGroups().map((gruppe) => (
-              <tr key={gruppe.id} className="border-b border-border">
-                {gruppe.headers.map((header) => (
-                  <th
-                    key={header.id}
-                    style={{ width: header.column.columnDef.size }}
-                    className="px-2 py-1.5 text-left text-2xs font-medium text-muted-foreground"
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr
-                key={row.id}
-                data-table-row={row.original.node.nodeId}
-                onClick={() => select(row.original.node.nodeId)}
-                className={
-                  "border-b border-border/60 " +
-                  (row.original.node.nodeId === selection ? "bg-selected" : "hover:bg-accent")
-                }
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <td key={cell.id} className="px-2 py-1">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/*
+        Enter oeffnet das Formular. Die Fusszeile verspricht das, also muss es hier stehen
+        und nicht nur im Baum.
+      */}
+      <div
+        role="table"
+        aria-rowcount={zeilen.length}
+        tabIndex={0}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && selection) {
+            event.preventDefault();
+            setView("formular");
+          }
+        }}
+        className="flex-1 overflow-auto outline-none"
+      >
+        <div
+          role="row"
+          style={{ gridTemplateColumns: gridVorlage }}
+          className="sticky top-0 z-10 grid h-(--table-header-height) items-center gap-3 border-b border-border bg-muted px-4"
+        >
+          <span role="columnheader" />
+          {spalten.map((id) => (
+            <SectionLabel
+              key={id}
+              role="columnheader"
+              data-col={id}
+              className="tracking-[0.05em]"
+            >
+              {t(`tabelle.spalte.${id}`)}
+            </SectionLabel>
+          ))}
+        </div>
+
+        {zeilen.map((zeile, index) => {
+          const node = zeile.node;
+          const befund = befunde.get(node.nodeId);
+          const gewaehlt = node.nodeId === selection;
+          const semantic = semanticIdText(node.data["semanticId"]);
+
+          return (
+            <div
+              key={node.nodeId}
+              role="row"
+              aria-rowindex={index + 1}
+              data-table-row={node.nodeId}
+              onClick={() => select(node.nodeId)}
+              style={{ gridTemplateColumns: gridVorlage }}
+              className={cn(
+                "grid h-(--table-row-height) items-center gap-3 border-b border-border-row px-4",
+                gewaehlt
+                  ? "bg-selected shadow-[inset_3px_0_0_var(--primary)]"
+                  : befund
+                    ? "bg-warning-muted hover:bg-accent"
+                    : "hover:bg-accent",
+              )}
+            >
+              <span role="cell">
+                <Checkbox
+                  checked={Boolean(markiert[node.nodeId])}
+                  aria-label={t("tabelle.markieren")}
+                  onCheckedChange={(checked) =>
+                    setMarkiert((current) => {
+                      const next = { ...current };
+                      if (checked === true) next[node.nodeId] = true;
+                      else delete next[node.nodeId];
+                      return next;
+                    })
+                  }
+                />
+              </span>
+
+              {spalten.includes("idShort") ? (
+                <span role="cell" data-col="idShort" className="flex min-w-0 items-center gap-2">
+                  <ZelleText
+                    node={node}
+                    feld="idShort"
+                    onChange={(wert) => updateField(node.nodeId, "idShort", wert)}
+                  />
+                  {befund?.regel ? (
+                    <Chip tone="warn" fill="solid" pill mono className="shrink-0">
+                      {befund.regel}
+                    </Chip>
+                  ) : null}
+                </span>
+              ) : null}
+
+              {spalten.includes("modelType") ? (
+                <span role="cell" data-col="modelType">
+                  <Chip tone={badgeToneOf(node.kind)} mono>
+                    {shortKind(node.kind)}
+                  </Chip>
+                </span>
+              ) : null}
+
+              {spalten.includes("valueType") ? (
+                <span
+                  role="cell"
+                  data-col="valueType"
+                  className="truncate font-mono text-xs text-mono-foreground"
+                >
+                  {typeof node.data["valueType"] === "string" ? (
+                    (node.data["valueType"] as string)
+                  ) : (
+                    <span className="text-foreground-faint">—</span>
+                  )}
+                </span>
+              ) : null}
+
+              {spalten.includes("value") ? (
+                <span role="cell" data-col="value" className="min-w-0">
+                  <ZelleText
+                    node={node}
+                    feld="value"
+                    onChange={(wert) => updateField(node.nodeId, "value", wert)}
+                  />
+                </span>
+              ) : null}
+
+              {spalten.includes("semanticId") ? (
+                <span
+                  role="cell"
+                  data-col="semanticId"
+                  title={semantic ?? undefined}
+                  className="truncate font-mono text-xs text-foreground-faint"
+                >
+                  {semantic ? shortenMiddle(semantic, 30) : "—"}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
 
         {zeilen.length === 0 ? (
           <p className="p-4 text-xs text-muted-foreground">{t("tabelle.leer")}</p>
         ) : null}
       </div>
+
+      <footer className="flex shrink-0 items-center gap-3 border-t border-border bg-muted px-4 py-2 text-xs text-muted-foreground">
+        {markierte.length > 0 ? (
+          <span className="font-semibold text-selected-foreground" data-numeric>
+            {t("tabelle.markiert", { count: markierte.length })}
+          </span>
+        ) : null}
+        <span>{t("tabelle.enterOeffnet")}</span>
+        {position >= 0 ? (
+          <span className="ml-auto" data-numeric>
+            {t("tabelle.zeileVon", { zeile: position + 1, gesamt: zeilen.length })}
+          </span>
+        ) : null}
+      </footer>
     </div>
   );
 }
@@ -367,6 +447,7 @@ function ZelleText({
 
   return (
     <Input
+      variant="bare"
       data-table-cell={feld}
       value={entwurf}
       onChange={(event) => setEntwurf(event.target.value)}
@@ -380,7 +461,6 @@ function ZelleText({
           event.currentTarget.blur();
         }
       }}
-      className="h-6 border-0 bg-transparent px-1 shadow-none focus-visible:bg-background focus-visible:ring-1"
     />
   );
 }

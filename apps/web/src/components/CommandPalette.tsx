@@ -17,6 +17,9 @@ import {
 } from "lucide-react";
 import { search } from "@aas-editor/core";
 
+import { Chip } from "@/components/ui/chip";
+import { shortKind, toneOf } from "@/lib/typeOf";
+
 import {
   Command,
   CommandDialog,
@@ -39,6 +42,9 @@ import { useEditor } from "@/store/editor";
  * Die Elementsuche nutzt dieselbe `search` aus dem Kern wie das Filterfeld. Es gibt nur
  * eine Suche im Projekt.
  */
+/** Ereignisname, mit dem andere Flaechen die Palette oeffnen. */
+export const PALETTE_EVENT = "aas:palette";
+
 export function CommandPalette() {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
@@ -64,8 +70,15 @@ export function CommandPalette() {
         setOpen((current) => !current);
       }
     };
+    // Die Menuezeile oeffnet die Palette ueber dieses Ereignis, statt ihren Zustand von
+    // aussen zu fuehren. Die Palette bleibt damit fuer sich zustaendig.
+    const onOeffnen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener(PALETTE_EVENT, onOeffnen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener(PALETTE_EVENT, onOeffnen);
+    };
   }, []);
 
   const treffer = useMemo(() => {
@@ -114,9 +127,7 @@ export function CommandPalette() {
                 >
                   <ListTree />
                   <span className="truncate">{hit.label}</span>
-                  <span className="shrink-0 rounded-xs bg-muted px-1 text-2xs text-muted-foreground">
-                    {hit.kind}
-                  </span>
+                  <Chip tone={toneOf(hit.kind)}>{shortKind(hit.kind)}</Chip>
                   <span className="ml-auto truncate text-2xs text-muted-foreground">
                     {hit.excerpt}
                   </span>

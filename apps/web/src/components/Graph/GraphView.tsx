@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Background,
-  Controls,
+  BackgroundVariant,
+  MiniMap,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
@@ -15,15 +16,29 @@ import {
   GRAPH_LIMIT,
   neighborhood,
   type GraphEdgeKind,
+  type GraphNodeKind,
   type LayoutResult,
 } from "@aas-editor/core";
+
+import { Maximize2, Minus, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TypeDot } from "@/components/ui/type-dot";
+import { toneOf } from "@/lib/typeOf";
 import { useEditor } from "@/store/editor";
+import { buildIssueCounts } from "@/store/issueCounts";
 import { aasWorker } from "@/worker/bridge";
 import { AasNode } from "./AasNode";
+import { PillEdge } from "./PillEdge";
+
+/** Die Minikarte kennt keine Klassen, sie bekommt die Farbe je Art direkt. */
+const MINIMAP_FARBE: Record<GraphNodeKind, string> = {
+  AssetAdministrationShell: "var(--type-aas)",
+  Submodel: "var(--type-sm)",
+  ConceptDescription: "var(--type-cd)",
+};
 
 /**
  * Die Beziehungskarte (Plan Abschnitt 8).
@@ -36,14 +51,19 @@ import { AasNode } from "./AasNode";
  */
 
 const nodeTypes = { aas: AasNode };
+const edgeTypes = { pille: PillEdge };
 
-/** Kantenfarben aus den Tokens, nicht aus Einzelwerten. */
-const EDGE_STYLE: Record<GraphEdgeKind, string> = {
-  submodel: "var(--primary)",
-  derivedFrom: "var(--muted-foreground)",
-  semanticId: "var(--success)",
-  relationship: "var(--warning)",
-  reference: "var(--muted-foreground)",
+/**
+ * Kantenstile aus den Tokens. Nicht nur die Farbe traegt Bedeutung, auch Breite und
+ * Deckkraft: eine gebuendelte Kante ist dicker, eine semanticId-Kante zurueckhaltender als
+ * die tragende submodel-Kante.
+ */
+const EDGE_STYLE: Record<GraphEdgeKind, { farbe: string; breite: number; deckkraft: number }> = {
+  submodel: { farbe: "var(--type-sm)", breite: 2, deckkraft: 1 },
+  derivedFrom: { farbe: "var(--muted-foreground)", breite: 1.5, deckkraft: 0.8 },
+  semanticId: { farbe: "var(--type-cd)", breite: 1.5, deckkraft: 0.75 },
+  relationship: { farbe: "var(--warning)", breite: 1.5, deckkraft: 0.9 },
+  reference: { farbe: "var(--muted-foreground)", breite: 1.5, deckkraft: 0.8 },
 };
 
 export default function GraphView() {
@@ -58,13 +78,17 @@ function GraphInner() {
   const { t } = useTranslation();
   const model = useEditor((state) => state.model);
   const selection = useEditor((state) => state.selection);
+  const issues = useEditor((state) => state.issues);
   const goToNode = useEditor((state) => state.goToNode);
+  const setGraphZoom = useEditor((state) => state.setGraphZoom);
 
   const [layout, setLayout] = useState<LayoutResult | null>(null);
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState<string | null>(null);
   const [allesZeigen, setAllesZeigen] = useState(false);
-  const { fitView, setCenter } = useReactFlow();
+  const { fitView, setCenter, zoomIn, zoomOut } = useReactFlow();
+
+  const befunde = useMemo(() => buildIssueCounts(model, issues), [model, issues]);
 
   const voll = useMemo(() => (model ? buildGraph(model) : null), [model]);
 
@@ -113,25 +137,34 @@ function GraphInner() {
         label: node.label,
         kind: node.kind,
         aasId: node.aasId,
+        childCount: node.childCount,
+        issueCount: (befunde.get(node.id)?.errors ?? 0) + (befunde.get(node.id)?.warnings ?? 0),
         selected: node.id === selection,
       },
       draggable: false,
       connectable: false,
     }));
-  }, [layout, selection]);
+  }, [layout, selection, befunde]);
 
   const edges = useMemo<Edge[]>(() => {
     if (!graph) return [];
-    return graph.edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      label: edge.count > 1 ? `${edge.kind} ×${edge.count}` : edge.kind,
-      animated: false,
-      style: { stroke: EDGE_STYLE[edge.kind], strokeWidth: edge.count > 1 ? 2 : 1 },
-      labelStyle: { fontSize: 10, fill: "var(--muted-foreground)" },
-      labelBgStyle: { fill: "var(--background)" },
-    }));
+    return graph.edges.map((edge) => {
+      const stil = EDGE_STYLE[edge.kind];
+      return {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        type: "pille",
+        animated: false,
+        data: { kind: edge.kind, count: edge.count },
+        style: {
+          stroke: stil.farbe,
+          // Die Buendelstaerke steckt in der Strichbreite, so wie im Mockup.
+          strokeWidth: edge.count > 1 ? 3 : stil.breite,
+          opacity: edge.count > 1 ? 0.85 : stil.deckkraft,
+        },
+      } satisfies Edge;
+    });
   }, [graph]);
 
   /**
@@ -190,7 +223,7 @@ function GraphInner() {
         </p>
       ) : null}
 
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-2xs">
+      <div className="absolute top-3 right-3.5 z-10 flex items-center gap-2 rounded-lg border border-border bg-card/90 px-2.5 py-1 font-mono text-xs">
         <span data-graph-stats data-numeric>
           {t("graph.umfang", { knoten: graph.nodes.length, kanten: graph.edges.length })}
         </span>
@@ -206,19 +239,66 @@ function GraphInner() {
         ) : null}
       </div>
 
+      {/* Eigener Zoomstapel: die mitgelieferten Controls bringen ihr eigenes Stylesheet mit. */}
+      <div className="absolute bottom-3.5 left-[196px] z-10 flex flex-col overflow-hidden rounded-2xl border border-border bg-card">
+        <button
+          type="button"
+          aria-label={t("graph.zoomRein")}
+          onClick={() => void zoomIn({ duration: 150 })}
+          className="border-b border-border-subtle px-2.5 py-1 hover:bg-accent"
+        >
+          <Plus className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          aria-label={t("graph.zoomRaus")}
+          onClick={() => void zoomOut({ duration: 150 })}
+          className="border-b border-border-subtle px-2.5 py-1 hover:bg-accent"
+        >
+          <Minus className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          aria-label={t("graph.einpassen")}
+          onClick={() => void fitView({ duration: 200, padding: 0.2 })}
+          className="px-2.5 py-1 hover:bg-accent"
+        >
+          <Maximize2 className="size-3" />
+        </button>
+      </div>
+
+      {/* Legende: der Farbcode gilt in allen Sichten, hier steht er ausgeschrieben. */}
+      <div className="absolute bottom-3.5 left-3.5 z-10 flex flex-col gap-1.5 rounded-2xl border border-border bg-card/95 px-3 py-2.5 text-xs">
+        {(["AssetAdministrationShell", "Submodel", "ConceptDescription"] as const).map((kind) => (
+          <span key={kind} className="flex items-center gap-2">
+            <TypeDot tone={toneOf(kind)} />
+            {kind}
+          </span>
+        ))}
+      </div>
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodeClick={onNodeClick}
+        onMove={(_, viewport) => setGraphZoom(viewport.zoom)}
         nodesDraggable={false}
         nodesConnectable={false}
         edgesFocusable={false}
         proOptions={{ hideAttribution: true }}
         fitView
       >
-        <Background gap={16} color="var(--border)" />
-        <Controls showInteractive={false} />
+        <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="var(--graph-grid)" />
+        <MiniMap
+          pannable
+          zoomable
+          className="rounded-xl border border-border"
+          style={{ width: 150, height: 96, background: "var(--card)" }}
+          maskColor="color-mix(in oklab, var(--background), transparent 40%)"
+          nodeColor={(node) => MINIMAP_FARBE[node.data["kind"] as GraphNodeKind] ?? "var(--border)"}
+        />
       </ReactFlow>
     </div>
   );

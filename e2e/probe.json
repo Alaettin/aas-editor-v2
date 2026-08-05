@@ -1,0 +1,162 @@
+{
+  "assetAdministrationShells": [
+    {
+      "modelType": "AssetAdministrationShell",
+      "id": "https://admin-shell.io/idta/nameplate/3/0",
+      "idShort": "DigitalNameplateAAS",
+      "assetInformation": {
+        "assetKind": "Instance",
+        "globalAssetId": "https://example.com/asset/flowmeter-4711"
+      },
+      "submodels": [
+        {
+          "type": "ModelReference",
+          "keys": [{ "type": "Submodel", "value": "https://example.com/sm/nameplate" }]
+        },
+        {
+          "type": "ModelReference",
+          "keys": [{ "type": "Submodel", "value": "https://example.com/sm/technicaldata" }]
+        }
+      ]
+    }
+  ],
+  "submodels": [
+    {
+      "modelType": "Submodel",
+      "id": "https://example.com/sm/nameplate",
+      "idShort": "Nameplate",
+      "semanticId": {
+        "type": "ExternalReference",
+        "keys": [{ "type": "GlobalReference", "value": "0112/2///61360_7#AAS011#001" }]
+      },
+      "submodelElements": [
+        {
+          "modelType": "Property",
+          "idShort": "URIOfTheProduct",
+          "valueType": "xs:anyURI",
+          "value": "https://www.domain-abc.com/Model-Nr-1234/Serial-Nr-5678",
+          "semanticId": {
+            "type": "ExternalReference",
+            "keys": [{ "type": "GlobalReference", "value": "0112/2///61360_7#AAS011#001" }]
+          }
+        },
+        {
+          "modelType": "MultiLanguageProperty",
+          "idShort": "ManufacturerName",
+          "value": [
+            { "language": "de", "text": "Muster GmbH" },
+            { "language": "en", "text": "Sample Corp" }
+          ]
+        },
+        {
+          "modelType": "MultiLanguageProperty",
+          "idShort": "ManufacturerProductRoot",
+          "value": [{ "language": "en", "text": "flow meter" }],
+          "semanticId": {
+            "type": "ExternalReference",
+            "keys": [{ "type": "GlobalReference", "value": "0112/2///61360_7#AAS011#001" }]
+          }
+        },
+        {
+          "modelType": "SubmodelElementCollection",
+          "idShort": "AddressInformation",
+          "value": [
+            { "modelType": "Property", "idShort": "Street", "valueType": "xs:string", "value": "Musterweg 1" },
+            { "modelType": "Property", "idShort": "Zipcode", "valueType": "xs:string", "value": "50667" },
+            { "modelType": "Property", "idShort": "CityTown", "valueType": "xs:string", "value": "Koeln" }
+          ]
+        },
+        { "modelType": "Property", "idShort": "ManufacturerProductType", "valueType": "xs:string", "value": "FM-ABC-1234" },
+        { "modelType": "Property", "idShort": "OrderCodeOfManufacturer", "valueType": "xs:string", "value": "FMABC1234" },
+        { "modelType": "Property", "idShort": "SerialNumber", "valueType": "xs:string", "value": "12345678" },
+        { "modelType": "Property", "idShort": "YearOfConstruction", "valueType": "xs:string", "value": "2022" },
+        { "modelType": "Property", "idShort": "DateOfManufacture", "valueType": "xs:date", "value": "2022-01-01" },
+        { "modelType": "Property", "idShort": "HardwareVersion", "valueType": "xs:string", "value": "1.0.0" },
+        { "modelType": "Property", "idShort": "FirmwareVersion", "valueType": "xs:string", "value": "1.0.0" },
+        { "modelType": "Property", "idShort": "CountryOfOrigin", "valueType": "xs:string", "value": "DE" },
+        { "modelType": "File", "idShort": "CompanyLogo", "value": "/aasx/files/logo.png" },
+        {
+          "modelType": "SubmodelElementList",
+          "idShort": "Markings",
+          "typeValueListElement": "SubmodelElementCollection",
+          "value": [
+            {
+              "modelType": "SubmodelElementCollection",
+              "idShort": "Marking",
+              "value": [
+                { "modelType": "Property", "idShort": "MarkingName", "valueType": "xs:string", "value": "CE" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "modelType": "Submodel",
+      "id": "https://example.com/sm/technicaldata",
+      "idShort": "TechnicalData",
+      "submodelElements": [
+        {
+          "modelType": "SubmodelElementCollection",
+          "idShort": "GeneralInformation",
+          "value": [
+            { "modelType": "Property", "idShort": "ManufacturerName", "valueType": "xs:string", "value": "Muster GmbH" },
+            { "modelType": "Property", "idShort": "ManufacturerArticleNumber", "valueType": "xs:string", "value": "FM-4711" }
+          ]
+        },
+        {
+          "modelType": "SubmodelElementCollection",
+          "idShort": "TechnicalProperties",
+          "value": [
+            { "modelType": "Property", "idShort": "MaxFlow", "valueType": "xs:double", "value": "120.5" },
+            { "modelType": "Property", "idShort": "NominalPressure", "valueType": "xs:double", "value": "16" }
+          ]
+        }
+      ]
+    }
+  ],
+  "conceptDescriptions": [
+    {
+      "modelType": "ConceptDescription",
+      "id": "0112/2///61360_7#AAS011#001",
+      "idShort": "ManufacturerProductRoot",
+      "embeddedDataSpecifications": [
+        {
+          "dataSpecification": {
+            "type": "ExternalReference",
+            "keys": [
+              {
+                "type": "GlobalReference",
+                "value": "https://admin-shell.io/DataSpecificationTemplates/DataSpecificationIec61360/3/0"
+              }
+            ]
+          },
+          "dataSpecificationContent": {
+            "modelType": "DataSpecificationIec61360",
+            "preferredName": [
+              { "language": "de", "text": "Produkt-Grundtyp" },
+              { "language": "en", "text": "manufacturer product root" }
+            ],
+            "definition": [
+              {
+                "language": "en",
+                "text": "top level of a 3 level manufacturer specific product hierarchy"
+              }
+            ],
+            "dataType": "STRING_TRANSLATABLE"
+          }
+        }
+      ]
+    },
+    {
+      "modelType": "ConceptDescription",
+      "id": "0173-1#02-AAO677#002",
+      "idShort": "ManufacturerName"
+    },
+    {
+      "modelType": "ConceptDescription",
+      "id": "0173-1#02-AAW338#001",
+      "idShort": "SerialNumber"
+    }
+  ]
+}
