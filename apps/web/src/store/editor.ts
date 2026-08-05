@@ -423,7 +423,7 @@ export const useEditor = create<EditorState>()((set, get) => {
       } catch (error) {
         set({
           status: "fehler",
-          error: error instanceof ApiError ? error.message : (error as Error).message,
+          error: error instanceof ApiError ? error.text : (error as Error).message,
           anhaengeBereit: true,
         });
       } finally {
@@ -551,7 +551,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         meldeErfolg("melden.versionGeladen");
         return true;
       } catch (error) {
-        const grund = error instanceof ApiError ? error.message : (error as Error).message;
+        const grund = error instanceof ApiError ? error.text : (error as Error).message;
         meldeFehler(error, "fehler.versionLaden");
         set({ status: "fehler", error: grund });
         return false;

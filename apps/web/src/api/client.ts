@@ -17,6 +17,19 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+
+  /**
+   * Der Satz in der eingestellten Sprache.
+   *
+   * Der Server liefert einen stabilen `code` und eine englische Meldung fuer Protokolle;
+   * uebersetzt wird hier. Kennt die Sprachdatei den Code nicht, bleibt die Rohmeldung
+   * stehen: eine erfundene Uebersetzung waere schlechter als eine englische, die stimmt.
+   */
+  get text(): string {
+    const schluessel = `fehler.server.${this.code}`;
+    const uebersetzt = i18n.t(schluessel, this.details) as string;
+    return uebersetzt === schluessel ? this.message : uebersetzt;
+  }
 }
 
 export type Method = "GET" | "POST" | "PUT" | "DELETE";

@@ -20,7 +20,7 @@ export function fileRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
       getProject(db, id);
 
       const part = await req.file();
-      if (part === undefined) throw badRequest("ungueltige-anfrage", "Es fehlt eine Datei.");
+      if (part === undefined) throw badRequest("datei-fehlt", "A file is required.");
 
       // Die Felder stehen im selben multipart-Umschlag. path ist der Paketpfad aus dem
       // File-Element, nicht der Dateiname.
@@ -29,7 +29,7 @@ export function fileRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
       const path = fields["path"]?.value;
       const role = fields["role"]?.value;
       if (typeof path !== "string" || path === "") {
-        throw badRequest("ungueltige-anfrage", "Der Paketpfad fehlt.");
+        throw badRequest("pfad-fehlt", "The package path is required.");
       }
 
       const info = storeFile(db, env, id, {

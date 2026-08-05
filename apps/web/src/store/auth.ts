@@ -50,7 +50,7 @@ export const useAuth = create<AuthState>()((set) => ({
         error instanceof ApiError && error.status === 429
           ? i18n.t("fehler.zuVieleVersuche")
           : error instanceof ApiError
-            ? error.message
+            ? error.text
             : i18n.t("fehler.serverNichtErreichbar");
       set({ status: "abgemeldet", benutzer: null, fehler });
       return false;

@@ -37,11 +37,13 @@ export type SplitEnvironment = {
 function asList(value: unknown, slot: string): Json[] {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value)) {
-    throw badRequest("ungueltiges-environment", `${slot} muss eine Liste sein.`);
+    throw badRequest("slot-keine-liste", `${slot} must be a list.`, { slot });
   }
   for (const entry of value) {
     if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
-      throw badRequest("ungueltiges-environment", `${slot} enthaelt einen Nicht-Objekt-Eintrag.`);
+      throw badRequest("slot-eintrag-kein-objekt", `${slot} contains a non-object entry.`, {
+        slot,
+      });
     }
   }
   return value as Json[];
@@ -49,7 +51,7 @@ function asList(value: unknown, slot: string): Json[] {
 
 export function splitEnvironment(environment: unknown): SplitEnvironment {
   if (typeof environment !== "object" || environment === null || Array.isArray(environment)) {
-    throw badRequest("ungueltiges-environment", "Das Environment muss ein Objekt sein.");
+    throw badRequest("environment-kein-objekt", "The environment must be an object.");
   }
 
   const source = environment as Json;

@@ -29,7 +29,7 @@ export function projectRoutes(app: FastifyInstance, db: Db): void {
     scope.post("/api/projects", (req, reply) => {
       const body = (req.body ?? {}) as SaveBody & { name?: unknown };
       if (typeof body.name !== "string" || body.name.trim() === "") {
-        throw badRequest("ungueltige-anfrage", "Ein Projektname wird erwartet.");
+        throw badRequest("projektname-fehlt", "A project name is required.");
       }
       const created = createProject(db, { ...body, name: body.name.trim() });
       void reply.code(201);
@@ -59,10 +59,10 @@ export function projectRoutes(app: FastifyInstance, db: Db): void {
       const { id } = req.params as { id: string };
       const body = (req.body ?? {}) as SaveBody;
       if (typeof body.revision !== "number" || !Number.isInteger(body.revision)) {
-        throw badRequest("ungueltige-anfrage", "Die erwartete Revision wird mitgeschickt.");
+        throw badRequest("revision-fehlt", "The expected revision is required.");
       }
       if (body.environment === undefined) {
-        throw badRequest("ungueltige-anfrage", "Das Environment fehlt.");
+        throw badRequest("environment-fehlt", "The environment is required.");
       }
       return { projekt: saveProject(db, id, body.revision, body) };
     });

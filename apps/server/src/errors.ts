@@ -1,11 +1,16 @@
 import type { FastifyError, FastifyInstance } from "fastify";
 
 /**
- * Fehler mit Statuscode, maschinenlesbarer Kennung und deutscher Meldung.
+ * Fehler mit Statuscode, maschinenlesbarer Kennung und englischer Meldung.
  *
- * Die Kennung ist das, worauf das Frontend schaltet (etwa "revision-konflikt"),
- * die Meldung das, was der Nutzer liest. Beides gehoert zusammen an eine Stelle,
- * sonst erfindet jeder Handler seine eigene Fehlerform.
+ * **Die Kennung ist das Uebersetzbare, nicht die Meldung.** Die Oberflaeche schaltet auf
+ * `code` und zeigt ihren eigenen Satz in der eingestellten Sprache, siehe
+ * `apps/web/src/api/client.ts`. Die Meldung hier ist fuer Protokolle und fuer direkte
+ * Nutzer der Schnittstelle; sie ist englisch, weil der Server einmal ein Submodel
+ * Repository nach IDTA-01002 wird und diese Spezifikation englisch ist.
+ *
+ * Daraus folgt: **je Grund ein eigener Code**. Bis Phase 9 stand `ungueltige-anfrage` fuer
+ * acht verschiedene Gruende; darauf laesst sich nichts uebersetzen.
  */
 export class AppError extends Error {
   constructor(
@@ -21,9 +26,9 @@ export class AppError extends Error {
 
 export const badRequest = (code: string, message: string, details?: Record<string, unknown>) =>
   new AppError(400, code, message, details);
-export const unauthorized = (message = "Nicht angemeldet.") =>
+export const unauthorized = (message = "Not signed in.") =>
   new AppError(401, "nicht-angemeldet", message);
-export const notFound = (message: string) => new AppError(404, "nicht-gefunden", message);
+export const notFound = (code: string, message: string) => new AppError(404, code, message);
 export const conflict = (code: string, message: string, details?: Record<string, unknown>) =>
   new AppError(409, code, message, details);
 
@@ -47,10 +52,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
 
     request.log.error(error);
-    void reply.code(500).send({ code: "serverfehler", message: "Unerwarteter Serverfehler." });
+    void reply.code(500).send({ code: "serverfehler", message: "Unexpected server error." });
   });
 
   app.setNotFoundHandler((_request, reply) => {
-    void reply.code(404).send({ code: "nicht-gefunden", message: "Route unbekannt." });
+    void reply.code(404).send({ code: "route-unbekannt", message: "Unknown route." });
   });
 }

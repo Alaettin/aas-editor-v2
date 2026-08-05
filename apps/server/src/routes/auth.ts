@@ -24,13 +24,13 @@ export async function authRoutes(app: FastifyInstance, env: ServerEnv): Promise<
     async (req, reply) => {
       const body = (req.body ?? {}) as LoginBody;
       if (typeof body.benutzer !== "string" || typeof body.passwort !== "string") {
-        throw badRequest("ungueltige-anfrage", "Benutzername und Passwort werden erwartet.");
+        throw badRequest("benutzerdaten-fehlen", "Username and password are required.");
       }
 
       const user = await app.auth.verifyCredentials(body.benutzer, body.passwort);
       if (user === null) {
         req.log.info({ benutzer: body.benutzer }, "Anmeldung fehlgeschlagen");
-        throw unauthorized("Benutzername oder Passwort stimmt nicht.");
+        throw unauthorized("Username or password is wrong.");
       }
 
       issueSession(reply, { sub: user.id, exp: Date.now() + env.sessionTtlMs }, env);

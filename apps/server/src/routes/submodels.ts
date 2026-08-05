@@ -21,7 +21,7 @@ function decode(encoded: string): string {
     if (id === "") throw new Error("leer");
     return id;
   } catch {
-    throw badRequest("ungueltige-kennung", "Die Kennung ist nicht base64url-kodiert.");
+    throw badRequest("ungueltige-kennung", "The identifier is not base64url encoded.");
   }
 }
 
@@ -66,7 +66,7 @@ export function submodelRoutes(app: FastifyInstance, db: Db): void {
         .from(submodels)
         .where(and(eq(submodels.projectId, id), eq(submodels.id, decode(encodedId))))
         .get();
-      if (row === undefined) throw notFound("Submodel nicht gefunden.");
+      if (row === undefined) throw notFound("submodel-nicht-gefunden", "Submodel not found.");
       return JSON.parse(row.json) as unknown;
     });
 
@@ -77,12 +77,12 @@ export function submodelRoutes(app: FastifyInstance, db: Db): void {
 
       const body = req.body as Record<string, unknown> | undefined;
       if (body === undefined || typeof body !== "object" || Array.isArray(body)) {
-        throw badRequest("ungueltige-anfrage", "Ein Submodel wird erwartet.");
+        throw badRequest("submodel-fehlt", "A submodel is required.");
       }
       if (body["id"] !== submodelId) {
         throw badRequest(
           "kennung-widerspricht",
-          "Die id im Rumpf stimmt nicht mit der Kennung im Pfad ueberein.",
+          "The id in the body does not match the identifier in the path.",
         );
       }
 
@@ -96,7 +96,7 @@ export function submodelRoutes(app: FastifyInstance, db: Db): void {
         })
         .where(and(eq(submodels.projectId, id), eq(submodels.id, submodelId)))
         .run();
-      if (result.changes === 0) throw notFound("Submodel nicht gefunden.");
+      if (result.changes === 0) throw notFound("submodel-nicht-gefunden", "Submodel not found.");
 
       // Der Schreibzugriff geht am Editor vorbei, also muss die Revision steigen. Sonst
       // ueberschreibt ein offener Tab die Aenderung, ohne einen Konflikt zu sehen.

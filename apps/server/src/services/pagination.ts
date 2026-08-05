@@ -41,13 +41,13 @@ export function decodeCursor(raw: string): Cursor {
   try {
     parsed = JSON.parse(decodeIdentifier(raw));
   } catch {
-    throw badRequest("ungueltiger-cursor", "Der Cursor ist nicht lesbar.");
+    throw badRequest("ungueltiger-cursor", "The cursor is not readable.");
   }
 
   const candidate = parsed as { v?: unknown; k?: unknown; i?: unknown };
   const keyOk = typeof candidate.k === "string" || typeof candidate.k === "number";
   if (candidate.v !== 1 || !keyOk || typeof candidate.i !== "string") {
-    throw badRequest("ungueltiger-cursor", "Der Cursor ist nicht lesbar.");
+    throw badRequest("ungueltiger-cursor", "The cursor is not readable.");
   }
   return { k: candidate.k as string | number, i: candidate.i };
 }
@@ -57,7 +57,9 @@ export function parsePageQuery(query: { limit?: unknown; cursor?: unknown }): Pa
   if (query.limit !== undefined) {
     const value = Number(query.limit);
     if (!Number.isInteger(value) || value < 1 || value > MAX_LIMIT) {
-      throw badRequest("ungueltiges-limit", `limit muss zwischen 1 und ${MAX_LIMIT} liegen.`);
+      throw badRequest("ungueltiges-limit", `limit must be between 1 and ${MAX_LIMIT}.`, {
+        grenze: MAX_LIMIT,
+      });
     }
     limit = value;
   }

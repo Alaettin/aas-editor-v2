@@ -34,7 +34,7 @@ interface ProjectsState {
 }
 
 function meldung(error: unknown): string {
-  return error instanceof ApiError ? error.message : i18n.t("fehler.serverNichtErreichbar");
+  return error instanceof ApiError ? error.text : i18n.t("fehler.serverNichtErreichbar");
 }
 
 export const useProjects = create<ProjectsState>()((set, get) => ({

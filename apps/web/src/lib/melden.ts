@@ -1,6 +1,7 @@
 import { istKernFehler } from "@aas-editor/core";
 import { toast } from "sonner";
 
+import { ApiError } from "@/api/client";
 import i18n from "@/i18n";
 
 /**
@@ -38,9 +39,11 @@ export function meldeFehler(fehler: unknown, schluessel?: string): void {
   // `Error.message` traegt dort nur den englischen Entwicklertext fuer Protokolle.
   const grund = istKernFehler(fehler)
     ? text(fehler.schluessel, fehler.werte)
-    : fehler instanceof Error
-      ? fehler.message
-      : String(fehler);
+    : fehler instanceof ApiError
+      ? fehler.text
+      : fehler instanceof Error
+        ? fehler.message
+        : String(fehler);
   toast.error(schluessel ? text(schluessel) : grund, {
     description: schluessel ? grund : undefined,
     duration: 10000,

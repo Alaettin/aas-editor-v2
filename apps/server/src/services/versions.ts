@@ -103,7 +103,7 @@ export async function readVersion(
     .from(projectVersions)
     .where(and(eq(projectVersions.projectId, projectId), eq(projectVersions.id, versionId)))
     .get();
-  if (row === undefined) throw notFound("Version nicht gefunden.");
+  if (row === undefined) throw notFound("version-nicht-gefunden", "Version not found.");
 
   const environment = JSON.parse((await entpacke(row.snapshot)).toString("utf8")) as Json;
   return { version: toSummary(row), environment };

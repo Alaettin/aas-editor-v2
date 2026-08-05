@@ -223,6 +223,8 @@ const BAUSTEINE = [
   "warnung.",
   "datei.",
   "modell.",
+  // Servercodes: der Klient setzt sie ueber `fehler.server.${code}` zusammen.
+  "fehler.server.",
   // Die Beschriftung des Speichern-Knopfes folgt dem Serverzustand, siehe Toolbar.
   "speichern.",
 ];

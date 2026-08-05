@@ -97,7 +97,8 @@ export function storeFile(
     .from(files)
     .where(and(eq(files.projectId, projectId), eq(files.path, input.path)))
     .get();
-  if (stored === undefined) throw notFound("Anhang konnte nicht abgelegt werden.");
+  if (stored === undefined)
+    throw notFound("anhang-nicht-abgelegt", "The attachment could not be stored.");
   return toInfo(stored);
 }
 
@@ -112,12 +113,12 @@ export function readFile(
     .from(files)
     .where(and(eq(files.projectId, projectId), eq(files.id, fileId)))
     .get();
-  if (row === undefined) throw notFound("Anhang nicht gefunden.");
+  if (row === undefined) throw notFound("anhang-nicht-gefunden", "Attachment not found.");
 
   try {
     return { info: toInfo(row), bytes: readFileSync(resolve(env.dataDir, row.storagePath)) };
   } catch {
-    throw notFound("Die Bytes zu diesem Anhang fehlen im Datenverzeichnis.");
+    throw notFound("anhang-ohne-bytes", "The bytes for this attachment are missing on disk.");
   }
 }
 
@@ -128,5 +129,5 @@ export function deleteFile(db: Db, projectId: string, fileId: string): void {
     .delete(files)
     .where(and(eq(files.projectId, projectId), eq(files.id, fileId)))
     .run();
-  if (result.changes === 0) throw notFound("Anhang nicht gefunden.");
+  if (result.changes === 0) throw notFound("anhang-nicht-gefunden", "Attachment not found.");
 }

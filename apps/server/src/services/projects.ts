@@ -84,7 +84,7 @@ export function listProjects(db: Db, page: PageQuery): Page<ProjectSummary> {
 
 export function getProject(db: Db, id: string): ProjectRow {
   const row = db.select().from(projects).where(eq(projects.id, id)).get();
-  if (row === undefined) throw notFound("Projekt nicht gefunden.");
+  if (row === undefined) throw notFound("projekt-nicht-gefunden", "Project not found.");
   return row;
 }
 
@@ -150,7 +150,7 @@ export function saveProject(
 
   db.transaction((tx) => {
     const current = tx.select().from(projects).where(eq(projects.id, id)).get();
-    if (current === undefined) throw notFound("Projekt nicht gefunden.");
+    if (current === undefined) throw notFound("projekt-nicht-gefunden", "Project not found.");
 
     const updated = tx
       .update(projects)
@@ -171,7 +171,7 @@ export function saveProject(
     if (updated.changes === 0) {
       throw conflict(
         "revision-konflikt",
-        "Der Serverstand ist neuer als der eigene. Nichts wurde ueberschrieben.",
+        "The server revision is newer than the expected one. Nothing was overwritten.",
         { aktuelleRevision: current.revision, aktualisiertAm: current.updatedAt },
       );
     }
@@ -203,7 +203,7 @@ export function saveProject(
 
 export function deleteProject(db: Db, id: string): void {
   const result = db.delete(projects).where(eq(projects.id, id)).run();
-  if (result.changes === 0) throw notFound("Projekt nicht gefunden.");
+  if (result.changes === 0) throw notFound("projekt-nicht-gefunden", "Project not found.");
 }
 
 /**
@@ -217,7 +217,7 @@ function assertUniqueIds(split: ReturnType<typeof splitEnvironment>): void {
     for (const row of split.rows[slot]) {
       if (row.id === "") continue;
       if (gesehen.has(row.id)) {
-        throw conflict("doppelte-id", `Die id "${row.id}" kommt mehrfach vor.`, { id: row.id });
+        throw conflict("doppelte-id", `The id "${row.id}" occurs more than once.`, { id: row.id });
       }
       gesehen.add(row.id);
     }
