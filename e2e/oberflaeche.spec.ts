@@ -38,7 +38,9 @@ async function anmeldenUndOeffnen(page: Page, name: string): Promise<void> {
     timeout: 30000,
   });
   await page.waitForFunction(
-    () => (window as never as { __aasEditorStore?: KnownStore }).__aasEditorStore?.getState().status === "bereit",
+    () =>
+      (window as never as { __aasEditorStore?: KnownStore }).__aasEditorStore?.getState().status ===
+      "bereit",
     null,
     { timeout: 30000 },
   );
@@ -138,5 +140,29 @@ test.describe("Oberflaeche", () => {
     const nachher = (await page.locator("main").boundingBox())?.width ?? 0;
     // Verdraengen statt ueberlagern: die Sicht muss wirklich schmaler geworden sein.
     expect(nachher).toBeLessThan(vorher);
+  });
+
+  test("sagt beim Speichern, dass es geklappt hat", async ({ page }) => {
+    // Bis Phase 9 gab es im ganzen Programm keine einzige Erfolgsmeldung. Gespeichert
+    // wurde still, und der Nutzer musste der Statusleiste glauben.
+    await anmeldenUndOeffnen(page, `Rueckmeldung ${String(Date.now())}`);
+
+    await page.evaluate(() => {
+      const zustand = (
+        window as never as { __aasEditorStore?: KnownStore }
+      ).__aasEditorStore?.getState();
+      const knoten = Object.values(zustand?.model.nodes ?? {}).find(
+        (n) => typeof n.data["idShort"] === "string",
+      );
+      if (knoten) zustand?.goToNode(knoten.nodeId);
+    });
+
+    const feld = page.locator('[data-field="idShort"]').first();
+    await feld.waitFor();
+    await feld.fill(`Geaendert${String(Date.now() % 1000)}`);
+    await feld.blur();
+
+    await page.keyboard.press("Control+s");
+    await expect(page.getByText("Projekt gespeichert.")).toBeVisible({ timeout: 15000 });
   });
 });

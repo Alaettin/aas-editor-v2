@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Loader2 } from "lucide-react";
+
 import { versionsApi, type VersionSummary } from "@/api/projects";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { meldeFehler } from "@/lib/melden";
 import { useEditor } from "@/store/editor";
 
 interface Props {
@@ -28,13 +32,30 @@ export function VersionDialog({ offen, onClose }: Props) {
   const [versionen, setVersionen] = useState<readonly VersionSummary[]>([]);
   const [label, setLabel] = useState("");
   const [laeuft, setLaeuft] = useState(false);
+  const [laedt, setLaedt] = useState(false);
+  /**
+   * Der Fehler steht **im Dialog**, nicht nur im Toaster. Ein Toaster hinter einem
+   * offenen Dialog ist zwar sichtbar, aber weit weg von der Stelle, an der gehandelt
+   * wurde. Frueher fing hier gar nichts, ein Fehlschlag verpuffte als unbehandelte
+   * Zusage und die leere Liste sah aus wie "keine Versionen".
+   */
+  const [fehler, setFehler] = useState<string | null>(null);
 
   const datum = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" });
 
   const laden = useCallback(async () => {
     if (projektId === null) return;
-    const page = await versionsApi.list(projektId);
-    setVersionen(page.items);
+    setLaedt(true);
+    setFehler(null);
+    try {
+      const page = await versionsApi.list(projektId);
+      setVersionen(page.items);
+    } catch (error) {
+      meldeFehler(error, "fehler.versionen");
+      setFehler((error as Error).message);
+    } finally {
+      setLaedt(false);
+    }
   }, [projektId]);
 
   useEffect(() => {
@@ -43,9 +64,14 @@ export function VersionDialog({ offen, onClose }: Props) {
 
   const anlegen = async () => {
     setLaeuft(true);
-    await versionAnlegen(label.trim() === "" ? null : label.trim());
-    setLabel("");
-    await laden();
+    setFehler(null);
+    const geklappt = await versionAnlegen(label.trim() === "" ? null : label.trim());
+    if (geklappt) {
+      setLabel("");
+      await laden();
+    } else {
+      setFehler(t("fehler.version"));
+    }
     setLaeuft(false);
   };
 
@@ -57,19 +83,35 @@ export function VersionDialog({ offen, onClose }: Props) {
           <DialogDescription>{t("versionen.text")}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2">
-          <Input
-            value={label}
-            placeholder={t("versionen.labelPlatzhalter")}
-            onChange={(event) => setLabel(event.target.value)}
-          />
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Label htmlFor="versionslabel" className="mb-1 text-2xs text-muted-foreground">
+              {t("versionen.labelPlatzhalter")}
+            </Label>
+            <Input
+              id="versionslabel"
+              value={label}
+              placeholder={t("versionen.labelPlatzhalter")}
+              onChange={(event) => setLabel(event.target.value)}
+            />
+          </div>
           <Button disabled={laeuft || projektId === null} onClick={() => void anlegen()}>
+            {laeuft ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
             {t("versionen.anlegen")}
           </Button>
         </div>
 
+        {fehler ? (
+          <p role="alert" className="text-sm text-destructive">
+            {fehler}
+          </p>
+        ) : null}
+
         <ul className="max-h-72 divide-y divide-border overflow-auto rounded-md border border-border">
-          {versionen.length === 0 ? (
+          {laedt ? (
+            <li className="px-3 py-4 text-sm text-muted-foreground">{t("status.wirdGelesen")}</li>
+          ) : null}
+          {!laedt && versionen.length === 0 && fehler === null ? (
             <li className="px-3 py-4 text-sm text-muted-foreground">{t("versionen.leer")}</li>
           ) : null}
           {versionen.map((version) => (
@@ -90,8 +132,12 @@ export function VersionDialog({ offen, onClose }: Props) {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  void versionLaden(version.id);
-                  onClose();
+                  // Erst schliessen, wenn es geklappt hat: sonst verschwindet der Dialog
+                  // und der Fehlschlag steht nirgends mehr.
+                  void versionLaden(version.id).then((geklappt) => {
+                    if (geklappt) onClose();
+                    else setFehler(t("fehler.versionLaden"));
+                  });
                 }}
               >
                 {t("versionen.laden")}

@@ -27,6 +27,7 @@ import type { ValidationIssue } from "@aas-editor/core/validation";
 
 import { ApiError } from "@/api/client";
 import { filesApi, projectsApi, versionsApi } from "@/api/projects";
+import { meldeErfolg, meldeFehler, meldeHinweis } from "@/lib/melden";
 import { aasWorker, type AttachmentInfo, type OpenResult } from "@/worker/bridge";
 import { clearDraft, createAutosave, loadDraft, type Draft } from "./autosave";
 
@@ -121,8 +122,9 @@ interface EditorState {
   speichern: () => Promise<void>;
   alsNeuesProjektSpeichern: (name: string) => Promise<string | null>;
   konfliktSchliessen: () => void;
-  versionAnlegen: (label: string | null) => Promise<void>;
-  versionLaden: (versionId: string) => Promise<void>;
+  /** Liefert, ob es geklappt hat: der Dialog zeigt den Fehler zusaetzlich bei sich. */
+  versionAnlegen: (label: string | null) => Promise<boolean>;
+  versionLaden: (versionId: string) => Promise<boolean>;
 
   /** Ein gefundener Entwurf aus IndexedDB, der zur Wiederherstellung angeboten wird */
   draft: Draft | null;
@@ -171,9 +173,14 @@ interface EditorState {
    * aus dem Kontextmenue und aus der Menuezeile. Deshalb liegt der Zustand hier und nicht
    * im Baum.
    */
-  pendingDeleteId: NodeId | null;
+  /**
+   * Was die Rueckfrage gerade betrifft. Eine Liste, nicht ein einzelner Knoten: die
+   * Tabelle loeschte ihre Markierung frueher ohne jede Rueckfrage, waehrend der Baum
+   * immer fragte. Zwei Wege, dieselbe Folge, unterschiedliche Sicherheit.
+   */
+  pendingDelete: readonly NodeId[];
   pasteTargetId: NodeId | null;
-  requestDelete: (nodeId: NodeId | null) => void;
+  requestDelete: (nodeIds: readonly NodeId[]) => void;
   requestPaste: (nodeId: NodeId | null) => void;
 
   /** Validierung sofort anstossen, statt auf die Entprellung zu warten. */
@@ -242,7 +249,7 @@ export const useEditor = create<EditorState>()((set, get) => {
     try {
       result = applyChange(model, history, label, recipe);
     } catch (error) {
-      set({ error: (error as Error).message });
+      meldeFehler(error, "fehler.aenderung");
       return;
     }
 
@@ -356,7 +363,9 @@ export const useEditor = create<EditorState>()((set, get) => {
 
         const issues = await aasWorker().validate();
         set({ issues });
+        meldeErfolg("melden.importiert", { name: file.name });
       } catch (error) {
+        meldeFehler(error, "fehler.importFehlgeschlagen");
         set({ status: "fehler", error: (error as Error).message });
       }
     },
@@ -374,8 +383,9 @@ export const useEditor = create<EditorState>()((set, get) => {
         // Exportiert heisst gesichert: der Entwurf wird nicht mehr gebraucht.
         void clearDraft();
         set({ dirty: false });
+        meldeErfolg("melden.exportiert", { name: anchor.download });
       } catch (error) {
-        set({ error: (error as Error).message });
+        meldeFehler(error, "fehler.export");
       }
     },
 
@@ -453,6 +463,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         });
         // Gespeichert heisst gesichert, der lokale Entwurf wird nicht mehr gebraucht.
         void clearDraft();
+        meldeErfolg("melden.gespeichert");
       } catch (error) {
         if (
           error instanceof ApiError &&
@@ -468,10 +479,8 @@ export const useEditor = create<EditorState>()((set, get) => {
           });
           return;
         }
-        set({
-          serverStatus: "fehler",
-          error: error instanceof ApiError ? error.message : (error as Error).message,
-        });
+        meldeFehler(error, "fehler.speichern");
+        set({ serverStatus: "fehler" });
       }
     },
 
@@ -498,12 +507,11 @@ export const useEditor = create<EditorState>()((set, get) => {
         // Die Anhaenge gehoeren zum neuen Projekt, sie werden danach hochgeladen.
         await anhaengeHochladen(antwort.project.id);
         void clearDraft();
+        meldeErfolg("melden.gespeichert");
         return antwort.project.id;
       } catch (error) {
-        set({
-          serverStatus: "fehler",
-          error: error instanceof ApiError ? error.message : (error as Error).message,
-        });
+        meldeFehler(error, "fehler.speichern");
+        set({ serverStatus: "fehler" });
         return null;
       }
     },
@@ -516,17 +524,20 @@ export const useEditor = create<EditorState>()((set, get) => {
 
     async versionAnlegen(label) {
       const { projektId } = get();
-      if (projektId === null) return;
+      if (projektId === null) return false;
       try {
         await versionsApi.create(projektId, label);
+        meldeErfolg("melden.versionAngelegt");
+        return true;
       } catch (error) {
-        set({ error: error instanceof ApiError ? error.message : (error as Error).message });
+        meldeFehler(error, "fehler.version");
+        return false;
       }
     },
 
     async versionLaden(versionId) {
       const { projektId } = get();
-      if (projektId === null) return;
+      if (projektId === null) return false;
 
       set({ status: "laedt", error: null });
       try {
@@ -547,11 +558,13 @@ export const useEditor = create<EditorState>()((set, get) => {
           serverStatus: "geaendert",
           issues: await aasWorker().validate(),
         });
+        meldeErfolg("melden.versionGeladen");
+        return true;
       } catch (error) {
-        set({
-          status: "fehler",
-          error: error instanceof ApiError ? error.message : (error as Error).message,
-        });
+        const grund = error instanceof ApiError ? error.message : (error as Error).message;
+        meldeFehler(error, "fehler.versionLaden");
+        set({ status: "fehler", error: grund });
+        return false;
       }
     },
 
@@ -755,7 +768,7 @@ export const useEditor = create<EditorState>()((set, get) => {
       try {
         set({ clipboard: copySubtree(model, nodeId) });
       } catch (error) {
-        set({ error: (error as Error).message });
+        meldeFehler(error);
       }
     },
 
@@ -768,7 +781,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         set({ clipboard: fragment });
         get().deleteElement(nodeId);
       } catch (error) {
-        set({ error: (error as Error).message });
+        meldeFehler(error);
       }
     },
 
@@ -787,6 +800,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         get().expandTo(neu);
         get().setExpanded(parentId, true);
         set({ selection: neu });
+        meldeErfolg("melden.eingefuegt");
       }
       return result;
     },
@@ -795,9 +809,9 @@ export const useEditor = create<EditorState>()((set, get) => {
     setTheme: (theme) => set({ theme }),
     setView: (view) => set({ view }),
 
-    pendingDeleteId: null,
+    pendingDelete: [],
     pasteTargetId: null,
-    requestDelete: (nodeId) => set({ pendingDeleteId: nodeId }),
+    requestDelete: (nodeIds) => set({ pendingDelete: nodeIds }),
     requestPaste: (nodeId) => set({ pasteTargetId: nodeId }),
 
     async revalidate() {
@@ -811,7 +825,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         if (lauf === validateLauf) set({ issues, pruefung: "ruht" });
       } catch (error) {
         if (lauf === validateLauf) set({ pruefung: "ruht" });
-        set({ error: (error as Error).message });
+        meldeFehler(error, "fehler.pruefung");
       }
     },
 
@@ -877,8 +891,10 @@ async function anhaengeHolen(
       },
     });
   } catch {
-    // Fehlende Anhaenge machen das Modell nicht unbrauchbar. Die Statusleiste zeigt
-    // weiterhin, dass sie fehlen.
+    // Fehlende Anhaenge machen das Modell nicht unbrauchbar, aber ein Export waere
+    // unvollstaendig. Das muss der Nutzer erfahren, sonst liefert er stillschweigend
+    // eine AASX ohne ihre Dateien aus.
+    meldeHinweis("melden.anhaengeNichtGeladen");
     set({ anhaengeBereit: true });
   }
 }

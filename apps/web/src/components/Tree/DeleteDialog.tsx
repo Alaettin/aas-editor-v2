@@ -10,28 +10,31 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { meldeErfolg } from "@/lib/melden";
 import { useEditor } from "@/store/editor";
 import { labelOf } from "@/store/rows";
 
 /**
  * Rueckfrage vor dem Loeschen. Rueckgaengig bleibt trotzdem moeglich.
  *
- * Der Knoten kommt aus dem Store, nicht als Prop: geloescht wird aus dem Baum, aus dem
- * Kontextmenue und aus der Menuezeile.
+ * Die Knoten kommen aus dem Store, nicht als Prop: geloescht wird aus dem Baum, aus dem
+ * Kontextmenue, aus der Menuezeile, aus dem Formular und aus der Markierung der Tabelle.
+ * Die Tabelle loeschte ihre Markierung frueher ohne Rueckfrage; jetzt fuehrt jeder dieser
+ * Wege durch denselben Dialog.
  */
 export function DeleteDialog() {
   const { t } = useTranslation();
   const model = useEditor((state) => state.model);
-  const nodeId = useEditor((state) => state.pendingDeleteId);
+  const nodeIds = useEditor((state) => state.pendingDelete);
   const requestDelete = useEditor((state) => state.requestDelete);
   const deleteElement = useEditor((state) => state.deleteElement);
 
-  const node = model && nodeId ? model.nodes[nodeId] : undefined;
-  const onClose = () => requestDelete(null);
+  const einzeln = nodeIds.length === 1 ? model?.nodes[nodeIds[0]!] : undefined;
+  const onClose = () => requestDelete([]);
 
   return (
     <AlertDialog
-      open={nodeId !== null}
+      open={nodeIds.length > 0}
       onOpenChange={(open) => {
         if (!open) onClose();
       }}
@@ -39,7 +42,9 @@ export function DeleteDialog() {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {t("baum.loeschenTitel", { name: node ? labelOf(node) : "" })}
+            {einzeln
+              ? t("baum.loeschenTitel", { name: labelOf(einzeln) })
+              : t("baum.loeschenTitelMehrere", { count: nodeIds.length })}
           </AlertDialogTitle>
           <AlertDialogDescription>{t("baum.loeschenText")}</AlertDialogDescription>
         </AlertDialogHeader>
@@ -47,7 +52,9 @@ export function DeleteDialog() {
           <AlertDialogCancel>{t("baum.abbrechen")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
-              if (nodeId) deleteElement(nodeId);
+              for (const nodeId of nodeIds) deleteElement(nodeId);
+              if (nodeIds.length === 1) meldeErfolg("melden.geloescht");
+              else meldeErfolg("melden.mehrereGeloescht", { count: nodeIds.length });
               onClose();
             }}
           >

@@ -30,7 +30,8 @@
     "zoom": "Zoom {{prozent}} %",
     "metamodell": "Metamodell",
     "gespeichert": "gespeichert",
-    "ungespeichert": "ungespeichert"
+    "ungespeichert": "ungespeichert",
+    "prueft": "Prueft ..."
   },
   "leer": {
     "titel": "Keine Umgebung geoeffnet",
@@ -59,7 +60,8 @@
     "treffer_other": "{{count}} Zeilen",
     "kopieren": "Kopieren",
     "ausschneiden": "Ausschneiden",
-    "einfuegen": "Einfuegen"
+    "einfuegen": "Einfuegen",
+    "loeschenTitelMehrere": "{{count}} Elemente loeschen?"
   },
   "inspektor": {
     "titel": "Eigenschaften",
@@ -122,7 +124,8 @@
     "original": "Originalmeldung",
     "originalAus": "Originalmeldung ausblenden",
     "leerTitel": "Keine Befunde",
-    "leerText": "Die Umgebung erfuellt alle Constraints des Metamodells."
+    "leerText": "Die Umgebung erfuellt alle Constraints des Metamodells.",
+    "prueft": "Wird geprueft ..."
   },
   "export": {
     "json": "Als JSON",
@@ -140,7 +143,20 @@
   },
   "fehler": {
     "titel": "Das hat nicht geklappt",
-    "importFehlgeschlagen": "Die Datei liess sich nicht lesen."
+    "importFehlgeschlagen": "Die Datei liess sich nicht lesen.",
+    "speichern": "Speichern fehlgeschlagen",
+    "export": "Export fehlgeschlagen",
+    "laden": "Laden fehlgeschlagen",
+    "loeschen": "Loeschen fehlgeschlagen",
+    "anlegen": "Anlegen fehlgeschlagen",
+    "version": "Die Version liess sich nicht anlegen",
+    "versionen": "Die Versionen liessen sich nicht laden",
+    "versionLaden": "Die Version liess sich nicht laden",
+    "aenderung": "Die Aenderung liess sich nicht ausfuehren",
+    "pruefung": "Die Pruefung ist fehlgeschlagen",
+    "serverNichtErreichbar": "Der Server ist nicht erreichbar.",
+    "zuVieleVersuche": "Zu viele Versuche. Bitte spaeter erneut probieren.",
+    "serverAntwortete": "Der Server antwortete mit {{status}}."
   },
   "palette": {
     "titel": "Kommando-Palette",
@@ -208,7 +224,8 @@
       "valueType": "valueType",
       "value": "value",
       "semanticId": "semanticId"
-    }
+    },
+    "laedt": "Wird aufgebaut ..."
   },
   "graph": {
     "leerTitel": "Nichts zu zeigen",
@@ -224,7 +241,8 @@
     "befunde_other": "{{count}} Befunde",
     "zoomRein": "Vergroessern",
     "zoomRaus": "Verkleinern",
-    "einpassen": "Einpassen"
+    "einpassen": "Einpassen",
+    "erneut": "Erneut versuchen"
   },
   "anmeldung": {
     "hinweis": "Bitte anmelden, um an Projekten zu arbeiten.",
@@ -371,5 +389,19 @@
     "aufklappen": "Befunde aufklappen",
     "zuklappen": "Befunde zuklappen",
     "hinzufuegen": "Hinzufuegen"
+  },
+  "melden": {
+    "gespeichert": "Projekt gespeichert.",
+    "exportiert": "Datei exportiert: {{name}}",
+    "importiert": "Datei gelesen: {{name}}",
+    "versionAngelegt": "Version angelegt.",
+    "versionGeladen": "Version geladen. Der Stand ist noch nicht gespeichert.",
+    "projektAngelegt": "Projekt angelegt.",
+    "projektGeloescht": "Projekt geloescht.",
+    "eingefuegt": "Eingefuegt.",
+    "geloescht": "Geloescht.",
+    "entwurfNichtGesichert": "Die lokale Sicherung schlaegt fehl. Regelmaessig auf den Server speichern.",
+    "anhaengeNichtGeladen": "Die Anhaenge liessen sich nicht laden. Ein Export waere unvollstaendig.",
+    "mehrereGeloescht": "{{count}} Elemente geloescht."
   }
 }

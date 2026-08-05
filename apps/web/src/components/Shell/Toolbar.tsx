@@ -117,7 +117,7 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
       {knopf(
         t("menu.loeschen"),
         <Trash2 />,
-        () => selection && requestDelete(selection),
+        () => selection && requestDelete([selection]),
         istWurzel,
         "Entf",
       )}

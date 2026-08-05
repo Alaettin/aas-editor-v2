@@ -13,6 +13,7 @@ export function StatusBar() {
   const model = useEditor((state) => state.model);
   const meta = useEditor((state) => state.meta);
   const issues = useEditor((state) => state.issues);
+  const pruefung = useEditor((state) => state.pruefung);
   const view = useEditor((state) => state.view);
   const graphZoom = useEditor((state) => state.graphZoom);
   const anhaengeBereit = useEditor((state) => state.anhaengeBereit);
@@ -64,7 +65,10 @@ export function StatusBar() {
           {warnungen > 0 ? (
             <span data-numeric>{t("status.warnungen", { count: warnungen })}</span>
           ) : null}
-          {model && issues.length === 0 ? <span>{t("status.keineBefunde")}</span> : null}
+          {model && issues.length === 0 && pruefung === "ruht" ? (
+            <span>{t("status.keineBefunde")}</span>
+          ) : null}
+          {pruefung === "laeuft" ? <span>{t("status.prueft")}</span> : null}
         </button>
       </span>
     </footer>

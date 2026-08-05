@@ -19,6 +19,7 @@ import { IssueText } from "./IssueText";
 export function IssuePanel() {
   const { t } = useTranslation();
   const issues = useEditor((state) => state.issues);
+  const pruefung = useEditor((state) => state.pruefung);
   const model = useEditor((state) => state.model);
   const selection = useEditor((state) => state.selection);
   const goToIssue = useEditor((state) => state.goToIssue);
@@ -65,8 +66,15 @@ export function IssuePanel() {
       {sorted.length === 0 ? (
         <Empty className="flex-1">
           <EmptyHeader>
-            <EmptyTitle>{t("befund.leerTitel")}</EmptyTitle>
-            <EmptyDescription>{t("befund.leerText")}</EmptyDescription>
+            {/*
+              Waehrend die Pruefung laeuft, waere "keine Befunde" eine Behauptung ueber
+              etwas, das noch niemand geprueft hat. Bei zehntausend Elementen dauert das
+              lange genug, dass man sie glaubt.
+            */}
+            <EmptyTitle>
+              {pruefung === "laeuft" ? t("befund.prueft") : t("befund.leerTitel")}
+            </EmptyTitle>
+            <EmptyDescription>{pruefung === "laeuft" ? "" : t("befund.leerText")}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
@@ -117,12 +125,7 @@ function IssueRow({
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
         )}
 
-        <button
-          type="button"
-          data-issue-row
-          className="min-w-0 flex-1 text-left"
-          onClick={onJump}
-        >
+        <button type="button" data-issue-row className="min-w-0 flex-1 text-left" onClick={onJump}>
           <IssueText issue={issue} withRaw={false} />
         </button>
 

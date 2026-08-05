@@ -85,6 +85,8 @@ function GraphInner() {
   const [layout, setLayout] = useState<LayoutResult | null>(null);
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState<string | null>(null);
+  /** Zaehlt jeden Anlauf von Hand. Ohne ihn liefe der Effekt bei gleicher Signatur nie erneut. */
+  const [versuch, setVersuch] = useState(0);
   const [allesZeigen, setAllesZeigen] = useState(false);
   const { fitView, setCenter, zoomIn, zoomOut } = useReactFlow();
 
@@ -146,7 +148,7 @@ function GraphInner() {
       abgebrochen = true;
       clearTimeout(timer);
     };
-  }, [graph, signatur]);
+  }, [graph, signatur, versuch]);
 
   const nodes = useMemo<Node[]>(() => {
     if (!layout) return [];
@@ -236,9 +238,25 @@ function GraphInner() {
       ) : null}
 
       {fehler ? (
-        <p className="absolute inset-x-0 top-0 z-10 bg-destructive px-3 py-2 text-sm text-destructive-foreground">
-          {fehler}
-        </p>
+        // `role="alert"` fehlte: der Streifen war fuer einen Bildschirmleser stumm. Dazu
+        // ein Weg zurueck, statt den Nutzer vor einem toten Bild sitzen zu lassen.
+        <div
+          role="alert"
+          className="absolute inset-x-0 top-0 z-10 flex items-center gap-3 bg-destructive px-3 py-2 text-sm text-destructive-foreground"
+        >
+          <span className="min-w-0 flex-1">{fehler}</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              gerechneteSignatur.current = null;
+              setFehler(null);
+              setVersuch((n) => n + 1);
+            }}
+          >
+            {t("graph.erneut")}
+          </Button>
+        </div>
       ) : null}
 
       <div className="absolute top-3 right-3.5 z-10 flex items-center gap-2 rounded-lg border border-border bg-card/90 px-2.5 py-1 font-mono text-xs">

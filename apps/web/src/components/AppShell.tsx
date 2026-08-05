@@ -173,13 +173,18 @@ export function AppShell() {
                 </>
               ) : null}
             </ResizablePanelGroup>
+          ) : status === "laedt" ? (
+            // Waehrend des Ladens ein Geruest statt eines anderen Textes: bei einem
+            // grossen Modell dauert das mehrere Sekunden, und ein blosser Satz sieht in
+            // dieser Zeit aus wie ein Endzustand.
+            <SichtLaedt />
           ) : (
             <Empty className="h-full">
               <EmptyHeader>
-                <EmptyTitle>
-                  {status === "laedt" ? t("status.wirdGelesen") : t("leer.titel")}
-                </EmptyTitle>
-                <EmptyDescription>{t("leer.text")}</EmptyDescription>
+                <EmptyTitle>{status === "fehler" ? t("fehler.titel") : t("leer.titel")}</EmptyTitle>
+                <EmptyDescription>
+                  {status === "fehler" && error ? error : t("leer.text")}
+                </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button onClick={() => inputRef.current?.click()}>{t("leer.knopf")}</Button>
@@ -202,15 +207,6 @@ export function AppShell() {
       </div>
 
       <StatusBar />
-
-      {error ? (
-        <div
-          role="alert"
-          className="fixed right-4 bottom-10 max-w-md rounded-lg bg-destructive px-3 py-2 text-sm text-destructive-foreground shadow-(--shadow-overlay)"
-        >
-          {error}
-        </div>
-      ) : null}
 
       <ExportDialog format={exportFormat} onClose={() => setExportFormat(null)} />
       <CommandPalette />

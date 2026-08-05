@@ -144,7 +144,7 @@ export function Tree() {
           break;
         case "Delete":
           event.preventDefault();
-          if (row.parentId) requestDelete(row.nodeId);
+          if (row.parentId) requestDelete([row.nodeId]);
           break;
         case "d":
         case "D":
@@ -272,7 +272,7 @@ export function Tree() {
         row={menuRow}
         onAdd={(parentId, slot, kind) => addElement(parentId, slot, kind)}
         onDuplicate={(nodeId) => duplicateElement(nodeId)}
-        onDelete={(row) => requestDelete(row.nodeId)}
+        onDelete={(row) => requestDelete([row.nodeId])}
         onCopy={(nodeId) => copyNode(nodeId)}
         onCut={(nodeId) => cutNode(nodeId)}
         onPaste={(nodeId) => requestPaste(nodeId)}

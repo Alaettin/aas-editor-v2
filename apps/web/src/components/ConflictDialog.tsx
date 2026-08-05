@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
+import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -30,36 +31,38 @@ export function ConflictDialog() {
   const alsNeues = useEditor((state) => state.alsNeuesProjektSpeichern);
   const schliessen = useEditor((state) => state.konfliktSchliessen);
 
-  const [laeuft, setLaeuft] = useState(false);
+  /** Welcher der drei Wege gerade laeuft. Ein blosses "disabled" sagt nicht, welcher. */
+  type Weg = "neu" | "ueberschreiben" | "server";
+  const [laeuft, setLaeuft] = useState<Weg | null>(null);
 
   const serverstandLaden = async () => {
     if (projektId === null) return;
-    setLaeuft(true);
+    setLaeuft("server");
     schliessen();
     // ladeProjekt springt ab, wenn dasselbe Projekt schon offen ist. Der Umweg ueber
     // einen leeren Stand ist hier nicht noetig: der Konflikt setzt die Kennung nicht.
     useEditor.setState({ projektId: null });
     await ladeProjekt(projektId);
-    setLaeuft(false);
+    setLaeuft(null);
   };
 
   const alsNeuesSpeichern = async () => {
-    setLaeuft(true);
+    setLaeuft("neu");
     schliessen();
     const neueId = await alsNeues(`${projektName ?? "Projekt"} (Kopie)`);
-    setLaeuft(false);
+    setLaeuft(null);
     if (neueId !== null) void navigate(`/editor/${neueId}`);
   };
 
   const ueberschreiben = async () => {
     if (konflikt === null) return;
-    setLaeuft(true);
+    setLaeuft("ueberschreiben");
     // Die eigene Revision auf den Serverstand heben, damit das Speichern greift. Der
     // Server legt vorher selbst nichts an, deshalb wird hier eine Version erzeugt.
     await useEditor.getState().versionAnlegen(t("konflikt.versionLabel"));
     useEditor.setState({ revision: konflikt.aktuelleRevision, serverKonflikt: null });
     await speichern();
-    setLaeuft(false);
+    setLaeuft(null);
   };
 
   return (
@@ -78,25 +81,34 @@ export function ConflictDialog() {
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button
             className="w-full"
-            disabled={laeuft}
+            disabled={laeuft !== null}
             onClick={() => void alsNeuesSpeichern()}
           >
+            {laeuft === "neu" ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : null}
             {t("konflikt.alsNeues")}
           </Button>
           <Button
             variant="outline"
             className="w-full"
-            disabled={laeuft}
+            disabled={laeuft !== null}
             onClick={() => void ueberschreiben()}
           >
+            {laeuft === "ueberschreiben" ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : null}
             {t("konflikt.ueberschreiben")}
           </Button>
           <Button
             variant="ghost"
             className="w-full"
-            disabled={laeuft}
+            disabled={laeuft !== null}
             onClick={() => void serverstandLaden()}
           >
+            {laeuft === "server" ? (
+              <Loader2 data-icon="inline-start" className="animate-spin" />
+            ) : null}
             {t("konflikt.serverstand")}
           </Button>
         </DialogFooter>

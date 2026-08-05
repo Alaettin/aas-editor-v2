@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { meldeErfolg, meldeFehler } from "@/lib/melden";
 import { legeDateiAb } from "@/store/pendingFile";
 import { useProjects } from "@/store/projects";
 
@@ -62,8 +63,10 @@ export function NewProjectDialog({ offen, onClose, onAngelegt }: Props) {
       }
       const id = await anlegen(gewaehlt, {}, "json", 1);
       schliessen();
+      meldeErfolg("melden.projektAngelegt");
       onAngelegt(id);
     } catch (error) {
+      meldeFehler(error, "fehler.anlegen");
       setFehler((error as Error).message);
     } finally {
       setLaeuft(false);

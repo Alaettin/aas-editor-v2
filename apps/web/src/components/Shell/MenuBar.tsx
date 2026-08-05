@@ -174,7 +174,9 @@ export function MenuBar({
             </MenubarItem>
             <MenubarSeparator />
             <MenubarSub>
-              <MenubarSubTrigger disabled={neueTypen.length === 0}>{t("menu.neu")}</MenubarSubTrigger>
+              <MenubarSubTrigger disabled={neueTypen.length === 0}>
+                {t("menu.neu")}
+              </MenubarSubTrigger>
               <MenubarSubContent className="max-h-80 overflow-auto">
                 {neueTypen.map((eintrag) => (
                   <MenubarItem
@@ -195,7 +197,7 @@ export function MenuBar({
             </MenubarItem>
             <MenubarItem
               disabled={!selection || istWurzel}
-              onSelect={() => selection && requestDelete(selection)}
+              onSelect={() => selection && requestDelete([selection])}
             >
               {t("menu.loeschen")}
               <MenubarShortcut>Entf</MenubarShortcut>
@@ -242,7 +244,10 @@ export function MenuBar({
               {t("menu.allesZuklappen")}
             </MenubarItem>
             <MenubarSeparator />
-            <MenubarRadioGroup value={density} onValueChange={(wert) => setDensity(wert as Density)}>
+            <MenubarRadioGroup
+              value={density}
+              onValueChange={(wert) => setDensity(wert as Density)}
+            >
               <MenubarRadioItem value="compact">{t("app.dichteKompakt")}</MenubarRadioItem>
               <MenubarRadioItem value="cozy">{t("app.dichteKomfortabel")}</MenubarRadioItem>
             </MenubarRadioGroup>

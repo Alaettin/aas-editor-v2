@@ -1,6 +1,8 @@
 import { openDB, type IDBPDatabase } from "idb";
 import type { EditorModel } from "@aas-editor/core";
 
+import { meldeHinweis } from "@/lib/melden";
+
 /**
  * Lokale Zwischenspeicherung in IndexedDB (Plan Abschnitt 11, Phase 5).
  *
@@ -44,11 +46,24 @@ function db(): Promise<IDBPDatabase> {
   return dbPromise;
 }
 
+/**
+ * Ob der Fehlschlag schon gemeldet wurde. Bei einem vollen Speicher scheitert jeder
+ * weitere Versuch ebenfalls; alle zwei Sekunden dieselbe Meldung waere unbrauchbar.
+ */
+let fehlschlagGemeldet = false;
+
 export async function saveDraft(draft: Draft): Promise<void> {
   try {
-    (await db()).put(STORE, draft, KEY);
+    await (await db()).put(STORE, draft, KEY);
+    fehlschlagGemeldet = false;
   } catch {
-    // Ein voller oder gesperrter Speicher darf das Bearbeiten nicht anhalten.
+    // Ein voller oder gesperrter Speicher darf das Bearbeiten nicht anhalten. Still
+    // bleiben darf er aber auch nicht: der Nutzer haelt seine Arbeit sonst fuer
+    // gesichert, obwohl sie es nicht ist.
+    if (!fehlschlagGemeldet) {
+      fehlschlagGemeldet = true;
+      meldeHinweis("melden.entwurfNichtGesichert");
+    }
   }
 }
 

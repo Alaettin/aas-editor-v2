@@ -86,7 +86,7 @@ export default function TableView() {
   const setView = useEditor((state) => state.setView);
   const updateField = useEditor((state) => state.updateField);
   const addElement = useEditor((state) => state.addElement);
-  const deleteElement = useEditor((state) => state.deleteElement);
+  const requestDelete = useEditor((state) => state.requestDelete);
   const duplicateElement = useEditor((state) => state.duplicateElement);
 
   const flaecheRef = useRef<HTMLDivElement>(null);
@@ -209,7 +209,9 @@ export default function TableView() {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  for (const id of markierte) deleteElement(id);
+                  // Ueber denselben Dialog wie im Baum. Vorher loeschte die Tabelle die
+                  // Markierung ohne jede Rueckfrage.
+                  requestDelete(markierte);
                   setMarkiert({});
                 }}
               >
@@ -286,12 +288,7 @@ export default function TableView() {
         >
           <span role="columnheader" />
           {spalten.map((id) => (
-            <SectionLabel
-              key={id}
-              role="columnheader"
-              data-col={id}
-              className="tracking-[0.05em]"
-            >
+            <SectionLabel key={id} role="columnheader" data-col={id} className="tracking-[0.05em]">
               {t(`tabelle.spalte.${id}`)}
             </SectionLabel>
           ))}

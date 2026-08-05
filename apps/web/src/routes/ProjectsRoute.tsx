@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { FilePlus2, LogOut, Trash2 } from "lucide-react";
+import { FilePlus2, Loader2, LogOut, Trash2 } from "lucide-react";
 
 import { NewProjectDialog } from "@/components/Projects/NewProjectDialog";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/store/auth";
 import { useProjects } from "@/store/projects";
@@ -35,6 +41,8 @@ export function ProjectsRoute() {
   const laden = useProjects((state) => state.laden);
   const mehrLaden = useProjects((state) => state.mehrLaden);
   const loeschen = useProjects((state) => state.loeschen);
+  const laedtMehr = useProjects((state) => state.laedtMehr);
+  const loeschtId = useProjects((state) => state.loeschtId);
 
   const benutzer = useAuth((state) => state.benutzer);
   const abmelden = useAuth((state) => state.abmelden);
@@ -124,7 +132,8 @@ export function ProjectsRoute() {
       ) : null}
 
       {cursor !== null ? (
-        <Button variant="outline" onClick={() => void mehrLaden()}>
+        <Button variant="outline" disabled={laedtMehr} onClick={() => void mehrLaden()}>
+          {laedtMehr ? <Loader2 data-icon="inline-start" className="animate-spin" /> : null}
           {t("projekte.mehr")}
         </Button>
       ) : null}
@@ -135,7 +144,10 @@ export function ProjectsRoute() {
         onAngelegt={(id) => void navigate(`/editor/${id}`)}
       />
 
-      <AlertDialog open={zuLoeschen !== null} onOpenChange={(offen) => !offen && setZuLoeschen(null)}>
+      <AlertDialog
+        open={zuLoeschen !== null}
+        onOpenChange={(offen) => !offen && setZuLoeschen(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("projekte.loeschenTitel")}</AlertDialogTitle>
@@ -144,13 +156,24 @@ export function ProjectsRoute() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t("projekte.abbrechen")}</AlertDialogCancel>
+            <AlertDialogCancel disabled={loeschtId !== null}>
+              {t("projekte.abbrechen")}
+            </AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (zuLoeschen) void loeschen(zuLoeschen.id);
-                setZuLoeschen(null);
+              disabled={loeschtId !== null}
+              onClick={(event) => {
+                // Die Rueckfrage bleibt offen, bis der Server geantwortet hat: sonst
+                // verschwindet sie, und ein Fehlschlag hat nirgends mehr einen Ort.
+                event.preventDefault();
+                if (!zuLoeschen) return;
+                void loeschen(zuLoeschen.id).then((geklappt) => {
+                  if (geklappt) setZuLoeschen(null);
+                });
               }}
             >
+              {loeschtId !== null ? (
+                <Loader2 data-icon="inline-start" className="animate-spin" />
+              ) : null}
               {t("projekte.loeschen")}
             </AlertDialogAction>
           </AlertDialogFooter>

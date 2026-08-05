@@ -162,7 +162,7 @@ export function Inspector() {
               variant="danger-outline"
               size="sm"
               disabled={istWurzel}
-              onClick={() => requestDelete(node.nodeId)}
+              onClick={() => requestDelete([node.nodeId])}
             >
               <Trash2 data-icon="inline-start" />
               {t("menu.loeschen")}
