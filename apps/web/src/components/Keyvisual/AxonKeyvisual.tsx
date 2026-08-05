@@ -16,6 +16,17 @@ import { ansichtFuer, baueSchienen, baueStroeme, STANDBILD_ZEIT } from "./geomet
  * Der Block in `tokens.css` daempft nur CSS-Dauern, eine Animationsschleife nicht.
  */
 
+/**
+ * Ganggeschwindigkeit der Buehne.
+ *
+ * Der Entwurf lief mit 1 und wirkte im fertigen Bild hektisch: die Datenpakete schossen
+ * durch, statt zu wandern. Die Anmeldung soll ruhig sein, man haelt sich dort keine
+ * Minute auf. Der Faktor sitzt an genau einer Stelle, am `dt` der Schleife, und traegt
+ * damit alles mit: Punkte, Wolken, Ringe und die Welle der Schienen. Die Animationen der
+ * Karte selbst haengen an CSS und bleiben unberuehrt.
+ */
+const TEMPO = 0.55;
+
 interface Props {
   readonly tempo?: number;
   readonly spurenzahl?: number;
@@ -27,7 +38,7 @@ interface Props {
   readonly kartenRef?: RefObject<HTMLElement | null>;
 }
 
-export function AxonKeyvisual({ tempo = 1, spurenzahl = 15, kartenRef }: Props) {
+export function AxonKeyvisual({ tempo = TEMPO, spurenzahl = 15, kartenRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stroeme = useMemo(() => baueStroeme(spurenzahl), [spurenzahl]);
   const schienen = useMemo(() => baueSchienen(), []);

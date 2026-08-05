@@ -92,10 +92,13 @@ test.describe("Anmeldung", () => {
   });
 
   test("meldet ankommende Datenpakete an die Karte", async ({ page }) => {
+    // Seit die Buehne mit halbem Tempo laeuft, braucht ein Paket rund sechzehn Sekunden
+    // ueber Strom und Schiene. Das Zeitfenster muss dazu Luft haben, sonst faellt die
+    // Pruefung auf einer langsameren Maschine, ohne dass etwas kaputt waere.
+    test.setTimeout(90000);
     await page.goto("/login");
 
-    // Ein Paket braucht seine Zeit ueber Strom und Schiene. Beobachtet wird, ob die Karte
-    // ueberhaupt jemals einen Blitz sieht, nicht wann.
+    // Beobachtet wird, ob die Karte ueberhaupt jemals einen Blitz sieht, nicht wann.
     const gesehen = await page
       .waitForFunction(
         () => {
@@ -104,7 +107,7 @@ test.describe("Anmeldung", () => {
           return wert !== undefined && wert !== "" && Number.parseFloat(wert) > 0;
         },
         null,
-        { timeout: 25000 },
+        { timeout: 60000 },
       )
       .then(() => true)
       .catch(() => false);
