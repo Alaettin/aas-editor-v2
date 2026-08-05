@@ -186,7 +186,7 @@ test.describe("Oberflaeche", () => {
     // "menu.datei" mitten in der Menuezeile.
     const text = await page.locator("body").innerText();
     expect(text, "roher i18n-Schluessel sichtbar").not.toMatch(
-      /(app|menu|baum|status|befund|tabelle|graph|inspektor)\.[a-zA-Z]/,
+      /\b(app|menu|baum|status|befund|tabelle|graph|inspektor)\.[a-zA-Z]/,
     );
 
     await page.evaluate(() =>
