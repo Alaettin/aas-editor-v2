@@ -282,6 +282,10 @@ export function Tree() {
           ref={parentRef}
           role="tree"
           aria-label={t("baum.titel")}
+          // Ohne diese Zeile erfaehrt ein Bildschirmleser nichts davon, dass die
+          // Pfeiltasten die Auswahl bewegen: die Zeilen sind bewusst nicht einzeln
+          // fokussierbar, sonst waere der Baum bei zehntausend Elementen ein Tabulator-Feld.
+          aria-activedescendant={selection ? `baumzeile-${selection}` : undefined}
           tabIndex={0}
           onKeyDown={onKeyDown}
           className="h-full flex-1 overflow-auto p-1 outline-none"
@@ -297,6 +301,10 @@ export function Tree() {
                 // und beim Rollen die teuerste davon. Dichtewechsel deckt `measure()` ab.
                 <div
                   key={item.key}
+                  // Die Huelle der Virtualisierung traegt keine Bedeutung. Ohne diese Rolle
+                  // stuende zwischen `tree` und `treeitem` ein fremdes Element, und der
+                  // Baum waere fuer einen Bildschirmleser kein Baum mehr.
+                  role="presentation"
                   data-index={item.index}
                   className="absolute top-0 left-0 w-full"
                   style={{ transform: `translateY(${item.start}px)` }}

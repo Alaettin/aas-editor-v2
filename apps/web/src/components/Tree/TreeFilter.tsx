@@ -36,7 +36,16 @@ export function TreeFilter({ visibleCount }: { readonly visibleCount: number }) 
         />
         {filter ? (
           <>
-            <span className="shrink-0 text-2xs text-foreground-faint" data-numeric>
+            {/*
+              Die Trefferzahl aendert sich waehrend des Tippens. Ohne lebenden Bereich
+              bleibt sie fuer einen Bildschirmleser stumm, und der Filter ist dort
+              wirkungslos.
+            */}
+            <span
+              aria-live="polite"
+              className="shrink-0 text-2xs text-foreground-faint"
+              data-numeric
+            >
               {t("baum.treffer", { count: visibleCount })}
             </span>
             <Button

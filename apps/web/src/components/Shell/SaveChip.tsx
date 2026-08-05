@@ -17,7 +17,9 @@ export function SaveChip() {
 
   const gespeichert = serverStatus === "gespeichert" && !dirty;
   return (
-    <Chip tone={gespeichert ? "sm" : "warn"} size="sm">
+    // Ob die Arbeit gesichert ist, gehoert zu den Aussagen, die ein Bildschirmleser
+    // mitbekommen muss, ohne dass jemand danach sucht.
+    <Chip tone={gespeichert ? "sm" : "warn"} size="sm" aria-live="polite">
       {gespeichert ? t("status.gespeichert") : t("status.ungespeichert")}
     </Chip>
   );

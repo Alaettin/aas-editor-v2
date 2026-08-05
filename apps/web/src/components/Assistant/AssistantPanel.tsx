@@ -50,7 +50,7 @@ export function AssistantPanel() {
         <span className="ml-auto truncate text-2xs text-foreground-faint">
           {t("assistent.kontext", { name: kontext })}
         </span>
-        <Button variant="ghost" size="icon-xs" aria-label={t("versionen.schliessen")} onClick={schliessen}>
+        <Button variant="ghost" size="icon-xs" aria-label={t("assistent.schliessen")} onClick={schliessen}>
           <X />
         </Button>
       </header>

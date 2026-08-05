@@ -41,6 +41,13 @@ export interface TreeRow {
   /** Position innerhalb des Slots */
   readonly index: number;
   readonly parentId: NodeId | null;
+  /**
+   * Stellung unter allen Geschwistern, ueber alle Slots hinweg, eins-basiert. Ein
+   * virtualisierter Baum zeigt nur einen Ausschnitt; ohne diese beiden Angaben zaehlt
+   * ein Bildschirmleser nur die gerade gerenderten Zeilen.
+   */
+  readonly posinset: number;
+  readonly setsize: number;
 }
 
 /** Anzeigename eines Knotens: idShort, sonst der Typ. Wie in der Baumzeile. */
@@ -88,6 +95,8 @@ export function buildRows(
     slot: string | null,
     index: number,
     parentId: NodeId | null,
+    posinset: number,
+    setsize: number,
   ): void => {
     const node = model.nodes[nodeId];
     if (!node) return;
@@ -127,19 +136,25 @@ export function buildRows(
       slot,
       index,
       parentId,
+      posinset,
+      setsize,
     });
 
     if (!isOpen || !hasChildren) return;
+    // Die Stellung zaehlt ueber alle Slots hinweg: fuer den Bildschirmleser sind alle
+    // Kinder eines Knotens **eine** Ebene, unabhaengig davon, in welchem Slot sie haengen.
+    let stellung = 0;
     for (const entry of slots) {
       const ids = node.children[entry.name];
       if (!ids) continue;
       for (let i = 0; i < ids.length; i += 1) {
-        visit(ids[i] as NodeId, depth + 1, entry.name, i, nodeId);
+        stellung += 1;
+        visit(ids[i] as NodeId, depth + 1, entry.name, i, nodeId, stellung, childCount);
       }
     }
   };
 
-  visit(model.rootId, 0, null, 0, null);
+  visit(model.rootId, 0, null, 0, null, 1, 1);
   return rows;
 }
 

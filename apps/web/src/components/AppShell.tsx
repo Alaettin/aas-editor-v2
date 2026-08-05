@@ -126,6 +126,17 @@ export function AppShell() {
         if (file) void openFile(file);
       }}
     >
+      {/*
+        Sprunglink: die Menuezeile und die Werkzeugleiste stehen vor dem Inhalt. Ohne
+        diesen Weg tabbt man sich bei jedem Seitenaufruf erst durch beide.
+      */}
+      <a
+        href="#inhalt"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-popover focus:px-3 focus:py-2 focus:text-sm focus:shadow-(--shadow-overlay)"
+      >
+        {t("app.zumInhalt")}
+      </a>
+
       <MenuBar
         onOeffnen={() => inputRef.current?.click()}
         onExport={requestExport}
@@ -143,7 +154,7 @@ export function AppShell() {
       />
 
       <div className="flex min-h-0 flex-1">
-        <main className="min-h-0 min-w-0 flex-1">
+        <main id="inhalt" tabIndex={-1} className="min-h-0 min-w-0 flex-1 outline-none">
           {model ? (
             <ResizablePanelGroup orientation="vertical">
               <ResizablePanel defaultSize={issuePanelOpen ? "70" : "100"} minSize="30">

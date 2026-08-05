@@ -271,7 +271,11 @@ export default function TableView() {
       */}
       <div
         role="table"
-        aria-rowcount={zeilen.length}
+        // Die Kopfzeile zaehlt mit, sonst passen `aria-rowcount` und `aria-rowindex`
+        // nicht zusammen. Die Spaltenzahl schwankt mit der Fensterbreite, genau dafuer
+        // gibt es `aria-colcount`.
+        aria-rowcount={zeilen.length + 1}
+        aria-colcount={spalten.length + 1}
         tabIndex={0}
         onKeyDown={(event) => {
           if (event.key === "Enter" && selection) {
@@ -283,12 +287,19 @@ export default function TableView() {
       >
         <div
           role="row"
+          aria-rowindex={1}
           style={{ gridTemplateColumns: gridVorlage }}
           className="sticky top-0 z-10 grid h-(--table-header-height) items-center gap-3 border-b border-border bg-muted px-4"
         >
-          <span role="columnheader" />
-          {spalten.map((id) => (
-            <SectionLabel key={id} role="columnheader" data-col={id} className="tracking-[0.05em]">
+          <span role="columnheader" aria-colindex={1} />
+          {spalten.map((id, spalte) => (
+            <SectionLabel
+              key={id}
+              role="columnheader"
+              aria-colindex={spalte + 2}
+              data-col={id}
+              className="tracking-[0.05em]"
+            >
               {t(`tabelle.spalte.${id}`)}
             </SectionLabel>
           ))}
@@ -304,7 +315,7 @@ export default function TableView() {
             <div
               key={node.nodeId}
               role="row"
-              aria-rowindex={index + 1}
+              aria-rowindex={index + 2}
               data-table-row={node.nodeId}
               onClick={() => select(node.nodeId)}
               style={{ gridTemplateColumns: gridVorlage }}
@@ -317,7 +328,7 @@ export default function TableView() {
                     : "hover:bg-accent",
               )}
             >
-              <span role="cell">
+              <span role="cell" aria-colindex={1}>
                 <Checkbox
                   checked={Boolean(markiert[node.nodeId])}
                   aria-label={t("tabelle.markieren")}
@@ -333,7 +344,12 @@ export default function TableView() {
               </span>
 
               {spalten.includes("idShort") ? (
-                <span role="cell" data-col="idShort" className="flex min-w-0 items-center gap-2">
+                <span
+                  role="cell"
+                  aria-colindex={spalten.indexOf("idShort") + 2}
+                  data-col="idShort"
+                  className="flex min-w-0 items-center gap-2"
+                >
                   <ZelleText
                     node={node}
                     feld="idShort"
@@ -348,7 +364,11 @@ export default function TableView() {
               ) : null}
 
               {spalten.includes("modelType") ? (
-                <span role="cell" data-col="modelType">
+                <span
+                  role="cell"
+                  aria-colindex={spalten.indexOf("modelType") + 2}
+                  data-col="modelType"
+                >
                   <Chip tone={badgeToneOf(node.kind)} mono>
                     {shortKind(node.kind)}
                   </Chip>
@@ -358,6 +378,7 @@ export default function TableView() {
               {spalten.includes("valueType") ? (
                 <span
                   role="cell"
+                  aria-colindex={spalten.indexOf("valueType") + 2}
                   data-col="valueType"
                   className="truncate font-mono text-xs text-mono-foreground"
                 >
@@ -370,7 +391,12 @@ export default function TableView() {
               ) : null}
 
               {spalten.includes("value") ? (
-                <span role="cell" data-col="value" className="min-w-0">
+                <span
+                  role="cell"
+                  aria-colindex={spalten.indexOf("value") + 2}
+                  data-col="value"
+                  className="min-w-0"
+                >
                   <ZelleText
                     node={node}
                     feld="value"
@@ -382,6 +408,7 @@ export default function TableView() {
               {spalten.includes("semanticId") ? (
                 <span
                   role="cell"
+                  aria-colindex={spalten.indexOf("semanticId") + 2}
                   data-col="semanticId"
                   title={semantic ?? undefined}
                   className="truncate font-mono text-xs text-foreground-faint"
@@ -445,6 +472,9 @@ function ZelleText({
   return (
     <Input
       variant="bare"
+      // Ohne Beschriftung ist das Feld in einer Zelle namenlos: der Spaltenkopf gilt
+      // fuer die Zelle, nicht fuer das Bedienelement darin.
+      aria-label={t(`tabelle.spalte.${feld}`)}
       data-table-cell={feld}
       value={entwurf}
       onChange={(event) => setEntwurf(event.target.value)}

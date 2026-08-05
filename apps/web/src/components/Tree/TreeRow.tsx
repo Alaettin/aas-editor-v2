@@ -52,8 +52,13 @@ export const TreeRowView = memo(function TreeRowView({
 
   return (
     <div
+      // Die Kennung braucht der Behaelter fuer `aria-activedescendant`: die Zeilen selbst
+      // sind nicht fokussierbar, die Auswahl wandert per Pfeiltaste.
+      id={`baumzeile-${row.nodeId}`}
       role="treeitem"
       aria-level={row.depth + 1}
+      aria-posinset={row.posinset}
+      aria-setsize={row.setsize}
       aria-selected={selected}
       aria-expanded={row.hasChildren ? row.expanded : undefined}
       data-node-id={row.nodeId}

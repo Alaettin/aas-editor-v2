@@ -51,6 +51,9 @@ export function StatusBar() {
           data-issues-toggle
           disabled={!model}
           aria-pressed={issuePanelOpen}
+          // Die Zaehler aendern sich nach jeder Pruefung. Ohne lebenden Bereich erfaehrt
+          // niemand davon, der nicht gerade hinsieht.
+          aria-live="polite"
           onClick={() => setIssuePanelOpen(!issuePanelOpen)}
           className="flex items-center gap-2 rounded-xs px-1 hover:bg-accent disabled:hover:bg-transparent"
         >

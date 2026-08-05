@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -10,25 +9,12 @@ import { expect, test, type Page } from "@playwright/test";
  * der Tiefe, und der Assistent sagt ohne Anbindung, dass er nichts kann.
  */
 
-const ENV = Object.fromEntries(
-  readFileSync(fileURLToPath(new URL("../.env", import.meta.url)), "utf8")
-    .split(/\r?\n/)
-    .filter((zeile) => zeile.includes("=") && !zeile.startsWith("#"))
-    .map((zeile) => [
-      zeile.slice(0, zeile.indexOf("=")).trim(),
-      zeile.slice(zeile.indexOf("=") + 1).trim(),
-    ]),
-);
-
 const PROBE = fileURLToPath(new URL("./probe.json", import.meta.url));
 
 async function anmeldenUndOeffnen(page: Page, name: string): Promise<void> {
+  // Die Sitzung kommt aus `anmeldung.setup.ts`, siehe playwright.config.ts.
   await page.goto("/projekte");
-  await page.waitForURL("**/login");
-  await page.fill("#benutzer", ENV["AUTH_USERNAME"] ?? "");
-  await page.fill("#passwort", ENV["AUTH_PASSWORD"] ?? "");
-  await page.click('button[type="submit"]');
-  await page.waitForFunction(() => location.pathname === "/projekte");
+  await page.getByRole("button", { name: "Neues Projekt" }).first().waitFor();
 
   await page.getByRole("button", { name: "Neues Projekt" }).first().click();
   await page.fill("#projektname", name);

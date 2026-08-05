@@ -14,7 +14,7 @@ import { useEntwurf } from "./useEntwurf";
  * (Plan Abschnitt 5). Angezeigt wird deshalb der Pfad plus der Befund, ob unter diesem
  * Pfad tatsaechlich ein Anhang im Paket liegt.
  */
-export function AttachmentEditor({ value, onChange }: FieldEditorProps) {
+export function AttachmentEditor({ value, onChange, id }: FieldEditorProps) {
   const { t } = useTranslation();
   const attachments = useEditor((state) => state.meta?.attachments ?? NO_ATTACHMENTS);
   const path = typeof value === "string" ? value : "";
@@ -26,6 +26,7 @@ export function AttachmentEditor({ value, onChange }: FieldEditorProps) {
   return (
     <div className="flex flex-col gap-2">
       <Input
+        id={id}
         className="font-mono text-xs"
         placeholder="/aasx/files/handbuch.pdf"
         value={entwurf.wert}

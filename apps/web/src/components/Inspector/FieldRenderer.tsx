@@ -24,6 +24,17 @@ import {
  * Formulare.
  */
 
+/**
+ * Feldarten, die genau **ein** Bedienelement zeigen. Nur dort darf die Beschriftung
+ * ueber `htmlFor` auf eine Kennung zeigen.
+ *
+ * Alle uebrigen sind zusammengesetzt: Listen, Gruppen, ganze Unterformulare. Ihre
+ * Beschriftung zeigte bisher ins Leere, weil die Kennung nirgends ankam. Sie bekommen
+ * stattdessen eine Gruppe, die sich auf die Beschriftung beruft. Das ist der Weg, den
+ * ARIA dafuer vorsieht, und er haelt auch dann, wenn die Liste leer ist.
+ */
+const EINZELFELD = new Set(["text", "textarea", "enum", "boolean", "attachment"]);
+
 export interface FieldRendererProps {
   readonly spec: FieldSpec;
   /** Die Daten des umgebenden Objekts, fuer `typedBy` */
@@ -43,16 +54,20 @@ export function FieldRenderer({ spec, data, onChange, issues }: FieldRendererPro
   const warnings = issues?.filter((issue) => issue.severity === "warnung") ?? [];
   const invalid = constraints.length > 0;
 
-  const control = renderControl(spec, value, data, set, invalid, id, onChange);
+  const einzeln = EINZELFELD.has(spec.kind);
+  const rohesFeld = renderControl(spec, value, data, set, invalid, id, onChange);
+  const control = einzeln ? (
+    rohesFeld
+  ) : (
+    <div role="group" aria-labelledby={`${id}-label`}>
+      {rohesFeld}
+    </div>
+  );
   const orientation = spec.kind === "boolean" ? "horizontal" : "vertical";
 
   return (
-    <Field
-      data-invalid={invalid || undefined}
-      data-field-key={spec.key}
-      orientation={orientation}
-    >
-      <FieldLabel htmlFor={id}>
+    <Field data-invalid={invalid || undefined} data-field-key={spec.key} orientation={orientation}>
+      <FieldLabel id={`${id}-label`} {...(einzeln ? { htmlFor: id } : {})}>
         {spec.key}
         {spec.required ? <span className="text-destructive"> *</span> : null}
       </FieldLabel>
@@ -138,9 +153,7 @@ function renderControl(
       );
 
     case "boolean":
-      return (
-        <BooleanEditor id={id} value={value === true} onChange={(next) => set(next)} />
-      );
+      return <BooleanEditor id={id} value={value === true} onChange={(next) => set(next)} />;
 
     case "langStrings":
       return <LangStringsEditor value={value} onChange={set} multiline={spec.key !== "value"} />;
@@ -206,7 +219,7 @@ function renderControl(
       );
 
     case "attachment":
-      return <AttachmentEditor value={value} onChange={set} />;
+      return <AttachmentEditor id={id} value={value} onChange={set} />;
 
     case "blob":
       return <BlobEditor value={value} onChange={set} />;

@@ -13,7 +13,9 @@
     "dunkel": "Dunkel",
     "hilfe": "Tastaturwege",
     "palette": "Kommando-Palette (Strg+K)",
-    "zurListe": "Zu den Projekten"
+    "zurListe": "Zu den Projekten",
+    "schliessen": "Schliessen",
+    "zumInhalt": "Zum Inhalt springen"
   },
   "status": {
     "knoten": "{{count}} Elemente",
@@ -372,7 +374,8 @@
     "platzhalter": "Noch nicht verbunden",
     "chipBefunde": "Befunde erklaeren",
     "chipVorlage": "Submodel aus Vorlage",
-    "chipUebersetzung": "Uebersetzungen ergaenzen"
+    "chipUebersetzung": "Uebersetzungen ergaenzen",
+    "schliessen": "Assistent schliessen"
   },
   "formular": {
     "kontext": "Kontext",

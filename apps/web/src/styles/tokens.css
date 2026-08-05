@@ -52,7 +52,7 @@
   --type-aas-mono: #5a83b8;
   --type-sm: #00a587;
   --type-sm-surface: #e0f5f0;
-  --type-sm-text: #00806a;
+  --type-sm-text: #00745f;
   --type-sm-border: #bce5dc;
   --type-cd: #8d3cc6;
   --type-cd-surface: #f3e9fa;
@@ -76,7 +76,7 @@
   --secondary-foreground: #3a3e4a;
 
   --muted: #fafafb;
-  --muted-foreground: #6a6f7a;
+  --muted-foreground: #636873;
 
   /* Hover- und Auswahlflaeche, bewusst gedaempft */
   --accent: #f0f1f3;
@@ -98,7 +98,7 @@
   --warning: #f77039;
   --warning-foreground: #ffffff;
   --warning-muted: #fff9f6;
-  --warning-text: #d4552a;
+  --warning-text: #bb471f;
   --success: var(--type-sm);
   --success-foreground: #ffffff;
   --success-muted: var(--type-sm-surface);
@@ -107,8 +107,8 @@
   /* Feinere Abstufungen, die shadcn nicht kennt */
   --border-subtle: #e8eaee;
   --border-row: #f0f1f3;
-  --foreground-faint: #9aa0ac;
-  --mono-foreground: #8b90a0;
+  --foreground-faint: #656b78;
+  --mono-foreground: #6e7382;
   --input-fill: #fafafb;
   --segment-track: #efefef;
   --segment-active: #ffffff;
@@ -117,7 +117,7 @@
   --logo-gradient: linear-gradient(135deg, #1c5db3 55%, #8d3cc6);
 
   /* Diff: hinzugefuegt gruen, entfernt in den destruktiven Toenen */
-  --diff-add: #00806a;
+  --diff-add: #00745f;
   --diff-add-surface: #f0faf7;
   --diff-del: var(--destructive);
   --diff-del-surface: var(--destructive-muted);
@@ -193,8 +193,8 @@
 
   --border-subtle: #262a36;
   --border-row: #1e212b;
-  --foreground-faint: #6a6f7a;
-  --mono-foreground: #6a6f7a;
+  --foreground-faint: #868c99;
+  --mono-foreground: #868c99;
   --input-fill: #171922;
   --segment-track: #14161d;
   --segment-active: #262a36;
