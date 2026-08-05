@@ -232,7 +232,10 @@
     "passwort": "Passwort",
     "anmelden": "Anmelden",
     "laeuft": "Wird geprueft ...",
-    "abmelden": "Abmelden"
+    "abmelden": "Abmelden",
+    "marke": "Neoception AXON",
+    "titel": "Anmelden",
+    "version": "Fassung {{version}}"
   },
   "projekte": {
     "titel": "Projekte",

@@ -42,6 +42,20 @@ describe("Design-Tokens", () => {
     expect(QUELLE).toContain("--warning: #f77039;");
   });
 
+  it("haelt die Buehne der Anmeldung ausserhalb der Themenrampe", () => {
+    expect(QUELLE).toContain(".szene-axon {");
+    expect(QUELLE).toContain("--axon-grund: #1858b0;");
+    expect(QUELLE).toContain("--axon-aktion: #00a386;");
+    expect(QUELLE).toContain("--axon-fokus: #00fdfd;");
+
+    // Sie duerfen nicht in die Rampe wandern: das Keyvisual kennt keinen Dunkelmodus, und
+    // ein Verschieben nach oben wuerde die Namensgleichheit erst scheinbar reparieren.
+    const inRampe = [...eigenschaften(":root"), ...eigenschaften(".dark")].filter((name) =>
+      name.startsWith("--axon-"),
+    );
+    expect(inRampe).toEqual([]);
+  });
+
   it("laesst primary auf der Typfarbe der Shell liegen", () => {
     // Genau eine Akzentfarbe, und sie ist keine zweite Wahrheit neben den Typfarben.
     expect(QUELLE).toContain("--primary: var(--type-aas);");

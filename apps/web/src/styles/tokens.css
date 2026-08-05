@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 
 /* Wortmarke und Formulartitel */
+@import "@fontsource/raleway/latin-400.css";
 @import "@fontsource/raleway/latin-700.css";
 /* Oberflaeche */
 @import "@fontsource/ibm-plex-sans/latin-400.css";
@@ -218,6 +219,50 @@
   --shadow-overlay: 0 24px 64px -12px rgb(0 0 0 / 0.55);
 }
 
+/* --- Die AXON-Buehne der Anmeldung ----------------------------------------------- */
+
+/*
+ * Markenbild, kein Oberflaechenchrom.
+ *
+ * Das Keyvisual kennt keinen Dunkelmodus, deshalb stehen seine Werte bewusst **ausserhalb**
+ * der Themenrampe und nicht in :root und .dark. Sie gelten nur dort, wo die Buehne steht,
+ * und die Klasse traegt der Umschlag der Anmelderoute. Damit sieht die Anmeldung auch dann
+ * richtig aus, wenn nach dem Abmelden noch die Dunkelklasse an der Wurzel klebt.
+ */
+.szene-axon {
+  --axon-grund: #1858b0;
+
+  /* Die Stroeme links, das Eigene und Ungeordnete */
+  --axon-strom-pink: #e0b0e0;
+  --axon-strom-violett: #8838c0;
+  --axon-strom-cyan: #00fdfd;
+  --axon-strom-orange: #f06a38;
+  /* Die Schienen rechts, das Standardisierte */
+  --axon-schiene-a: #00a386;
+  --axon-schiene-b: #1eb095;
+  --axon-knoten: #ffffff;
+
+  --axon-karte: rgb(9 40 88 / 0.52);
+  --axon-karte-rand: rgb(255 255 255 / 0.14);
+  --axon-feld: rgb(255 255 255 / 0.07);
+  --axon-feld-aktiv: rgb(255 255 255 / 0.11);
+  --axon-feld-rand: rgb(255 255 255 / 0.22);
+  --axon-fokus: #00fdfd;
+  --axon-aktion: #00a386;
+  --axon-aktion-hover: #1eb095;
+  --axon-schrift: #ffffff;
+  --axon-schrift-leise: rgb(255 255 255 / 0.72);
+  --axon-schrift-still: rgb(255 255 255 / 0.6);
+  --axon-fehler: #ffb08a;
+
+  /*
+   * Der globale Fokusring nimmt `--ring`. Core Blue auf Core Blue waere unsichtbar, hier
+   * gilt deshalb das Cyan der Vorgabe. Kein Override im Komponentencode noetig, die
+   * Basisregeln greifen unveraendert.
+   */
+  --ring: var(--axon-fokus);
+}
+
 /* --- Was Tailwind daraus an Utilities macht -------------------------------------- */
 
 @theme inline {
@@ -289,6 +334,21 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Die Buehne der Anmeldung, aufgeloest im Geltungsbereich von .szene-axon */
+  --color-axon-grund: var(--axon-grund);
+  --color-axon-karte: var(--axon-karte);
+  --color-axon-karte-rand: var(--axon-karte-rand);
+  --color-axon-feld: var(--axon-feld);
+  --color-axon-feld-aktiv: var(--axon-feld-aktiv);
+  --color-axon-feld-rand: var(--axon-feld-rand);
+  --color-axon-fokus: var(--axon-fokus);
+  --color-axon-aktion: var(--axon-aktion);
+  --color-axon-aktion-hover: var(--axon-aktion-hover);
+  --color-axon-schrift: var(--axon-schrift);
+  --color-axon-schrift-leise: var(--axon-schrift-leise);
+  --color-axon-schrift-still: var(--axon-schrift-still);
+  --color-axon-fehler: var(--axon-fehler);
 }
 
 @theme {
@@ -314,6 +374,14 @@
   --text-lg--line-height: 1.375rem;
   --text-xl: 1.1875rem; /* 19px, Formulartitel */
   --text-xl--line-height: 1.625rem;
+  --text-2xl: 1.6875rem; /* 27px, Titel der Anmeldekarte */
+  --text-2xl--line-height: 2.0625rem;
+
+  /* Sperrungen der Buehne, aus der Vorgabe */
+  --tracking-marke: 0.22em;
+  --tracking-etikett: 0.16em;
+  --tracking-aktion: 0.08em;
+  --blur-glas: 18px;
 
   --spacing: 0.25rem;
 
@@ -374,6 +442,13 @@
     --h-statusbar: 28px;
     --h-panel-header: 32px;
     --h-chat-header: 40px;
+
+    /* Masse der Anmeldebuehne, aus der Vorgabe */
+    --w-anmeldekarte: 340px;
+    --x-anmeldekarte: 3.5%;
+    --h-anmeldebuehne: 640px;
+    --h-anmeldefeld: 46px;
+    --h-anmeldeknopf: 48px;
   }
 
   * {

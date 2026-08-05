@@ -2,11 +2,22 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router";
 
-import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { AxonKeyvisual } from "@/components/Keyvisual/AxonKeyvisual";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useAuth } from "@/store/auth";
 
+/**
+ * Die Anmeldung auf der AXON-Buehne.
+ *
+ * Bewusst rohe Eingaben und ein rohes `button` statt `ui/input.tsx` und `ui/button.tsx`:
+ * deren Varianten setzen Hoehe, Radius und Farben des Editors, und die sind hier alle
+ * anders. Sie zu ueberschreiben verstiesse gegen die Regel "nie Komponentenfarben
+ * ueberschreiben". Die Anmeldung ist eine eigene Markenflaeche, kein Anwendungschrom, und
+ * alle Werte kommen aus dem `.szene-axon`-Block in `tokens.css`.
+ *
+ * Unter 48rem wird der Canvas gar nicht erst gemountet: die Vorlage skaliert mit der
+ * Breite, auf einem Telefon bliebe nur ein duennes Band unter der Karte.
+ */
 export function LoginRoute() {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -14,6 +25,8 @@ export function LoginRoute() {
   const status = useAuth((state) => state.status);
   const fehler = useAuth((state) => state.fehler);
   const anmelden = useAuth((state) => state.anmelden);
+
+  const breit = useMediaQuery("(min-width: 48rem)");
 
   const [benutzer, setBenutzer] = useState("");
   const [passwort, setPasswort] = useState("");
@@ -33,49 +46,83 @@ export function LoginRoute() {
     if (erfolg) void navigate(ziel, { replace: true });
   };
 
+  const feld =
+    "h-(--h-anmeldefeld) rounded-xs border border-axon-feld-rand bg-axon-feld px-3.5 " +
+    "text-base text-axon-schrift transition-colors duration-(--duration-quick) " +
+    "focus:border-axon-fokus focus:bg-axon-feld-aktiv";
+  const etikett = "text-2xs tracking-(--tracking-etikett) text-axon-schrift-leise uppercase";
+
   return (
-    <div className="flex h-screen items-center justify-center bg-background p-6">
+    <main className="szene-axon relative flex h-screen min-h-(--h-anmeldebuehne) items-center justify-center overflow-hidden bg-axon-grund px-6 md:justify-end md:px-(--x-anmeldekarte)">
+      {breit ? <AxonKeyvisual /> : null}
+
       <form
         onSubmit={(event) => void absenden(event)}
-        className="w-full max-w-sm rounded-lg border border-border bg-card p-6 shadow-(--shadow-overlay)"
+        className="relative flex w-full max-w-(--w-anmeldekarte) flex-col gap-5.5 rounded-xs border border-axon-karte-rand bg-axon-karte px-9 pt-10 pb-9 backdrop-blur-(--blur-glas)"
       >
-        <h1 className="text-lg font-semibold">{t("app.titel")}</h1>
-        <p className="mt-1 mb-5 text-sm text-muted-foreground">{t("anmeldung.hinweis")}</p>
+        <div className="flex flex-col gap-2.5">
+          <div className="flex items-center gap-2.5">
+            <span aria-hidden className="size-2.25 rounded-full bg-axon-schrift" />
+            <span
+              className={`text-xs tracking-(--tracking-marke) text-axon-schrift-leise uppercase`}
+            >
+              {t("anmeldung.marke")}
+            </span>
+          </div>
+          <h1 className="font-display text-2xl font-normal text-axon-schrift">
+            {t("anmeldung.titel")}
+          </h1>
+        </div>
 
-        <Field className="mb-3">
-          <FieldLabel htmlFor="benutzer">{t("anmeldung.benutzer")}</FieldLabel>
-          <Input
-            id="benutzer"
-            name="benutzer"
-            autoComplete="username"
-            autoFocus
-            value={benutzer}
-            onChange={(event) => setBenutzer(event.target.value)}
-          />
-        </Field>
+        <div className="flex flex-col gap-3.5">
+          <label className="flex flex-col gap-1.75" htmlFor="benutzer">
+            <span className={etikett}>{t("anmeldung.benutzer")}</span>
+            <input
+              id="benutzer"
+              name="benutzer"
+              autoComplete="username"
+              autoFocus
+              value={benutzer}
+              onChange={(event) => setBenutzer(event.target.value)}
+              className={feld}
+            />
+          </label>
 
-        <Field className="mb-5">
-          <FieldLabel htmlFor="passwort">{t("anmeldung.passwort")}</FieldLabel>
-          <Input
-            id="passwort"
-            name="passwort"
-            type="password"
-            autoComplete="current-password"
-            value={passwort}
-            onChange={(event) => setPasswort(event.target.value)}
-          />
-        </Field>
+          <label className="flex flex-col gap-1.75" htmlFor="passwort">
+            <span className={etikett}>{t("anmeldung.passwort")}</span>
+            <input
+              id="passwort"
+              name="passwort"
+              type="password"
+              autoComplete="current-password"
+              value={passwort}
+              onChange={(event) => setPasswort(event.target.value)}
+              className={feld}
+            />
+          </label>
+        </div>
 
-        {fehler ? (
-          <p role="alert" className="mb-3 text-sm text-destructive">
-            {fehler}
+        <div className="flex flex-col gap-4">
+          {fehler ? (
+            <p role="alert" className="text-sm text-axon-fehler">
+              {fehler}
+            </p>
+          ) : null}
+
+          <button
+            type="submit"
+            disabled={laeuft || benutzer === ""}
+            aria-busy={laeuft}
+            className="h-(--h-anmeldeknopf) rounded-xs bg-axon-aktion text-sm tracking-(--tracking-aktion) text-axon-schrift uppercase transition-colors duration-(--duration-quick) hover:bg-axon-aktion-hover disabled:pointer-events-none disabled:opacity-50"
+          >
+            {laeuft ? t("anmeldung.laeuft") : t("anmeldung.anmelden")}
+          </button>
+
+          <p className="text-end text-sm text-axon-schrift-still" data-numeric>
+            {t("anmeldung.version", { version: __APP_VERSION__ })}
           </p>
-        ) : null}
-
-        <Button type="submit" className="w-full" disabled={laeuft || benutzer === ""}>
-          {laeuft ? t("anmeldung.laeuft") : t("anmeldung.anmelden")}
-        </Button>
+        </div>
       </form>
-    </div>
+    </main>
   );
 }
