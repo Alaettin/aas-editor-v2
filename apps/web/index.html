@@ -6,7 +6,7 @@
     <title>AAS Editor</title>
     <script>
       /*
-        Erscheinung und Dichte vor dem ersten Bild setzen.
+        Erscheinung, Dichte und Sprache vor dem ersten Bild setzen.
 
         Ohne diese Zeilen laeuft erst React an, setzt die Klasse, und der Nutzer sieht bei
         jedem Laden kurz die helle Fassung aufblitzen. Der Schluessel und die Vorgaben
@@ -23,6 +23,13 @@
           if (dunkel) document.documentElement.classList.add("dark");
           document.documentElement.dataset.density =
             wert && wert.density === "compact" ? "compact" : "cozy";
+          var sprache =
+            wert && (wert.language === "de" || wert.language === "en")
+              ? wert.language
+              : navigator.language.toLowerCase().indexOf("en") === 0
+                ? "en"
+                : "de";
+          document.documentElement.lang = sprache;
         } catch (e) {
           /* Ein gesperrter Speicher darf das Laden nicht aufhalten. */
         }

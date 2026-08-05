@@ -20,7 +20,7 @@ import {
 import { SaveChip } from "./SaveChip";
 import { useEditor, type View } from "@/store/editor";
 import { ersteTasteFuer } from "@/lib/shortcuts";
-import { useAnsicht, type Density, type Theme } from "@/store/ansicht";
+import { useAnsicht, type Density, type Language, type Theme } from "@/store/ansicht";
 
 /**
  * Die Menuezeile. Jeder Eintrag hat eine Aktion, es gibt keinen toten Punkt.
@@ -75,6 +75,8 @@ export function MenuBar({
   const setView = useEditor((state) => state.setView);
   const setDensity = useAnsicht((state) => state.setDensity);
   const setTheme = useAnsicht((state) => state.setTheme);
+  const language = useAnsicht((state) => state.language);
+  const setLanguage = useAnsicht((state) => state.setLanguage);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
   const expandAll = useEditor((state) => state.expandAll);
   const revalidate = useEditor((state) => state.revalidate);
@@ -257,6 +259,14 @@ export function MenuBar({
             <MenubarRadioGroup value={theme} onValueChange={(wert) => setTheme(wert as Theme)}>
               <MenubarRadioItem value="light">{t("app.hell")}</MenubarRadioItem>
               <MenubarRadioItem value="dark">{t("app.dunkel")}</MenubarRadioItem>
+            </MenubarRadioGroup>
+            <MenubarSeparator />
+            <MenubarRadioGroup
+              value={language}
+              onValueChange={(wert) => setLanguage(wert as Language)}
+            >
+              <MenubarRadioItem value="de">{t("app.deutsch")}</MenubarRadioItem>
+              <MenubarRadioItem value="en">{t("app.englisch")}</MenubarRadioItem>
             </MenubarRadioGroup>
           </MenubarContent>
         </MenubarMenu>

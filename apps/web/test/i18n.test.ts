@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { ALLE_BEFUND_SCHLUESSEL } from "@aas-editor/core/validation";
 
 import de from "../src/i18n/de.json" with { type: "json" };
+import en from "../src/i18n/en.json" with { type: "json" };
 
 /**
  * Beide Richtungen.
@@ -34,7 +35,11 @@ function dateien(verzeichnis: string): string[] {
 }
 
 function vorhanden(schluessel: string): boolean {
-  let aktuell: unknown = de;
+  return vorhandenIn(de, schluessel);
+}
+
+function vorhandenIn(datei: object, schluessel: string): boolean {
+  let aktuell: unknown = datei;
   for (const teil of schluessel.split(".")) {
     if (typeof aktuell !== "object" || aktuell === null) return false;
     aktuell = (aktuell as Record<string, unknown>)[teil];
@@ -44,7 +49,7 @@ function vorhanden(schluessel: string): boolean {
   // Pluralformen liegen als eigene Schluessel vor, i18next waehlt daraus aus.
   const eltern = schluessel.slice(0, schluessel.lastIndexOf("."));
   const blatt = schluessel.slice(schluessel.lastIndexOf(".") + 1);
-  let block: unknown = de;
+  let block: unknown = datei;
   for (const teil of eltern.split(".")) {
     if (typeof block !== "object" || block === null) return false;
     block = (block as Record<string, unknown>)[teil];
@@ -90,6 +95,50 @@ describe("Uebersetzungen", () => {
     // Der Kern liefert Schluessel, keine Saetze. Faellt hier einer durch, zeigt der
     // Editor bei einem echten Constraint-Verstoss den rohen Schluessel an.
     const fehlend = ALLE_BEFUND_SCHLUESSEL.filter((schluessel) => !vorhanden(schluessel));
+    expect(fehlend).toEqual([]);
+  });
+
+  it("fuehrt in beiden Sprachen dieselben Schluessel", () => {
+    // Ohne diese Runde faellt ein fehlender englischer Satz erst im Bildschirm auf, und
+    // zwar als deutscher Satz mitten im englischen Text: i18next greift auf `fallbackLng`
+    // zurueck, statt zu meckern.
+    const deutsch = new Set(alleSchluessel(de));
+    const englisch = new Set(alleSchluessel(en));
+
+    expect([...deutsch].filter((k) => !englisch.has(k)).sort(), "fehlt auf Englisch").toEqual([]);
+    expect([...englisch].filter((k) => !deutsch.has(k)).sort(), "fehlt auf Deutsch").toEqual([]);
+  });
+
+  it("fuehrt in beiden Sprachen dieselben Platzhalter", () => {
+    // `{{name}}` in der einen und `{{title}}` in der anderen Fassung ergibt einen Satz mit
+    // einer leeren Luecke. Das faellt sonst nur auf, wenn genau dieser Fall eintritt.
+    const platzhalter = (wert: string) =>
+      [...wert.matchAll(/{{\s*(\w+)/g)]
+        .map((t) => t[1])
+        .sort()
+        .join(", ");
+
+    const abweichungen: string[] = [];
+    const vergleiche = (deutsch: unknown, englisch: unknown, pfad: string): void => {
+      if (typeof deutsch === "string" && typeof englisch === "string") {
+        if (platzhalter(deutsch) !== platzhalter(englisch)) {
+          abweichungen.push(`${pfad}: de(${platzhalter(deutsch)}) en(${platzhalter(englisch)})`);
+        }
+        return;
+      }
+      if (typeof deutsch !== "object" || deutsch === null) return;
+      if (typeof englisch !== "object" || englisch === null) return;
+      for (const [name, wert] of Object.entries(deutsch as Record<string, unknown>)) {
+        vergleiche(wert, (englisch as Record<string, unknown>)[name], `${pfad}.${name}`);
+      }
+    };
+
+    vergleiche(de, en, "");
+    expect(abweichungen.sort()).toEqual([]);
+  });
+
+  it("kennt jeden Befundschluessel auch auf Englisch", () => {
+    const fehlend = ALLE_BEFUND_SCHLUESSEL.filter((schluessel) => !vorhandenIn(en, schluessel));
     expect(fehlend).toEqual([]);
   });
 

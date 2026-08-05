@@ -27,6 +27,8 @@ export function SettingsDialog({
   const density = useAnsicht((state) => state.density);
   const setTheme = useAnsicht((state) => state.setTheme);
   const setDensity = useAnsicht((state) => state.setDensity);
+  const language = useAnsicht((state) => state.language);
+  const setLanguage = useAnsicht((state) => state.setLanguage);
 
   return (
     <Dialog open={offen} onOpenChange={(next) => !next && onClose()}>
@@ -72,6 +74,31 @@ export function SettingsDialog({
               onClick={() => setDensity("cozy")}
             >
               {t("app.dichteKomfortabel")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <SectionLabel>{t("app.sprache")}</SectionLabel>
+          <div className="flex gap-2">
+            {/*
+              Die Sprachnamen stehen in ihrer eigenen Sprache: "Deutsch" heisst auch auf
+              Englisch Deutsch. Wer die Oberflaeche gerade nicht lesen kann, findet so
+              trotzdem den Weg zurueck.
+            */}
+            <Button
+              variant={language === "de" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("de")}
+            >
+              {t("app.deutsch")}
+            </Button>
+            <Button
+              variant={language === "en" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLanguage("en")}
+            >
+              {t("app.englisch")}
             </Button>
           </div>
         </div>

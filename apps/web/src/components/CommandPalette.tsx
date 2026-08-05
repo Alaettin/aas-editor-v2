@@ -8,6 +8,7 @@ import {
   Redo2,
   Rows2,
   Rows3,
+  Languages,
   ShieldAlert,
   Sun,
   Table2,
@@ -61,6 +62,8 @@ export function CommandPalette() {
   const density = useAnsicht((state) => state.density);
   const setTheme = useAnsicht((state) => state.setTheme);
   const setDensity = useAnsicht((state) => state.setDensity);
+  const language = useAnsicht((state) => state.language);
+  const setLanguage = useAnsicht((state) => state.setLanguage);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
   const setView = useEditor((state) => state.setView);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
@@ -227,6 +230,14 @@ export function CommandPalette() {
             >
               {density === "cozy" ? <Rows3 /> : <Rows2 />}
               {density === "cozy" ? t("app.dichteKompakt") : t("app.dichteKomfortabel")}
+            </CommandItem>
+
+            <CommandItem
+              value="sprache language deutsch english"
+              onSelect={() => ausfuehren(() => setLanguage(language === "de" ? "en" : "de"))}
+            >
+              <Languages />
+              {language === "de" ? t("app.englisch") : t("app.deutsch")}
             </CommandItem>
           </CommandGroup>
         </CommandList>

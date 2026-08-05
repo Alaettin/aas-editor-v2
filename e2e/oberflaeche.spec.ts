@@ -33,7 +33,10 @@ async function anmeldenUndOeffnen(page: Page, name: string): Promise<void> {
 }
 
 interface AnsichtStore {
-  getState: () => { setTheme: (theme: string) => void };
+  getState: () => {
+    setTheme: (theme: string) => void;
+    setLanguage: (language: string) => void;
+  };
 }
 
 interface KnownStore {
@@ -157,6 +160,41 @@ test.describe("Oberflaeche", () => {
         .getState()
         .setTheme("light"),
     );
+  });
+
+  test("spricht auf Englisch wirklich Englisch", async ({ page }) => {
+    // Der eigentliche Pruefstein ist nicht die Anmeldung, sondern der Editor: dort kommen
+    // die Saetze aus drei Quellen zusammen, aus de.json, aus dem Kern und vom Server.
+    await anmeldenUndOeffnen(page, `Sprache ${String(Date.now())}`);
+
+    await page.evaluate(() =>
+      (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
+        .getState()
+        .setLanguage("en"),
+    );
+    await expect(page.locator("html")).toHaveAttribute("lang", "en");
+
+    // Drei Quellen auf einmal: die Menuezeile aus de/en.json, die Beschriftung des Baums
+    // ueber `aria-label`, und die Sicht-Umschaltung.
+    await expect(page.getByText("File", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("tree", { name: "Structure" })).toBeVisible();
+    await expect(page.getByText("Form", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Datei", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Formular", { exact: true })).toHaveCount(0);
+
+    // Kein roher Schluessel im Bild. Genau so faellt ein vergessener Eintrag auf: als
+    // "menu.datei" mitten in der Menuezeile.
+    const text = await page.locator("body").innerText();
+    expect(text, "roher i18n-Schluessel sichtbar").not.toMatch(
+      /(app|menu|baum|status|befund|tabelle|graph|inspektor)\.[a-zA-Z]/,
+    );
+
+    await page.evaluate(() =>
+      (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
+        .getState()
+        .setLanguage("de"),
+    );
+    await expect(page.locator("html")).toHaveAttribute("lang", "de");
   });
 
   test("sagt beim Speichern, dass es geklappt hat", async ({ page }) => {

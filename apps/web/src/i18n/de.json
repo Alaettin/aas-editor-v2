@@ -11,8 +11,11 @@
     "erscheinung": "Darstellung",
     "hell": "Hell",
     "dunkel": "Dunkel",
-    "palette": "Kommando-Palette (Strg+K)",
-    "zumInhalt": "Zum Inhalt springen"
+    "palette": "Kommando-Palette ({{tasten}})",
+    "zumInhalt": "Zum Inhalt springen",
+    "sprache": "Sprache",
+    "deutsch": "Deutsch",
+    "englisch": "English"
   },
   "status": {
     "knoten": "{{count}} Elemente",
@@ -313,7 +316,6 @@
     "abmelden": "Abmelden",
     "titel": "AAS Editor",
     "sprache": "Sprache",
-    "spracheNurDeutsch": "Englisch ist noch nicht übersetzt.",
     "marke": "Neoception, Pepperl+Fuchs"
   },
   "projekte": {

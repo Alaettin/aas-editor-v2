@@ -12,6 +12,11 @@ import { expect, test as setup } from "@playwright/test";
  *
  * `anmeldung.spec.ts` laeuft bewusst **ohne** diese Sitzung: dort ist die Anmeldung der
  * Gegenstand der Pruefung, kein Vorspiel.
+ *
+ * Nebenbei wird hier die **Sprache festgenagelt**. Seit es Englisch gibt, richtet sich die
+ * Vorgabe nach dem Browser, und Chromium meldet `en-US`. Ohne diese Zeile liefe die ganze
+ * Abnahme auf Englisch und jeder Selektor auf deutschen Text ginge ins Leere, ohne dass am
+ * Programm etwas falsch waere. Die englische Fassung prueft `oberflaeche.spec.ts` eigens.
  */
 
 export const SITZUNG = fileURLToPath(new URL("./.auth/sitzung.json", import.meta.url));
@@ -28,6 +33,13 @@ const ENV = Object.fromEntries(
 
 setup("anmelden", async ({ page }) => {
   await page.goto("/login");
+  await page.evaluate(() =>
+    localStorage.setItem(
+      "aas-editor-ansicht",
+      JSON.stringify({ theme: "light", density: "cozy", language: "de" }),
+    ),
+  );
+  await page.reload();
   await page.fill("#benutzer", ENV["AUTH_USERNAME"] ?? "");
   await page.fill("#passwort", ENV["AUTH_PASSWORD"] ?? "");
   await page.click('button[type="submit"]');

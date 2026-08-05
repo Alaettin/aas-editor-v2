@@ -28,7 +28,7 @@ import { ShortcutsDialog } from "@/components/Shell/ShortcutsDialog";
 import { StatusBar } from "@/components/Shell/StatusBar";
 import { Toolbar } from "@/components/Shell/Toolbar";
 import { useAssistant } from "@/store/assistant";
-import { inEingabefeld } from "@/lib/shortcuts";
+import { ersteTasteFuer, inEingabefeld } from "@/lib/shortcuts";
 import { useEditor } from "@/store/editor";
 
 /**
@@ -195,7 +195,9 @@ export function AppShell() {
               </EmptyHeader>
               <EmptyContent>
                 <Button onClick={() => inputRef.current?.click()}>{t("leer.knopf")}</Button>
-                <p className="mt-2 text-2xs text-muted-foreground">{t("app.palette")}</p>
+                <p className="mt-2 text-2xs text-muted-foreground">
+                  {t("app.palette", { tasten: ersteTasteFuer("hilfe.palette") })}
+                </p>
               </EmptyContent>
             </Empty>
           )}

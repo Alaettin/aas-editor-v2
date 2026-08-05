@@ -6,6 +6,7 @@ import { ArrowRight } from "lucide-react";
 import logo from "@/assets/neoception-weiss.png";
 import { AxonKeyvisual } from "@/components/Keyvisual/AxonKeyvisual";
 import { useMediaQuery } from "@/lib/useMediaQuery";
+import { useAnsicht } from "@/store/ansicht";
 import { useAuth } from "@/store/auth";
 
 /**
@@ -27,6 +28,9 @@ export function LoginRoute() {
   const status = useAuth((state) => state.status);
   const fehler = useAuth((state) => state.fehler);
   const anmelden = useAuth((state) => state.anmelden);
+
+  const language = useAnsicht((state) => state.language);
+  const setLanguage = useAnsicht((state) => state.setLanguage);
 
   const breit = useMediaQuery("(min-width: 48rem)");
   const karteRef = useRef<HTMLFormElement>(null);
@@ -157,26 +161,32 @@ export function LoginRoute() {
 
           <div className="flex items-center justify-between font-mono text-2xs tracking-(--tracking-fein) text-axon-schrift-fein">
             {/*
-              Die Sprachwahl steht, die Uebersetzung nicht: Englisch ist deshalb
-              ausdruecklich deaktiviert und sagt im Titel warum. Ein Knopf, der still
-              nichts tut, waere die schlechtere Auskunft.
+              Die Sprachwahl gilt sofort und ueberdauert das Neuladen: sie liegt im selben
+              Speicher wie Erscheinung und Dichte.
             */}
             <div role="group" aria-label={t("anmeldung.sprache")} className="flex items-center">
-              <button type="button" aria-pressed className="px-1 text-axon-schrift-still">
-                DE
-              </button>
-              <span aria-hidden className="text-axon-schrift-fein">
-                /
-              </span>
-              <button
-                type="button"
-                aria-pressed={false}
-                disabled
-                title={t("anmeldung.spracheNurDeutsch")}
-                className="px-1 disabled:cursor-not-allowed"
-              >
-                EN
-              </button>
+              {(["de", "en"] as const).map((wert, i) => (
+                <span key={wert} className="flex items-center">
+                  {i > 0 ? (
+                    <span aria-hidden className="text-axon-schrift-fein">
+                      /
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    aria-pressed={language === wert}
+                    onClick={() => setLanguage(wert)}
+                    className={
+                      "px-1 transition-colors duration-(--duration-calm) " +
+                      (language === wert
+                        ? "text-axon-schrift-still"
+                        : "hover:text-axon-schrift-still")
+                    }
+                  >
+                    {wert.toUpperCase()}
+                  </button>
+                </span>
+              ))}
             </div>
 
             <span data-numeric>{__APP_VERSION__}</span>
