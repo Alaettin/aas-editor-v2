@@ -1,7 +1,7 @@
 import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance } from "fastify";
 import type { ServerEnv } from "../env.js";
-import { badRequest, unauthorized } from "../errors.js";
+import { anmeldungFalsch, badRequest, unauthorized } from "../errors.js";
 import { clearSession, issueSession } from "../auth/session.js";
 
 interface LoginBody {
@@ -30,7 +30,7 @@ export async function authRoutes(app: FastifyInstance, env: ServerEnv): Promise<
       const user = await app.auth.verifyCredentials(body.benutzer, body.passwort);
       if (user === null) {
         req.log.info({ benutzer: body.benutzer }, "Anmeldung fehlgeschlagen");
-        throw unauthorized("Username or password is wrong.");
+        throw anmeldungFalsch();
       }
 
       issueSession(reply, { sub: user.id, exp: Date.now() + env.sessionTtlMs }, env);

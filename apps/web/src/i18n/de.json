@@ -220,7 +220,8 @@
       "kennung-widerspricht": "Die id im Rumpf stimmt nicht mit der Kennung im Pfad überein.",
       "ungueltiger-cursor": "Der Cursor ist nicht lesbar.",
       "ungueltiges-limit": "limit muss zwischen 1 und {{grenze}} liegen.",
-      "version-nicht-gefunden": "Version nicht gefunden."
+      "version-nicht-gefunden": "Version nicht gefunden.",
+      "anmeldung-falsch": "Benutzername oder Passwort stimmt nicht."
     }
   },
   "palette": {

@@ -220,7 +220,8 @@
       "kennung-widerspricht": "The id in the body does not match the identifier in the path.",
       "ungueltiger-cursor": "The cursor is not readable.",
       "ungueltiges-limit": "limit must be between 1 and {{grenze}}.",
-      "version-nicht-gefunden": "Version not found."
+      "version-nicht-gefunden": "Version not found.",
+      "anmeldung-falsch": "Username or password is wrong."
     }
   },
   "palette": {

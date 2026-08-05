@@ -28,6 +28,13 @@ export const badRequest = (code: string, message: string, details?: Record<strin
   new AppError(400, code, message, details);
 export const unauthorized = (message = "Not signed in.") =>
   new AppError(401, "nicht-angemeldet", message);
+/**
+ * Falsche Zugangsdaten sind etwas anderes als eine fehlende Sitzung, auch wenn beides 401
+ * ist. Mit demselben Code stuende auf der Anmeldemaske "Nicht angemeldet", was der Nutzer
+ * ohnehin weiss, statt "Benutzername oder Passwort stimmt nicht".
+ */
+export const anmeldungFalsch = () =>
+  new AppError(401, "anmeldung-falsch", "Username or password is wrong.");
 export const notFound = (code: string, message: string) => new AppError(404, code, message);
 export const conflict = (code: string, message: string, details?: Record<string, unknown>) =>
   new AppError(409, code, message, details);
