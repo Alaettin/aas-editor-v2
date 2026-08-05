@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/command";
 import { useEditor } from "@/store/editor";
 import { ersteTasteFuer } from "@/lib/shortcuts";
+import { useAnsicht } from "@/store/ansicht";
 
 /**
  * Kommando-Palette, Strg oder Cmd plus K (Plan Abschnitt 8).
@@ -56,10 +57,10 @@ export function CommandPalette() {
   const exportAs = useEditor((state) => state.exportAs);
   const undo = useEditor((state) => state.undo);
   const redo = useEditor((state) => state.redo);
-  const theme = useEditor((state) => state.theme);
-  const density = useEditor((state) => state.density);
-  const setTheme = useEditor((state) => state.setTheme);
-  const setDensity = useEditor((state) => state.setDensity);
+  const theme = useAnsicht((state) => state.theme);
+  const density = useAnsicht((state) => state.density);
+  const setTheme = useAnsicht((state) => state.setTheme);
+  const setDensity = useAnsicht((state) => state.setDensity);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
   const setView = useEditor((state) => state.setView);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);

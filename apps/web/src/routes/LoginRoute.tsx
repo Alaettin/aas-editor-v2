@@ -69,7 +69,7 @@ export function LoginRoute() {
           borderColor:
             "color-mix(in srgb, var(--axon-fokus) calc(var(--axon-blitz) * 50%), var(--axon-karte-rand))",
           boxShadow:
-            "0 0 calc(20px + var(--axon-blitz) * 40px) rgb(0 253 253 / calc(var(--axon-blitz) * 0.16))",
+            "0 0 calc(20px + var(--axon-blitz) * 40px) rgb(var(--axon-fokus-kanaele) / calc(var(--axon-blitz) * 0.16))",
         }}
         className="relative flex w-full max-w-(--w-anmeldekarte) flex-col gap-6.5 overflow-hidden rounded-[2px] border bg-axon-karte px-8.5 pt-8.5 pb-6.5 backdrop-blur-(--blur-glas)"
       >
@@ -82,7 +82,7 @@ export function LoginRoute() {
         <span
           aria-hidden
           className="absolute -left-0.5 size-1.25 rounded-full bg-axon-schrift [animation:axon-kante_5.5s_linear_infinite]"
-          style={{ boxShadow: "0 0 12px 3px rgb(0 253 253 / 0.7)" }}
+          style={{ boxShadow: "0 0 12px 3px rgb(var(--axon-fokus-kanaele) / 0.7)" }}
         />
 
         <div className="flex flex-col gap-4">

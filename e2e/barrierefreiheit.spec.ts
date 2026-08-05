@@ -16,11 +16,14 @@ import { expect, test, type Page } from "@playwright/test";
 
 const PROBE = fileURLToPath(new URL("./probe.json", import.meta.url));
 
+interface AnsichtStore {
+  getState: () => { setTheme: (theme: string) => void };
+}
+
 interface KnownStore {
   getState: () => {
     status: string;
     setView: (view: string) => void;
-    setTheme: (theme: string) => void;
   };
 }
 
@@ -83,7 +86,7 @@ test.describe("Barrierefreiheit", () => {
     for (const thema of ["light", "dark"]) {
       await page.evaluate(
         (wert) =>
-          (window as never as { __aasEditorStore: KnownStore }).__aasEditorStore
+          (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
             .getState()
             .setTheme(wert),
         thema,

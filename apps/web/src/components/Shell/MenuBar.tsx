@@ -18,8 +18,9 @@ import {
   MenubarTrigger,
 } from "@/components/ui/menubar";
 import { SaveChip } from "./SaveChip";
-import { useEditor, type Density, type Theme, type View } from "@/store/editor";
+import { useEditor, type View } from "@/store/editor";
 import { ersteTasteFuer } from "@/lib/shortcuts";
+import { useAnsicht, type Density, type Theme } from "@/store/ansicht";
 
 /**
  * Die Menuezeile. Jeder Eintrag hat eine Aktion, es gibt keinen toten Punkt.
@@ -55,8 +56,8 @@ export function MenuBar({
   const clipboard = useEditor((state) => state.clipboard);
   const projektId = useEditor((state) => state.projektId);
   const view = useEditor((state) => state.view);
-  const density = useEditor((state) => state.density);
-  const theme = useEditor((state) => state.theme);
+  const density = useAnsicht((state) => state.density);
+  const theme = useAnsicht((state) => state.theme);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
   const canUndo = useEditor((state) => state.history.past.length > 0);
   const canRedo = useEditor((state) => state.history.future.length > 0);
@@ -72,8 +73,8 @@ export function MenuBar({
   const requestDelete = useEditor((state) => state.requestDelete);
   const requestPaste = useEditor((state) => state.requestPaste);
   const setView = useEditor((state) => state.setView);
-  const setDensity = useEditor((state) => state.setDensity);
-  const setTheme = useEditor((state) => state.setTheme);
+  const setDensity = useAnsicht((state) => state.setDensity);
+  const setTheme = useAnsicht((state) => state.setTheme);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
   const expandAll = useEditor((state) => state.expandAll);
   const revalidate = useEditor((state) => state.revalidate);

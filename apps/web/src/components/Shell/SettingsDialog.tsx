@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
-import { useEditor } from "@/store/editor";
+import { useAnsicht } from "@/store/ansicht";
 
 /**
  * Einstellungen, bewusst klein: Erscheinung und Dichte. Alles andere gehoert in die
@@ -23,10 +23,10 @@ export function SettingsDialog({
   readonly onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const theme = useEditor((state) => state.theme);
-  const density = useEditor((state) => state.density);
-  const setTheme = useEditor((state) => state.setTheme);
-  const setDensity = useEditor((state) => state.setDensity);
+  const theme = useAnsicht((state) => state.theme);
+  const density = useAnsicht((state) => state.density);
+  const setTheme = useAnsicht((state) => state.setTheme);
+  const setDensity = useAnsicht((state) => state.setDensity);
 
   return (
     <Dialog open={offen} onOpenChange={(next) => !next && onClose()}>

@@ -23,6 +23,7 @@ import { useAssistant } from "@/store/assistant";
 import { useEditor } from "@/store/editor";
 import { ViewSwitch } from "./ViewSwitch";
 import { ersteTasteFuer } from "@/lib/shortcuts";
+import { useAnsicht } from "@/store/ansicht";
 
 /**
  * Symbolwerkzeugleiste in drei Gruppen: Datei, Historie, Element. Danach die Validierung
@@ -46,7 +47,7 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
   const model = useEditor((state) => state.model);
   const selection = useEditor((state) => state.selection);
   const projektId = useEditor((state) => state.projektId);
-  const theme = useEditor((state) => state.theme);
+  const theme = useAnsicht((state) => state.theme);
   const canUndo = useEditor((state) => state.history.past.length > 0);
   const canRedo = useEditor((state) => state.history.future.length > 0);
 
@@ -55,7 +56,7 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
   const redo = useEditor((state) => state.redo);
   const duplicateElement = useEditor((state) => state.duplicateElement);
   const requestDelete = useEditor((state) => state.requestDelete);
-  const setTheme = useEditor((state) => state.setTheme);
+  const setTheme = useAnsicht((state) => state.setTheme);
   const revalidate = useEditor((state) => state.revalidate);
 
   const assistentOffen = useAssistant((state) => state.offen);

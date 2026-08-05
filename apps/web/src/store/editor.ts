@@ -49,13 +49,12 @@ import { clearDraft, createAutosave, loadDraft, type Draft } from "./autosave";
  */
 export const NO_ATTACHMENTS: readonly AttachmentInfo[] = [];
 
-export type Density = "compact" | "cozy";
 /**
  * Die drei Sichten aus Plan Abschnitt 8. Der Baum bleibt in allen dreien links stehen,
  * gewechselt wird nur die rechte Flaeche: es ist ein Perspektivwechsel, kein Ortswechsel.
  */
 export type View = "formular" | "tabelle" | "graph";
-export type Theme = "light" | "dark";
+
 export type Status = "leer" | "laedt" | "bereit" | "fehler";
 /**
  * Verhaeltnis zum Serverstand. "ohneProjekt" heisst: aus einer Datei geoeffnet und noch
@@ -98,8 +97,6 @@ interface EditorState {
   /** Die zuletzt kopierten oder ausgeschnittenen Elemente */
   clipboard: Fragment | null;
 
-  density: Density;
-  theme: Theme;
   view: View;
 
   openFile: (file: File) => Promise<void>;
@@ -164,8 +161,6 @@ interface EditorState {
     strategy?: PasteStrategy,
   ) => PasteResult | null;
 
-  setDensity: (density: Density) => void;
-  setTheme: (theme: Theme) => void;
   setView: (view: View) => void;
 
   /**
@@ -314,12 +309,7 @@ export const useEditor = create<EditorState>()((set, get) => {
     serverKonflikt: null,
     anhaengeBereit: true,
 
-    density: "cozy",
     view: "formular",
-    theme:
-      typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light",
 
     async openFile(file) {
       set({ status: "laedt", error: null, draft: null });
@@ -805,8 +795,6 @@ export const useEditor = create<EditorState>()((set, get) => {
       return result;
     },
 
-    setDensity: (density) => set({ density }),
-    setTheme: (theme) => set({ theme }),
     setView: (view) => set({ view }),
 
     pendingDelete: [],

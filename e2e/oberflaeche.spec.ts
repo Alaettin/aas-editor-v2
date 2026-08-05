@@ -32,12 +32,15 @@ async function anmeldenUndOeffnen(page: Page, name: string): Promise<void> {
   );
 }
 
+interface AnsichtStore {
+  getState: () => { setTheme: (theme: string) => void };
+}
+
 interface KnownStore {
   getState: () => {
     status: string;
     model: { nodes: Record<string, { data: Record<string, unknown>; nodeId: string }> };
     setView: (view: string) => void;
-    setTheme: (theme: string) => void;
     goToNode: (nodeId: string) => void;
   };
 }
@@ -72,7 +75,7 @@ test.describe("Oberflaeche", () => {
     for (const thema of ["light", "dark"]) {
       await page.evaluate(
         (wert) =>
-          (window as never as { __aasEditorStore: KnownStore }).__aasEditorStore
+          (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
             .getState()
             .setTheme(wert),
         thema,
@@ -126,6 +129,34 @@ test.describe("Oberflaeche", () => {
     const nachher = (await page.locator("main").boundingBox())?.width ?? 0;
     // Verdraengen statt ueberlagern: die Sicht muss wirklich schmaler geworden sein.
     expect(nachher).toBeLessThan(vorher);
+  });
+
+  test("traegt den Dunkelmodus auch ausserhalb des Editors", async ({ page }) => {
+    // Bis Phase 9 setzte allein `AppShell` die Klasse an der Wurzel. Wer direkt auf
+    // /projekte einstieg, sah die Liste immer hell, egal was eingestellt war.
+    await page.goto("/projekte");
+    await page.evaluate(() =>
+      (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
+        .getState()
+        .setTheme("dark"),
+    );
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    // Neu laden: das Vorabskript in index.html muss die Klasse **vor** dem ersten Bild
+    // setzen, sonst blitzt bei jedem Laden kurz die helle Fassung auf.
+    await page.goto("/projekte");
+    const vorReact = await page.evaluate(() => ({
+      klasse: document.documentElement.classList.contains("dark"),
+      // Steht die Klasse schon, bevor React ueberhaupt gemountet hat?
+      leer: document.getElementById("root")?.childElementCount === 0,
+    }));
+    expect(vorReact.klasse).toBe(true);
+
+    await page.evaluate(() =>
+      (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
+        .getState()
+        .setTheme("light"),
+    );
   });
 
   test("sagt beim Speichern, dass es geklappt hat", async ({ page }) => {

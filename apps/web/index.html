@@ -4,6 +4,30 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AAS Editor</title>
+    <script>
+      /*
+        Erscheinung und Dichte vor dem ersten Bild setzen.
+
+        Ohne diese Zeilen laeuft erst React an, setzt die Klasse, und der Nutzer sieht bei
+        jedem Laden kurz die helle Fassung aufblitzen. Der Schluessel und die Vorgaben
+        stehen ebenso in `store/ansicht.ts`; das ist die eine bewusste Wiederholung, denn
+        hier darf noch kein Modul geladen sein.
+      */
+      (function () {
+        try {
+          var roh = localStorage.getItem("aas-editor-ansicht");
+          var wert = roh ? JSON.parse(roh) : null;
+          var dunkel = wert
+            ? wert.theme === "dark"
+            : window.matchMedia("(prefers-color-scheme: dark)").matches;
+          if (dunkel) document.documentElement.classList.add("dark");
+          document.documentElement.dataset.density =
+            wert && wert.density === "compact" ? "compact" : "cozy";
+        } catch (e) {
+          /* Ein gesperrter Speicher darf das Laden nicht aufhalten. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

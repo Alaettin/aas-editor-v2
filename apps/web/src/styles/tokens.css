@@ -4,7 +4,6 @@
 
 /* Wortmarke, Formulartitel und der leichte Titel der Anmeldung */
 @import "@fontsource/raleway/latin-300.css";
-@import "@fontsource/raleway/latin-400.css";
 @import "@fontsource/raleway/latin-700.css";
 /* Oberflaeche */
 @import "@fontsource/ibm-plex-sans/latin-400.css";
@@ -259,6 +258,8 @@
   --axon-feld-rand: rgb(255 255 255 / 0.24);
   --axon-platzhalter: rgb(255 255 255 / 0.3);
   --axon-fokus: #00fdfd;
+  /* Dasselbe Cyan als Kanaltripel, fuer Schein und Verlauf mit eigener Deckkraft. */
+  --axon-fokus-kanaele: 0 253 253;
   --axon-aktion: #00a386;
   --axon-aktion-hover: #1eb095;
   --axon-schrift: #ffffff;
@@ -270,8 +271,8 @@
   /* Die Lichtkante links an der Karte: cyan oben, gruen unten, an den Enden auslaufend */
   --axon-kante: linear-gradient(
     to bottom,
-    rgb(0 253 253 / 0) 0%,
-    #00fdfd 28%,
+    rgb(var(--axon-fokus-kanaele) / 0) 0%,
+    var(--axon-fokus) 28%,
     #00a386 72%,
     rgb(0 163 134 / 0) 100%
   );

@@ -63,8 +63,6 @@ export function AppShell() {
   const status = useEditor((state) => state.status);
   const error = useEditor((state) => state.error);
   const issues = useEditor((state) => state.issues);
-  const density = useEditor((state) => state.density);
-  const theme = useEditor((state) => state.theme);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
   const view = useEditor((state) => state.view);
 
@@ -87,12 +85,6 @@ export function AppShell() {
       void exportAs(format);
     }
   };
-
-  // Hell und Dunkel sowie die Dichte haengen am Wurzelelement, damit die Tokens greifen.
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    document.documentElement.dataset["density"] = density;
-  }, [theme, density]);
 
   // Globale Tastenwege. Strg+K gehoert der Palette, sie hoert selbst zu.
   useEffect(() => {

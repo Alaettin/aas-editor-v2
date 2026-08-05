@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -59,5 +60,47 @@ describe("Design-Tokens", () => {
   it("laesst primary auf der Typfarbe der Shell liegen", () => {
     // Genau eine Akzentfarbe, und sie ist keine zweite Wahrheit neben den Typfarben.
     expect(QUELLE).toContain("--primary: var(--type-aas);");
+  });
+
+  it("haelt Farbwerte aus dem Programmcode heraus", () => {
+    // Die Regel galt bisher nur fuer den Keyvisual-Ordner. Sie gilt fuer alles: eine Farbe
+    // im Bauteil wandert im Dunkelmodus nicht mit und faellt in keinem Kontrastdurchgang
+    // auf. Genau so entstand das feste Cyan in der Anmeldung, obwohl es dafuer laengst ein
+    // Token gab.
+    //
+    // Ausgenommen sind `styles/` (dort **stehen** die Werte) und `components/ui/`
+    // (Fremdcode von shadcn, siehe die Hausregel in tokens.css).
+    const wurzel = fileURLToPath(new URL("../src", import.meta.url));
+    const treffer: string[] = [];
+
+    const durchgehen = (ordner: string): void => {
+      for (const eintrag of readdirSync(ordner, { withFileTypes: true })) {
+        const voll = join(ordner, eintrag.name);
+        const relativ = voll
+          .slice(wurzel.length + 1)
+          .split(sep)
+          .join("/");
+        if (relativ.startsWith("styles") || relativ.startsWith("components/ui")) continue;
+        if (eintrag.isDirectory()) {
+          durchgehen(voll);
+          continue;
+        }
+        if (!/\.tsx?$/.test(eintrag.name)) continue;
+
+        const zeilen = readFileSync(voll, "utf8").split(/\r?\n/);
+        for (const [nummer, zeile] of zeilen.entries()) {
+          const roh = zeile.trimStart();
+          if (roh.startsWith("*") || roh.startsWith("//")) continue;
+          // Erlaubt bleibt `rgb(var(--token) / ...)`: das ist der Weg, auf dem ein
+          // Kanaltripel aus den Tokens eine eigene Deckkraft bekommt.
+          if (/#[0-9a-fA-F]{3,8}\b/.test(zeile) || /\brgba?\(\s*[\d.]/.test(zeile)) {
+            treffer.push(`${relativ}:${String(nummer + 1)}  ${zeile.trim()}`);
+          }
+        }
+      }
+    };
+
+    durchgehen(wurzel);
+    expect(treffer).toEqual([]);
   });
 });

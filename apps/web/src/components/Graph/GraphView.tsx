@@ -333,7 +333,13 @@ function GraphInner() {
           className="rounded-xl border border-border"
           style={{ width: 150, height: 96, background: "var(--card)" }}
           maskColor="color-mix(in oklab, var(--background), transparent 40%)"
+          // Das Sichtfeldrechteck zeichnet xyflow aus seinem eigenen Stylesheet, mit
+          // einem festen Grau. Ohne diese beiden Zeilen ist es im Dunkelmodus die einzige
+          // Flaeche, die der Rampe nicht folgt.
+          maskStrokeColor="var(--primary)"
+          maskStrokeWidth={3}
           nodeColor={(node) => MINIMAP_FARBE[node.data["kind"] as GraphNodeKind] ?? "var(--border)"}
+          nodeStrokeColor="var(--card)"
         />
       </ReactFlow>
     </div>
