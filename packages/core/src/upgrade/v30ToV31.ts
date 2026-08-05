@@ -18,7 +18,9 @@ export const NAMESPACE_31 = "https://admin-shell.io/aas/3/1";
 export interface UpgradeNote {
   /** Zeile der Diff-Tabelle, auf die sich die Anmerkung bezieht */
   readonly rule: string;
-  readonly message: string;
+  /** i18n-Schluessel des Hinweises */
+  readonly schluessel: string;
+  readonly werte: Readonly<Record<string, string>>;
 }
 
 export interface UpgradeResult<T> {
@@ -53,7 +55,8 @@ export function upgradeXml(xml: string): UpgradeResult<string> {
     notes: [
       {
         rule: "7",
-        message: `XML-Namensraum von ${NAMESPACE_30} auf ${NAMESPACE_31} gehoben.`,
+        schluessel: "warnung.namensraumGehoben",
+        werte: { von: NAMESPACE_30, nach: NAMESPACE_31 },
       },
     ],
   };

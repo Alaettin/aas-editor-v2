@@ -14,6 +14,7 @@
 
 export const METAMODEL_VERSION = "3.1" as const;
 
+export * from "./fehler.js";
 export * from "./model/json.js";
 export * from "./model/kinds.js";
 export * from "./model/store.js";

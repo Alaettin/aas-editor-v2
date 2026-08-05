@@ -11,6 +11,7 @@ import {
 import { normalize } from "../src/model/normalize.js";
 import { insertNode } from "../src/model/operations.js";
 import { getNode, walk, type EditorModel } from "../src/model/store.js";
+import { wirftSchluessel } from "./schluessel.js";
 
 /**
  * Abnahme Phase 5, erster Satz: "ein Teilbaum laesst sich zwischen zwei Submodels
@@ -60,7 +61,7 @@ describe("Kopieren", () => {
   });
 
   it("schuetzt die Wurzel", () => {
-    expect(() => copySubtree(zweiSubmodels(), "n0")).toThrow(/Wurzel/);
+    wirftSchluessel(() => copySubtree(zweiSubmodels(), "n0"), "modell.wurzelNichtKopieren");
   });
 });
 
@@ -113,11 +114,13 @@ describe("Einfuegen zwischen zwei Submodels", () => {
     const gruppe = [...walk(model)].find((n) => n.kind === "SubmodelElementCollection")!;
     const fragment = copySubtree(model, gruppe.nodeId);
 
-    expect(() =>
-      applyChange(model, emptyHistory, "verboten", (draft) => {
-        pasteSubtree(draft, "n0", "submodels", fragment);
-      }),
-    ).toThrow(/nicht zulaessig/);
+    wirftSchluessel(
+      () =>
+        applyChange(model, emptyHistory, "verboten", (draft) => {
+          pasteSubtree(draft, "n0", "submodels", fragment);
+        }),
+      "modell.nichtZulaessig",
+    );
   });
 });
 
@@ -204,9 +207,9 @@ describe("JSON aus der Zwischenablage", () => {
   });
 
   it("sagt verstaendlich, was fehlt", () => {
-    expect(() => fragmentFromJson("kein json")).toThrow(/kein gueltiges JSON/);
-    expect(() => fragmentFromJson("[1,2]")).toThrow(/einzelnes Objekt/);
-    expect(() => fragmentFromJson('{"idShort":"X"}')).toThrow(/modelType/);
+    wirftSchluessel(() => fragmentFromJson("kein json"), "modell.keinJson");
+    wirftSchluessel(() => fragmentFromJson("[1,2]"), "modell.keinEinzelobjekt");
+    wirftSchluessel(() => fragmentFromJson('{"idShort":"X"}'), "modell.ohneModelType");
   });
 });
 

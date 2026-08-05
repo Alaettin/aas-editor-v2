@@ -1,6 +1,7 @@
 import { childSlotsOf, isIdentifiableKind, isSubmodelElementKind } from "./kinds.js";
 import type { JsonObject, JsonValue } from "./json.js";
 import { getNode, walk, type EditorModel, type EditorNode, type NodeId } from "./store.js";
+import { KernFehler } from "../fehler.js";
 
 /**
  * Anlegen, Loeschen, Verschieben und Duplizieren von Knoten.
@@ -132,7 +133,8 @@ export interface CreateOptions {
 /** Die Rohdaten eines neuen Knotens, noch ohne nodeId und ohne Platz im Baum. */
 export function newNodeData(kind: string, options: CreateOptions = {}): JsonObject {
   const factory = DEFAULTS[kind];
-  if (!factory) throw new Error(`Unbekannter Elementtyp: ${kind}`);
+  // Kein Schluessel: das ist ein Programmierfehler, kein Bedienfehler.
+  if (!factory) throw new Error(`Unknown element kind: ${kind}`);
 
   const data: JsonObject = { ...factory(), modelType: kind };
   if (options.idShort !== undefined) data["idShort"] = options.idShort;
@@ -196,7 +198,11 @@ export function insertNode(
 ): NodeId {
   const parent = getNode(draft, parentId);
   if (!canContain(parent.kind, slot, kind, parent.data)) {
-    throw new Error(`${kind} ist in ${parent.kind}.${slot} nicht zulaessig.`);
+    throw new KernFehler(
+      "modell.nichtZulaessig",
+      `${kind} is not allowed in ${parent.kind}.${slot}.`,
+      { kind, elternteil: parent.kind, slot },
+    );
   }
 
   const data = newNodeData(kind, options);
@@ -221,7 +227,9 @@ function defaultIdShort(kind: string): string {
 /** Entfernt einen Knoten samt Nachfahren und raeumt die Map auf. */
 export function removeNode(draft: EditorModel, nodeId: NodeId): void {
   const node = getNode(draft, nodeId);
-  if (node.parent === null) throw new Error("Die Wurzel laesst sich nicht loeschen.");
+  if (node.parent === null) {
+    throw new KernFehler("modell.wurzelNichtLoeschen", "The root cannot be deleted.");
+  }
 
   const parent = getNode(draft, node.parent);
   const list = parent.children[node.slot as string];
@@ -249,12 +257,21 @@ export function moveNode(
   const node = getNode(draft, nodeId);
   const target = getNode(draft, targetParentId);
 
-  if (node.parent === null) throw new Error("Die Wurzel laesst sich nicht verschieben.");
+  if (node.parent === null) {
+    throw new KernFehler("modell.wurzelNichtVerschieben", "The root cannot be moved.");
+  }
   if (!canContain(target.kind, slot, node.kind, target.data)) {
-    throw new Error(`${node.kind} ist in ${target.kind}.${slot} nicht zulaessig.`);
+    throw new KernFehler(
+      "modell.nichtZulaessig",
+      `${node.kind} is not allowed in ${target.kind}.${slot}.`,
+      { kind: node.kind, elternteil: target.kind, slot },
+    );
   }
   if (isAncestor(draft, nodeId, targetParentId)) {
-    throw new Error("Ein Knoten kann nicht in seinen eigenen Nachfahren verschoben werden.");
+    throw new KernFehler(
+      "modell.inEigenenNachfahren",
+      "A node cannot be moved into its own descendants.",
+    );
   }
 
   const oldParent = getNode(draft, node.parent);
@@ -271,11 +288,7 @@ export function moveNode(
 }
 
 /** Liegt `maybeAncestor` auf dem Weg von `nodeId` zur Wurzel, oder ist es derselbe Knoten? */
-export function isAncestor(
-  model: EditorModel,
-  maybeAncestor: NodeId,
-  nodeId: NodeId,
-): boolean {
+export function isAncestor(model: EditorModel, maybeAncestor: NodeId, nodeId: NodeId): boolean {
   let current: NodeId | null = nodeId;
   while (current !== null) {
     if (current === maybeAncestor) return true;
@@ -291,7 +304,9 @@ export function isAncestor(
  */
 export function duplicateNode(draft: EditorModel, nodeId: NodeId): NodeId {
   const node = getNode(draft, nodeId);
-  if (node.parent === null) throw new Error("Die Wurzel laesst sich nicht duplizieren.");
+  if (node.parent === null) {
+    throw new KernFehler("modell.wurzelNichtDuplizieren", "The root cannot be duplicated.");
+  }
 
   const parent = getNode(draft, node.parent);
   const slot = node.slot as string;

@@ -1,6 +1,7 @@
 import { childSlotsOf } from "./kinds.js";
 import { isJsonArray, isJsonObject, type JsonObject, type JsonValue } from "./json.js";
 import type { EditorModel, EditorNode, NodeId } from "./store.js";
+import { KernFehler } from "../fehler.js";
 
 /**
  * Wandelt ein AAS-Environment als JSON in das normalisierte Editor-Modell und zurueck.
@@ -57,18 +58,29 @@ function buildNode(
     const raw = source[childSlot.name];
     if (raw === undefined) continue;
     if (!isJsonArray(raw)) {
-      throw new Error(`${kind}.${childSlot.name} muss eine Liste sein.`);
+      throw new KernFehler("modell.slotKeineListe", `${kind}.${childSlot.name} must be a list.`, {
+        kind,
+        slot: childSlot.name,
+      });
     }
 
     const ids: NodeId[] = [];
     for (const [index, entry] of raw.entries()) {
       const unwrapped = childSlot.wrapper ? unwrapOperationVariable(entry, kind, index) : entry;
       if (!isJsonObject(unwrapped)) {
-        throw new Error(`${kind}.${childSlot.name}[${index}] ist kein Objekt.`);
+        throw new KernFehler(
+          "modell.eintragKeinObjekt",
+          `${kind}.${childSlot.name}[${index}] is not an object.`,
+          { kind, slot: childSlot.name, index },
+        );
       }
       const childKind = unwrapped["modelType"];
       if (typeof childKind !== "string") {
-        throw new Error(`${kind}.${childSlot.name}[${index}] hat kein modelType.`);
+        throw new KernFehler(
+          "modell.eintragOhneModelType",
+          `${kind}.${childSlot.name}[${index}] has no modelType.`,
+          { kind, slot: childSlot.name, index },
+        );
       }
       ids.push(buildNode(model, unwrapped, childKind, nodeId, childSlot.name));
     }
@@ -79,10 +91,20 @@ function buildNode(
 }
 
 function unwrapOperationVariable(entry: JsonValue, kind: string, index: number): JsonValue {
-  if (!isJsonObject(entry)) throw new Error(`${kind}: OperationVariable[${index}] ist kein Objekt.`);
+  if (!isJsonObject(entry)) {
+    throw new KernFehler(
+      "modell.operationVariableKeinObjekt",
+      `${kind}: OperationVariable[${index}] is not an object.`,
+      { kind, index },
+    );
+  }
   const inner = entry["value"];
   if (inner === undefined) {
-    throw new Error(`${kind}: OperationVariable[${index}] hat kein value.`);
+    throw new KernFehler(
+      "modell.operationVariableOhneValue",
+      `${kind}: OperationVariable[${index}] has no value.`,
+      { kind, index },
+    );
   }
   return inner;
 }
@@ -101,7 +123,8 @@ export function denormalizeFrom(model: EditorModel, nodeId: NodeId): JsonObject 
 
 function buildJson(model: EditorModel, nodeId: NodeId): JsonObject {
   const node = model.nodes[nodeId];
-  if (!node) throw new Error(`Unbekannte nodeId: ${nodeId}`);
+  // Kein Schluessel: das ist ein Programmierfehler, kein Bedienfehler.
+  if (!node) throw new Error(`Unknown nodeId: ${nodeId}`);
 
   const out: JsonObject = { ...node.data };
 

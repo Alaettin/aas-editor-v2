@@ -3,6 +3,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { ALLE_BEFUND_SCHLUESSEL } from "@aas-editor/core/validation";
+
 import de from "../src/i18n/de.json" with { type: "json" };
 
 /**
@@ -82,6 +84,13 @@ describe("Uebersetzungen", () => {
     }
 
     expect(unbenutzt.sort()).toEqual([]);
+  });
+
+  it("kennt jeden Befundschluessel, den der Kern liefern kann", () => {
+    // Der Kern liefert Schluessel, keine Saetze. Faellt hier einer durch, zeigt der
+    // Editor bei einem echten Constraint-Verstoss den rohen Schluessel an.
+    const fehlend = ALLE_BEFUND_SCHLUESSEL.filter((schluessel) => !vorhanden(schluessel));
+    expect(fehlend).toEqual([]);
   });
 
   it("schreibt Deutsch mit echten Umlauten", () => {
@@ -206,7 +215,14 @@ const BAUSTEINE = [
   "export.",
   "feld.",
   "gruppe.",
+  // Befunde, Importwarnungen und Modellfehler kommen als Schluessel aus dem Kern und
+  // stehen deshalb nirgends als Zeichenkette im Quelltext der Oberflaeche. Dass es sie
+  // gibt, prueft die Runde gegen `ALLE_BEFUND_SCHLUESSEL` und der Kern selbst.
   "befund.regel.",
+  "befund.muster.",
+  "warnung.",
+  "datei.",
+  "modell.",
   // Die Beschriftung des Speichern-Knopfes folgt dem Serverzustand, siehe Toolbar.
   "speichern.",
 ];

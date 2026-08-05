@@ -63,8 +63,8 @@ describe("Live-Validierung", () => {
     expect(getNode(model, issue.nodeId as string).kind).toBe("AssetAdministrationShell");
 
     // Verstaendlich statt Spezifikationstext, Rohmeldung bleibt erhalten.
-    expect(issue.translated).toBe(true);
-    expect(issue.title).toContain("globalAssetId");
+    expect(issue.schluessel).toBe("befund.regel.AASd-131");
+    // Die Rohmeldung der SDK bleibt daneben stehen, sie ist aufklappbar.
     expect(issue.message).toContain("Constraint AASd-131");
   });
 
@@ -101,7 +101,8 @@ describe("Live-Validierung", () => {
     const issues = await validate(model);
     expect(issues).toHaveLength(1);
     expect(issues[0]!.severity).toBe("warnung");
-    expect(issues[0]!.title).toContain("https://example.com/sm/1");
+    expect(issues[0]!.schluessel).toBe("warnung.doppelteId");
+    expect(issues[0]!.werte["id"]).toBe("https://example.com/sm/1");
   });
 
   it("warnt bei einem File-Element ohne Anhang, aber nicht als Constraint", async () => {
@@ -113,7 +114,8 @@ describe("Live-Validierung", () => {
     expect(issues).toHaveLength(1);
     expect(issues[0]!.severity).toBe("warnung");
     expect(issues[0]!.nodeId).toBe(file.nodeId);
-    expect(issues[0]!.message).toContain("/aasx/files/fehlt.pdf");
+    expect(issues[0]!.schluessel).toBe("warnung.fehlenderAnhang");
+    expect(issues[0]!.werte["pfad"]).toBe("/aasx/files/fehlt.pdf");
   });
 
   it("bildet einen tief liegenden Fehler auf das oberste Feld ab", () => {
@@ -130,6 +132,6 @@ describe("Live-Validierung", () => {
     const issues = await validate(model);
     expect(issues).toHaveLength(1);
     expect(issues[0]!.severity).toBe("constraint");
-    expect(issues[0]!.title).toContain("mindestens zwei Zeichen");
+    expect(issues[0]!.schluessel).toBe("befund.muster.idShortMuster");
   });
 });

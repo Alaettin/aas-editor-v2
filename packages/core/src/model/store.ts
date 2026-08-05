@@ -33,7 +33,7 @@ export interface EditorModel {
 
 export function getNode(model: EditorModel, nodeId: NodeId): EditorNode {
   const node = model.nodes[nodeId];
-  if (!node) throw new Error(`Unbekannte nodeId: ${nodeId}`);
+  if (!node) throw new Error(`Unknown nodeId: ${nodeId}`);
   return node;
 }
 

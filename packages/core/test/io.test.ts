@@ -8,11 +8,11 @@ import * as types from "@aas-core-works/aas-core3.1-typescript/types";
 import { toCanonicalJson, toAasCore } from "../src/model/aasCore.js";
 import { exportFile, importFile } from "../src/io/index.js";
 import { detectFormat, detectVersion } from "../src/io/detect.js";
-import { warnAboutLosingAttachments } from "../src/io/attachments.js";
 import { findDuplicateIdShorts, findDuplicateIds, planMerge } from "../src/io/collisions.js";
 import { normalize } from "../src/model/normalize.js";
 import type { Attachment } from "../src/io/types.js";
 import { loadCorpus, testDataRoot } from "./corpus.js";
+import { wirftSchluessel } from "./schluessel.js";
 
 /**
  * Abnahme Phase 2: alle drei Formate in beide Richtungen, AASX inklusive Anhaengen
@@ -80,7 +80,7 @@ describe("Formaterkennung", () => {
   });
 
   it("weist Unlesbares mit einer verstaendlichen Meldung zurueck", () => {
-    expect(() => detectFormat(encoder.encode("nur Text"))).toThrow(/Format nicht erkannt/);
+    wirftSchluessel(() => detectFormat(encoder.encode("nur Text")), "datei.formatUnbekannt");
   });
 });
 
@@ -148,13 +148,9 @@ describe("Roundtrip AASX", () => {
 
     expect(imported.warnings).toHaveLength(1);
     expect(imported.warnings[0]!.kind).toBe("fehlender-anhang");
-    expect(imported.warnings[0]!.message).toContain("/aasx/files/handbuch.pdf");
+    expect(imported.warnings[0]!.schluessel).toBe("warnung.fehlenderAnhang");
+    expect(imported.warnings[0]!.werte["pfad"]).toBe("/aasx/files/handbuch.pdf");
     expect(imported.warnings[0]!.path).toBe(".submodels[0].submodelElements[1]");
-  });
-
-  it("warnt vor einem Export nach JSON oder XML, wenn Anhaenge vorhanden sind", () => {
-    expect(warnAboutLosingAttachments(new Map())).toBeNull();
-    expect(warnAboutLosingAttachments(new Map([[handbuch.path, handbuch]]))).toContain("AASX");
   });
 });
 
@@ -173,7 +169,10 @@ describe("Import einer 3.0-Datei", () => {
       const imported = await importFile(new Uint8Array(bytes), file);
 
       expect(imported.sourceVersion, file).toBe("3.0");
-      expect(imported.upgradeNotes.map((n) => n.rule), file).toEqual(["7"]);
+      expect(
+        imported.upgradeNotes.map((n) => n.rule),
+        file,
+      ).toEqual(["7"]);
 
       // Das Ergebnis muss ohne weiteres Zutun als 3.1 exportierbar sein.
       const exported = await exportFile({ model: imported.model, format: "json" });

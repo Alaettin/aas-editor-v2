@@ -35,7 +35,7 @@ export function buildPathIndex(model: EditorModel): PathIndex {
 
   const visit = (nodeId: NodeId, path: string): void => {
     const node = model.nodes[nodeId];
-    if (!node) throw new Error(`Unbekannte nodeId: ${nodeId}`);
+    if (!node) throw new Error(`Unknown nodeId: ${nodeId}`);
     byPath.set(path, nodeId);
     byNode.set(nodeId, path);
 

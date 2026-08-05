@@ -81,7 +81,8 @@ export function collectCollisionWarnings(model: EditorModel): ImportWarning[] {
   for (const conflict of findDuplicateIds(model)) {
     warnings.push({
       kind: "kollision",
-      message: `Die id ${conflict.id} kommt ${conflict.nodeIds.length} mal vor. Identifiables muessen ueber ihre id eindeutig sein.`,
+      schluessel: "warnung.doppelteId",
+      werte: { id: conflict.id, anzahl: conflict.nodeIds.length },
       path: index.byNode.get(conflict.nodeIds[1] as NodeId) ?? "",
     });
   }
@@ -89,7 +90,8 @@ export function collectCollisionWarnings(model: EditorModel): ImportWarning[] {
   for (const conflict of findDuplicateIdShorts(model)) {
     warnings.push({
       kind: "kollision",
-      message: `Der idShort ${conflict.idShort} kommt unter denselben Geschwistern mehrfach vor.`,
+      schluessel: "warnung.doppelterIdShort",
+      werte: { idShort: conflict.idShort },
       path: index.byNode.get(conflict.nodeIds[1] as NodeId) ?? "",
     });
   }

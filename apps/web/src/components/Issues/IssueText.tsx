@@ -3,13 +3,15 @@ import { useTranslation } from "react-i18next";
 import type { ValidationIssue } from "@aas-editor/core/validation";
 
 import { Chip } from "@/components/ui/chip";
+import { befundText, hatRohmeldung } from "@/lib/befund";
 
 /**
  * Ein Befund in Worten: Kennung, verstaendlicher Satz, und die Rohmeldung der SDK zum
  * Aufklappen (Plan Abschnitt 7).
  *
- * Die Rohmeldung wird nur angeboten, wenn sie ueberhaupt etwas anderes sagt als der
- * uebersetzte Satz. Ein Aufklappen, hinter dem dasselbe steht, ist eine Enttaeuschung.
+ * Der Satz entsteht erst hier: der Kern liefert einen Schluessel, siehe `lib/befund.ts`.
+ * Die Rohmeldung wird nur angeboten, wenn es ueberhaupt eine gibt. Ein Aufklappen,
+ * hinter dem nichts steht, ist eine Enttaeuschung.
  */
 export function IssueText({
   issue,
@@ -24,7 +26,7 @@ export function IssueText({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const hasRaw = withRaw && issue.translated && issue.message !== issue.title;
+  const hasRaw = withRaw && hatRohmeldung(issue);
 
   return (
     <span className="inline">
@@ -40,7 +42,7 @@ export function IssueText({
           {issue.constraintId}
         </Chip>
       ) : null}
-      {issue.title}
+      {befundText(issue, t)}
       {hasRaw ? (
         <>
           {" "}

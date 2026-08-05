@@ -3,6 +3,7 @@ import { isJsonObject, type JsonObject, type JsonValue } from "./json.js";
 import { denormalizeFrom, normalizeFragment } from "./normalize.js";
 import { canContain, insertNode, suggestId, uniqueIdShort } from "./operations.js";
 import { getNode, walk, type EditorModel, type NodeId } from "./store.js";
+import { KernFehler } from "../fehler.js";
 
 /**
  * Kopieren, Ausschneiden und Einfuegen ganzer Teilbaeume (Plan Abschnitt 11, Phase 5).
@@ -21,7 +22,9 @@ export interface Fragment {
 
 export function copySubtree(model: EditorModel, nodeId: NodeId): Fragment {
   const node = getNode(model, nodeId);
-  if (node.parent === null) throw new Error("Die Wurzel laesst sich nicht kopieren.");
+  if (node.parent === null) {
+    throw new KernFehler("modell.wurzelNichtKopieren", "The root cannot be copied.");
+  }
   return { kind: node.kind, json: denormalizeFrom(model, nodeId) };
 }
 
@@ -34,17 +37,19 @@ export function fragmentFromJson(text: string): Fragment {
   try {
     parsed = JSON.parse(text);
   } catch (error) {
-    throw new Error(`Das ist kein gueltiges JSON: ${(error as Error).message}`, { cause: error });
+    throw new KernFehler("modell.keinJson", `Not valid JSON: ${(error as Error).message}`, {
+      grund: (error as Error).message,
+    });
   }
 
   if (!isJsonObject(parsed as JsonValue)) {
-    throw new Error("Erwartet wird ein einzelnes Objekt, keine Liste und kein Wert.");
+    throw new KernFehler("modell.keinEinzelobjekt", "Expected a single object.");
   }
 
   const json = parsed as JsonObject;
   const kind = json["modelType"];
   if (typeof kind !== "string") {
-    throw new Error("Dem Objekt fehlt das Feld modelType, es laesst sich keinem Typ zuordnen.");
+    throw new KernFehler("modell.ohneModelType", "The object has no modelType field.");
   }
 
   return { kind, json };
@@ -124,7 +129,11 @@ export function pasteSubtree(
 ): PasteResult {
   const parent = getNode(draft, parentId);
   if (!canContain(parent.kind, slot, fragment.kind, parent.data)) {
-    throw new Error(`${fragment.kind} ist in ${parent.kind}.${slot} nicht zulaessig.`);
+    throw new KernFehler(
+      "modell.nichtZulaessig",
+      `${fragment.kind} is not allowed in ${parent.kind}.${slot}.`,
+      { kind: fragment.kind, elternteil: parent.kind, slot },
+    );
   }
 
   const konflikte = findPasteConflicts(draft, fragment);
@@ -154,7 +163,10 @@ export function pasteSubtree(
   const json = strategy === "neue-id" ? withFreshIds(fragment.json) : fragment.json;
   const nodeId = einhaengen(draft, parentId, slot, fragment.kind, json, index);
 
-  return { nodeId, outcome: konflikte.length > 0 && strategy === "ersetzen" ? "ersetzt" : "eingefuegt" };
+  return {
+    nodeId,
+    outcome: konflikte.length > 0 && strategy === "ersetzen" ? "ersetzt" : "eingefuegt",
+  };
 }
 
 /** Vergibt jedem Identifiable im Fragment eine neue, vorlaeufige `id`. */

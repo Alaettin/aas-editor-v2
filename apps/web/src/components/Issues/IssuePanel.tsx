@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { useEditor } from "@/store/editor";
 import { IssueText } from "./IssueText";
+import { hatRohmeldung } from "@/lib/befund";
 
 /**
  * Das sammelnde Panel (Plan Abschnitt 7). Unten ueber die volle Breite, zugeklappt
@@ -114,7 +115,7 @@ function IssueRow({
 }) {
   const { t } = useTranslation();
   const [rawOpen, setRawOpen] = useState(false);
-  const hasRaw = issue.translated && issue.message !== issue.title;
+  const hasRaw = hatRohmeldung(issue);
 
   return (
     <li className={"rounded-sm " + (selected ? "bg-selected" : "hover:bg-accent")}>

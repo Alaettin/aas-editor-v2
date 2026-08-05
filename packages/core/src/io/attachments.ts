@@ -73,19 +73,8 @@ export function findMissingAttachments(
     .filter((reference) => !attachments.has(reference.path))
     .map((reference) => ({
       kind: "fehlender-anhang" as const,
-      message: `Das File-Element verweist auf ${reference.path}, dieser Anhang liegt nicht im Paket.`,
+      schluessel: "warnung.fehlenderAnhang",
+      werte: { pfad: reference.path },
       path: reference.aasPath,
     }));
-}
-
-/**
- * Warnung vor einem Export nach JSON oder XML, wenn Anhaenge vorhanden sind.
- * Diese Formate koennen Supplementary Files nicht mitschreiben (Plan Abschnitt 5).
- */
-export function warnAboutLosingAttachments(attachments: AttachmentMap): string | null {
-  if (attachments.size === 0) return null;
-  return (
-    `${attachments.size} Anhang beziehungsweise Anhaenge gehen verloren: JSON und XML koennen ` +
-    `Supplementary Files nicht mitschreiben. Fuer einen vollstaendigen Export AASX waehlen.`
-  );
 }

@@ -1,171 +1,181 @@
 /**
  * Verstaendliche Fassungen der Validierungsmeldungen (Plan Abschnitt 7).
  *
- * Die SDK formuliert die Meldungen als Spezifikationstext auf Englisch. Der Editor zeigt
- * stattdessen einen kurzen deutschen Satz, der sagt, **was zu tun ist**, und haelt die
- * Rohmeldung zum Aufklappen bereit.
+ * Die SDK formuliert ihre Meldungen als Spezifikationstext auf Englisch. Der Editor zeigt
+ * stattdessen einen kurzen Satz, der sagt, **was zu tun ist**, und haelt die Rohmeldung
+ * zum Aufklappen bereit.
  *
- * Bewusst hier im Kern und nicht in der Oberflaeche: das ist Fachwissen ueber das
- * Metamodell, kein Bedienungstext. Sobald das Backend validiert, braucht es dasselbe.
+ * Dieses Modul liefert dafuer einen **i18n-Schluessel**, keinen fertigen Satz. Bis
+ * Phase 9 standen die deutschen Saetze hier; die Begruendung war, dass es Fachwissen
+ * ueber das Metamodell ist und das Backend dasselbe braucht. Das stimmt weiterhin, nur
+ * ist der Schluessel dieses Fachwissen und nicht der deutsche Satz. Die Saetze stehen
+ * jetzt unter `befund.regel.*` und `befund.muster.*` in den Uebersetzungsdateien.
  *
- * `test/messages.test.ts` liest zur Laufzeit die `verification.js` der SDK, sammelt alle
- * Constraint-Kennungen und prueft, dass jede hier steht. Kommt mit einer neuen SDK ein
- * Constraint hinzu, faellt der Test.
+ * Die Pruefkette ist zweiteilig und bleibt es:
+ *   - `test/messages.test.ts` prueft **SDK gegen Kern**: jede Constraint-Kennung der
+ *     `verification.js` hat hier einen Schluessel, und keiner ist ueberzaehlig.
+ *   - `apps/web/test/i18n.test.ts` prueft **Kern gegen Uebersetzung**: jeder Schluessel
+ *     aus `ALLE_BEFUND_SCHLUESSEL` steht in jeder Sprachdatei.
  */
 
+import type { Werte } from "../fehler.js";
+
 export interface Explanation {
-  /** Kurzer deutscher Satz, sagt was zu tun ist */
-  readonly title: string;
+  /**
+   * i18n-Schluessel, etwa `befund.regel.AASd-131` oder `befund.muster.leereListe`.
+   * `null` heisst: keine Uebersetzung gefunden, dann gilt `raw`. Eine erfundene
+   * Uebersetzung waere schlechter als keine.
+   */
+  readonly schluessel: string | null;
+  /** Werte fuer die Interpolation, aus der SDK-Meldung gezogen */
+  readonly werte: Werte;
   /** Constraint-Kennung, sofern die Meldung eine traegt */
   readonly constraintId: string | null;
-  /** Unveraenderte Meldung der SDK, bleibt aufklappbar */
+  /** Unveraenderte Meldung der SDK, bleibt aufklappbar. Immer englisch. */
   readonly raw: string;
-  /** Konnte uebersetzt werden? Sonst steht in `title` der Originaltext. */
-  readonly translated: boolean;
 }
 
 const CONSTRAINT_PATTERN = /\b(AAS[dc]-[0-9A-Za-z-]+)\b/;
 
-/** Uebersetzungen je Constraint-Kennung. */
-export const CONSTRAINT_TEXTS: Readonly<Record<string, string>> = {
-  "AASc-002": "Der preferredName muss mindestens auf Englisch vorliegen.",
-  "AASc-3a-004":
-    "Bei category PROPERTY oder VALUE ist der dataType der IEC-61360-Spezifikation Pflicht und " +
-    "muss einer der Mess-, Zaehl-, Text- oder Zeittypen sein, etwa STRING oder REAL_MEASURE.",
-  "AASc-3a-005": "Bei category REFERENCE muss der dataType STRING, IRI oder IRDI sein.",
-  "AASc-3a-006": "Bei category DOCUMENT muss der dataType FILE, BLOB oder HTML sein.",
-  "AASc-3a-007": "Bei category QUALIFIER_TYPE ist der dataType Pflicht.",
-  "AASc-3a-008":
-    "Eine ConceptDescription mit IEC-61360-Spezifikation braucht eine definition, mindestens " +
-    "auf Englisch. Ausgenommen sind Beschreibungen, die einen Wert bezeichnen.",
-  "AASc-3a-009":
-    "Bei einem Mess- oder Waehrungstyp muss eine Einheit angegeben sein, entweder unit oder unitId.",
-  "AASc-3a-010": "Entweder value oder valueList darf gefuellt sein, nicht beides.",
+/**
+ * Die Constraint-Kennungen, zu denen es eine Uebersetzung gibt.
+ *
+ * Reine Liste, kein Text: der Text steht in den Sprachdateien unter
+ * `befund.regel.<Kennung>`.
+ */
+export const CONSTRAINT_IDS: readonly string[] = [
+  "AASc-002",
+  "AASc-3a-004",
+  "AASc-3a-005",
+  "AASc-3a-006",
+  "AASc-3a-007",
+  "AASc-3a-008",
+  "AASc-3a-009",
+  "AASc-3a-010",
+  "AASd-005",
+  "AASd-014",
+  "AASd-020",
+  "AASd-021",
+  "AASd-022",
+  "AASd-077",
+  "AASd-107",
+  "AASd-108",
+  "AASd-109",
+  "AASd-114",
+  "AASd-116",
+  "AASd-117",
+  "AASd-118",
+  "AASd-119",
+  "AASd-121",
+  "AASd-122",
+  "AASd-123",
+  "AASd-124",
+  "AASd-125",
+  "AASd-126",
+  "AASd-127",
+  "AASd-128",
+  "AASd-129",
+  "AASd-130",
+  "AASd-131",
+  "AASd-133",
+  "AASd-134",
+];
 
-  "AASd-005": "Eine revision setzt eine version voraus. Ohne version keine revision.",
-  "AASd-014":
-    "Eine Entity vom Typ SelfManagedEntity braucht eine globalAssetId oder mindestens eine " +
-    "specificAssetId.",
-  "AASd-020": "Der Wert passt nicht zum angegebenen valueType.",
-  "AASd-021": "Zwei Qualifier haben denselben type. Je type ist nur einer erlaubt.",
-  "AASd-022":
-    "Der idShort kommt unter denselben Geschwistern mehrfach vor. Bei Elementen, die keine " +
-    "eigene id tragen, muss er eindeutig sein, Gross- und Kleinschreibung zaehlt.",
-  "AASd-077": "Zwei Extensions haben denselben name. Der name muss eindeutig sein.",
-  "AASd-107":
-    "Die semanticId eines direkten Kindes weicht von semanticIdListElement der Liste ab. Beide " +
-    "muessen uebereinstimmen.",
-  "AASd-108":
-    "Alle direkten Kinder der Liste muessen den Typ haben, der in typeValueListElement steht.",
-  "AASd-109":
-    "Steht in typeValueListElement Property oder Range, muss valueTypeListElement gesetzt sein " +
-    "und alle Kinder muessen diesen valueType tragen.",
-  "AASd-114": "Zwei direkte Kinder haben verschiedene semanticIds. Sie muessen identisch sein.",
-  "AASd-116":
-    "globalAssetId ist als name einer specificAssetId reserviert. Dann muss ihr value der " +
-    "globalAssetId entsprechen.",
-  "AASd-117":
-    "Der idShort fehlt. Nur direkte Kinder einer SubmodelElementList duerfen ohne auskommen, " +
-    "dort wird ueber den Index adressiert.",
-  "AASd-118": "Es gibt supplementalSemanticIds, aber keine semanticId. Die Haupt-semanticId fehlt.",
-  "AASd-119":
-    "Ein Qualifier vom kind TemplateQualifier verlangt, dass das qualifizierte Element vom kind " +
-    "Template ist.",
-  "AASd-121":
-    "Der erste Key einer Reference muss auf etwas weltweit Identifizierbares zeigen.",
-  "AASd-122":
-    "Bei einer ExternalReference muss der erste Key ein generischer globaler Verweis sein, etwa " +
-    "GlobalReference.",
-  "AASd-123":
-    "Bei einer ModelReference muss der erste Key ein Identifiable sein, also " +
-    "AssetAdministrationShell, Submodel oder ConceptDescription.",
-  "AASd-124":
-    "Bei einer ExternalReference muss der letzte Key ein generischer globaler Verweis oder ein " +
-    "Fragment sein.",
-  "AASd-125":
-    "Bei einer ModelReference mit mehreren Keys muessen alle Keys nach dem ersten Fragment-Keys " +
-    "sein.",
-  "AASd-126":
-    "Bei einer ModelReference darf hoechstens der letzte Key ein generisches Fragment sein.",
-  "AASd-127":
-    "Ein Key vom Typ FragmentReference muss auf einen Key vom Typ File oder Blob folgen.",
-  "AASd-128":
-    "Nach einem Key vom Typ SubmodelElementList muss der Wert des naechsten Keys eine Zahl sein, " +
-    "der Index in der Liste.",
-  "AASd-129":
-    "Ein Qualifier vom kind TemplateQualifier ist nur in einem Submodel mit kind Template erlaubt.",
-  "AASd-130": "Der Text enthaelt Zeichen, die XML nicht zulaesst, etwa Steuerzeichen.",
-  "AASd-131":
-    "Die AssetInformation braucht entweder eine globalAssetId oder mindestens eine specificAssetId.",
-  "AASd-133": "externalSubjectId muss eine ExternalReference sein, keine ModelReference.",
-  "AASd-134":
-    "Die idShorts aller Ein-, Aus- und Ein-Ausgabevariablen einer Operation muessen zusammen " +
-    "eindeutig sein.",
-};
+const BEKANNTE_IDS = new Set(CONSTRAINT_IDS);
 
 /**
  * Meldungen ohne Constraint-Kennung. Die SDK erzeugt sie aus Vorlagen, deshalb reichen
  * wenige Muster. Die erste passende Regel gewinnt.
+ *
+ * Wo die SDK einen Feldnamen oder eine Zahl nennt, wird er als **Wert** weitergereicht
+ * und nicht in einen Satz geklebt. Sonst stuende der englische Feldname an einer festen
+ * Stelle im Satz, die eine Uebersetzung nicht mehr verschieben kann.
  */
-const PATTERNS: ReadonlyArray<{ test: RegExp; text: (match: RegExpMatchArray) => string }> = [
+const MUSTER: ReadonlyArray<{
+  readonly name: string;
+  readonly test: RegExp;
+  readonly werte?: (match: RegExpMatchArray) => Record<string, string>;
+}> = [
   {
     // Das Muster der SDK lautet ^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z0-9_]+$. Daraus folgt mehr,
     // als der englische Text sagt: mindestens zwei Zeichen, und ein Bindestrich ist zwar
     // in der Mitte erlaubt, aber nicht am Ende.
+    name: "idShortMuster",
     test: /^ID-short of Referables shall only feature/,
-    text: () =>
-      "Der idShort muss mit einem Buchstaben beginnen, darf sonst nur Buchstaben, Ziffern, " +
-      "Unterstriche und Bindestriche enthalten, muss mindestens zwei Zeichen lang sein und " +
-      "darf nicht auf einen Bindestrich enden.",
   },
   {
+    name: "leereListe",
     test: /^(.+) must be either not set or have at least one item\.?$/,
-    text: (m) => `${m[1]} ist gesetzt, aber leer. Entweder mindestens ein Eintrag oder ganz weg.`,
+    werte: (m) => ({ feld: m[1] ?? "" }),
   },
   {
+    name: "spracheMehrfach",
     test: /^(.+) must specify unique languages\.?$/,
-    text: (m) => `${m[1]} enthaelt dieselbe Sprache mehrfach. Je Sprache ist ein Eintrag erlaubt.`,
+    werte: (m) => ({ feld: m[1] ?? "" }),
   },
   {
+    name: "zuLang",
     test: /^(.+) shall have a maximum length of (\d+) characters\.?$/,
-    text: (m) => `${m[1]} ist zu lang, erlaubt sind hoechstens ${m[2]} Zeichen.`,
+    werte: (m) => ({ feld: m[1] ?? "", laenge: m[2] ?? "" }),
   },
   {
+    name: "idShortFehlt",
     test: /^ID-shorts need to be defined for all the items of (.+?)\.?$/,
-    text: (m) => `Alle Eintraege von ${m[1]} brauchen einen idShort.`,
+    werte: (m) => ({ feld: m[1] ?? "" }),
   },
   {
+    name: "idShortsUneindeutig",
     test: /^ID-shorts of the value must be unique\.?$/,
-    text: () => "Die idShorts innerhalb des Werts muessen eindeutig sein.",
   },
   {
+    name: "submodelsModelReference",
     test: /^All submodels must be model references to a submodel\.?$/,
-    text: () => "Jeder Verweis unter submodels muss eine ModelReference auf ein Submodel sein.",
   },
   {
+    name: "derivedFromModelReference",
     test: /^Derived-from must be a model reference to an asset administration shell\.?$/,
-    text: () => "derivedFrom muss eine ModelReference auf eine AssetAdministrationShell sein.",
   },
 ];
 
 /**
- * Uebersetzt eine Meldung der SDK. Gelingt das nicht, steht der Originaltext im `title`,
- * und `translated` ist false. Eine erfundene Uebersetzung waere schlechter als keine.
+ * Alles, was `explain()` je als Schluessel liefern kann. Die Sprachdateien werden dagegen
+ * geprueft, siehe `apps/web/test/i18n.test.ts`.
+ */
+export const ALLE_BEFUND_SCHLUESSEL: readonly string[] = [
+  ...CONSTRAINT_IDS.map((id) => `befund.regel.${id}`),
+  ...MUSTER.map((regel) => `befund.muster.${regel.name}`),
+];
+
+const OHNE_WERTE: Werte = {};
+
+/**
+ * Ordnet einer SDK-Meldung einen Schluessel zu. Gelingt das nicht, ist `schluessel` null
+ * und die Oberflaeche zeigt `raw`.
  */
 export function explain(message: string): Explanation {
   const constraintId = CONSTRAINT_PATTERN.exec(message)?.[1] ?? null;
 
   if (constraintId) {
-    const text = CONSTRAINT_TEXTS[constraintId];
-    if (text) return { title: text, constraintId, raw: message, translated: true };
-    return { title: message, constraintId, raw: message, translated: false };
+    return {
+      schluessel: BEKANNTE_IDS.has(constraintId) ? `befund.regel.${constraintId}` : null,
+      werte: OHNE_WERTE,
+      constraintId,
+      raw: message,
+    };
   }
 
   const normalized = message.replace(/\s+/g, " ").trim();
-  for (const rule of PATTERNS) {
-    const match = rule.test.exec(normalized);
-    if (match) return { title: rule.text(match), constraintId: null, raw: message, translated: true };
+  for (const regel of MUSTER) {
+    const treffer = regel.test.exec(normalized);
+    if (treffer) {
+      return {
+        schluessel: `befund.muster.${regel.name}`,
+        werte: regel.werte?.(treffer) ?? OHNE_WERTE,
+        constraintId: null,
+        raw: message,
+      };
+    }
   }
 
-  return { title: message, constraintId: null, raw: message, translated: false };
+  return { schluessel: null, werte: OHNE_WERTE, constraintId: null, raw: message };
 }

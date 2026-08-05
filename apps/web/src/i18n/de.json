@@ -114,7 +114,54 @@
     "originalAus": "Originalmeldung ausblenden",
     "leerTitel": "Keine Befunde",
     "leerText": "Die Umgebung erfüllt alle Constraints des Metamodells.",
-    "prueft": "Wird geprüft ..."
+    "prueft": "Wird geprüft ...",
+    "regel": {
+      "AASc-002": "Der preferredName muss mindestens auf Englisch vorliegen.",
+      "AASc-3a-004": "Bei category PROPERTY oder VALUE ist der dataType der IEC-61360-Spezifikation Pflicht und muss einer der Mess-, Zähl-, Text- oder Zeittypen sein, etwa STRING oder REAL_MEASURE.",
+      "AASc-3a-005": "Bei category REFERENCE muss der dataType STRING, IRI oder IRDI sein.",
+      "AASc-3a-006": "Bei category DOCUMENT muss der dataType FILE, BLOB oder HTML sein.",
+      "AASc-3a-007": "Bei category QUALIFIER_TYPE ist der dataType Pflicht.",
+      "AASc-3a-008": "Eine ConceptDescription mit IEC-61360-Spezifikation braucht eine definition, mindestens auf Englisch. Ausgenommen sind Beschreibungen, die einen Wert bezeichnen.",
+      "AASc-3a-009": "Bei einem Mess- oder Währungstyp muss eine Einheit angegeben sein, entweder unit oder unitId.",
+      "AASc-3a-010": "Entweder value oder valueList darf gefüllt sein, nicht beides.",
+      "AASd-005": "Eine revision setzt eine version voraus. Ohne version keine revision.",
+      "AASd-014": "Eine Entity vom Typ SelfManagedEntity braucht eine globalAssetId oder mindestens eine specificAssetId.",
+      "AASd-020": "Der Wert passt nicht zum angegebenen valueType.",
+      "AASd-021": "Zwei Qualifier haben denselben type. Je type ist nur einer erlaubt.",
+      "AASd-022": "Der idShort kommt unter denselben Geschwistern mehrfach vor. Bei Elementen, die keine eigene id tragen, muss er eindeutig sein, Groß- und Kleinschreibung zählt.",
+      "AASd-077": "Zwei Extensions haben denselben name. Der name muss eindeutig sein.",
+      "AASd-107": "Die semanticId eines direkten Kindes weicht von semanticIdListElement der Liste ab. Beide müssen übereinstimmen.",
+      "AASd-108": "Alle direkten Kinder der Liste müssen den Typ haben, der in typeValueListElement steht.",
+      "AASd-109": "Steht in typeValueListElement Property oder Range, muss valueTypeListElement gesetzt sein und alle Kinder müssen diesen valueType tragen.",
+      "AASd-114": "Zwei direkte Kinder haben verschiedene semanticIds. Sie müssen identisch sein.",
+      "AASd-116": "globalAssetId ist als name einer specificAssetId reserviert. Dann muss ihr value der globalAssetId entsprechen.",
+      "AASd-117": "Der idShort fehlt. Nur direkte Kinder einer SubmodelElementList dürfen ohne auskommen, dort wird über den Index adressiert.",
+      "AASd-118": "Es gibt supplementalSemanticIds, aber keine semanticId. Die Haupt-semanticId fehlt.",
+      "AASd-119": "Ein Qualifier vom kind TemplateQualifier verlangt, dass das qualifizierte Element vom kind Template ist.",
+      "AASd-121": "Der erste Key einer Reference muss auf etwas weltweit Identifizierbares zeigen.",
+      "AASd-122": "Bei einer ExternalReference muss der erste Key ein generischer globaler Verweis sein, etwa GlobalReference.",
+      "AASd-123": "Bei einer ModelReference muss der erste Key ein Identifiable sein, also AssetAdministrationShell, Submodel oder ConceptDescription.",
+      "AASd-124": "Bei einer ExternalReference muss der letzte Key ein generischer globaler Verweis oder ein Fragment sein.",
+      "AASd-125": "Bei einer ModelReference mit mehreren Keys müssen alle Keys nach dem ersten Fragment-Keys sein.",
+      "AASd-126": "Bei einer ModelReference darf höchstens der letzte Key ein generisches Fragment sein.",
+      "AASd-127": "Ein Key vom Typ FragmentReference muss auf einen Key vom Typ File oder Blob folgen.",
+      "AASd-128": "Nach einem Key vom Typ SubmodelElementList muss der Wert des nächsten Keys eine Zahl sein, der Index in der Liste.",
+      "AASd-129": "Ein Qualifier vom kind TemplateQualifier ist nur in einem Submodel mit kind Template erlaubt.",
+      "AASd-130": "Der Text enthält Zeichen, die XML nicht zulässt, etwa Steuerzeichen.",
+      "AASd-131": "Die AssetInformation braucht entweder eine globalAssetId oder mindestens eine specificAssetId.",
+      "AASd-133": "externalSubjectId muss eine ExternalReference sein, keine ModelReference.",
+      "AASd-134": "Die idShorts aller Ein-, Aus- und Ein-Ausgabevariablen einer Operation müssen zusammen eindeutig sein."
+    },
+    "muster": {
+      "idShortMuster": "Der idShort muss mit einem Buchstaben beginnen, darf sonst nur Buchstaben, Ziffern, Unterstriche und Bindestriche enthalten, muss mindestens zwei Zeichen lang sein und darf nicht auf einen Bindestrich enden.",
+      "leereListe": "{{feld}} ist gesetzt, aber leer. Entweder mindestens ein Eintrag oder ganz weg.",
+      "spracheMehrfach": "{{feld}} enthält dieselbe Sprache mehrfach. Je Sprache ist ein Eintrag erlaubt.",
+      "zuLang": "{{feld}} ist zu lang, erlaubt sind höchstens {{laenge}} Zeichen.",
+      "idShortFehlt": "Alle Einträge von {{feld}} brauchen einen idShort.",
+      "idShortsUneindeutig": "Die idShorts innerhalb des Werts müssen eindeutig sein.",
+      "submodelsModelReference": "Jeder Verweis unter submodels muss eine ModelReference auf ein Submodel sein.",
+      "derivedFromModelReference": "derivedFrom muss eine ModelReference auf eine AssetAdministrationShell sein."
+    }
   },
   "export": {
     "json": "Als JSON",
@@ -400,5 +447,37 @@
     "entwurfNichtGesichert": "Die lokale Sicherung schlägt fehl. Regelmäßig auf den Server speichern.",
     "anhaengeNichtGeladen": "Die Anhänge ließen sich nicht laden. Ein Export wäre unvollständig.",
     "mehrereGeloescht": "{{count}} Elemente gelöscht."
+  },
+  "warnung": {
+    "fehlenderAnhang": "Das File-Element verweist auf {{pfad}}, dieser Anhang liegt nicht im Paket.",
+    "doppelteId": "Die id {{id}} kommt {{anzahl}} mal vor. Identifiables müssen über ihre id eindeutig sein.",
+    "doppelterIdShort": "Der idShort {{idShort}} kommt unter denselben Geschwistern mehrfach vor.",
+    "namensraumGehoben": "XML-Namensraum von {{von}} auf {{nach}} gehoben."
+  },
+  "datei": {
+    "formatUnbekannt": "Format nicht erkannt. Erwartet wird JSON, XML oder ein AASX-Paket (ZIP-Container).",
+    "aasxOhneSpec": "Das AASX enthält keinen lesbaren Spec-Part. Erwartet wird ein Teil mit XML- oder JSON-Inhalt.",
+    "keinJson": "Die Datei ist kein gültiges JSON: {{grund}}",
+    "jsonUnlesbar": "Die Datei ist als Metamodell 3.1 nicht lesbar: {{grund}}",
+    "nurAls30Lesbar": "Die Datei ist als Metamodell 3.0 lesbar, als 3.1 aber nicht: {{grund}}. Das deutet auf eine Abweichung hin, die der Upgrade-Mapper noch nicht kennt.",
+    "xmlUnlesbar": "XML nicht lesbar: {{grund}}",
+    "xmlKeineUmgebung": "Die XML-Datei enthält {{gefunden}} statt einer Environment. Der Editor öffnet nur vollständige Umgebungen."
+  },
+  "modell": {
+    "wurzelNichtKopieren": "Die Wurzel lässt sich nicht kopieren.",
+    "wurzelNichtLoeschen": "Die Wurzel lässt sich nicht löschen.",
+    "wurzelNichtVerschieben": "Die Wurzel lässt sich nicht verschieben.",
+    "wurzelNichtDuplizieren": "Die Wurzel lässt sich nicht duplizieren.",
+    "keinJson": "Das ist kein gültiges JSON: {{grund}}",
+    "keinEinzelobjekt": "Erwartet wird ein einzelnes Objekt, keine Liste und kein Wert.",
+    "ohneModelType": "Dem Objekt fehlt das Feld modelType, es lässt sich keinem Typ zuordnen.",
+    "nichtZulaessig": "{{kind}} ist in {{elternteil}}.{{slot}} nicht zulässig.",
+    "inEigenenNachfahren": "Ein Knoten kann nicht in seinen eigenen Nachfahren verschoben werden.",
+    "slotKeineListe": "{{kind}}.{{slot}} muss eine Liste sein.",
+    "eintragKeinObjekt": "{{kind}}.{{slot}}[{{index}}] ist kein Objekt.",
+    "eintragOhneModelType": "{{kind}}.{{slot}}[{{index}}] hat kein modelType.",
+    "operationVariableKeinObjekt": "{{kind}}: OperationVariable[{{index}}] ist kein Objekt.",
+    "operationVariableOhneValue": "{{kind}}: OperationVariable[{{index}}] hat kein value.",
+    "nichtZurueckwandelbar": "Das Modell lässt sich nicht in ein Environment zurückwandeln: {{grund}} bei {{pfad}}"
   }
 }

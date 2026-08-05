@@ -18,15 +18,22 @@ export async function importJson(text: string): Promise<AasTypes.Environment> {
   try {
     jsonable = JSON.parse(text) as jsonization.JsonValue;
   } catch (error) {
-    throw new ImportError(`Datei ist kein gueltiges JSON: ${(error as Error).message}`);
+    throw new ImportError("datei.keinJson", `Not valid JSON: ${(error as Error).message}`, {
+      grund: (error as Error).message,
+    });
   }
 
   const result = jsonization.environmentFromJsonable(jsonable);
   // Deserialisierer werfen nicht, sie geben ein "either" zurueck (Plan Abschnitt 13).
   if (result.error === null) return result.mustValue();
 
-  const detail = await describeWith30(jsonable, result.error.message);
-  throw new ImportError(detail, String(result.error.path));
+  const alsDreiNull = await liestSichAls30(jsonable);
+  throw new ImportError(
+    alsDreiNull ? "datei.nurAls30Lesbar" : "datei.jsonUnlesbar",
+    `JSON not readable as metamodel 3.1: ${result.error.message}`,
+    { grund: result.error.message },
+    String(result.error.path),
+  );
 }
 
 export function exportJson(environment: AasTypes.Environment, pretty = false): string {
@@ -37,23 +44,16 @@ export function exportJson(environment: AasTypes.Environment, pretty = false): s
 /**
  * Zweite Meinung der 3.0-SDK. Liest sie die Datei, liegt es nicht am Inhalt, sondern an
  * einer Abweichung zwischen den Fassungen, und das gehoert in die Meldung.
+ *
+ * Liefert nur noch ja oder nein: welcher Satz daraus wird, entscheidet die Oberflaeche.
  */
-async function describeWith30(
-  jsonable: jsonization.JsonValue,
-  message: string,
-): Promise<string> {
+async function liestSichAls30(jsonable: jsonization.JsonValue): Promise<boolean> {
   try {
     const jsonization30 = await import("@aas-core-works/aas-core3.0-typescript/jsonization");
-    const as30 = jsonization30.environmentFromJsonable(jsonable);
-    if (as30.error === null) {
-      return (
-        `Die Datei ist als Metamodell 3.0 lesbar, als 3.1 aber nicht: ${message}. ` +
-        `Das deutet auf eine Abweichung hin, die der Upgrade-Mapper noch nicht kennt. ` +
-        `Bitte in docs/metamodell-diff-3.0-3.1.md ergaenzen.`
-      );
-    }
+    return jsonization30.environmentFromJsonable(jsonable).error === null;
   } catch {
-    // Die 3.0-SDK ist nur fuer die bessere Meldung da. Faellt sie aus, bleibt die 3.1-Meldung.
+    // Die 3.0-SDK ist nur fuer die bessere Meldung da. Faellt sie aus, bleibt es bei der
+    // allgemeinen Fassung.
+    return false;
   }
-  return message;
 }

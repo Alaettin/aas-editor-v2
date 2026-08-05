@@ -30,7 +30,9 @@ export async function importXml(text: string): Promise<XmlImportResult> {
   const result = xmlization.fromXmlString(upgraded.value);
   if (result.error !== null) {
     throw new ImportError(
-      `XML nicht lesbar: ${result.error.message}`,
+      "datei.xmlUnlesbar",
+      `XML not readable: ${result.error.message}`,
+      { grund: result.error.message },
       String(result.error.path ?? ""),
     );
   }
@@ -40,8 +42,9 @@ export async function importXml(text: string): Promise<XmlImportResult> {
   const value = result.mustValue();
   if (!(value instanceof AasTypes.Environment)) {
     throw new ImportError(
-      `Die XML-Datei enthaelt ${value.constructor.name} statt einer Environment. ` +
-        `Der Editor oeffnet nur vollstaendige Umgebungen.`,
+      "datei.xmlKeineUmgebung",
+      `XML contains ${value.constructor.name} instead of an Environment.`,
+      { gefunden: value.constructor.name },
     );
   }
 

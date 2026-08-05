@@ -15,6 +15,7 @@ import {
   slotsFor,
 } from "../src/model/operations.js";
 import { getNode, walk, type EditorModel } from "../src/model/store.js";
+import { wirftSchluessel } from "./schluessel.js";
 
 /**
  * Abnahme Phase 3: jeder der 14 Elementtypen laesst sich anlegen, verschieben,
@@ -141,11 +142,13 @@ describe("Zulaessigkeit", () => {
 
   it("weist das Einhaengen an einer unzulaessigen Stelle zurueck", () => {
     const model = leeresModell();
-    expect(() =>
-      applyChange(model, emptyHistory, "verboten", (draft) => {
-        insertNode(draft, "n0", "submodels", "Property");
-      }),
-    ).toThrow(/nicht zulaessig/);
+    wirftSchluessel(
+      () =>
+        applyChange(model, emptyHistory, "verboten", (draft) => {
+          insertNode(draft, "n0", "submodels", "Property");
+        }),
+      "modell.nichtZulaessig",
+    );
   });
 });
 
@@ -184,9 +187,10 @@ describe("Loeschen", () => {
   });
 
   it("schuetzt die Wurzel", () => {
-    expect(() =>
-      applyChange(leeresModell(), emptyHistory, "x", (draft) => removeNode(draft, "n0")),
-    ).toThrow(/Wurzel/);
+    wirftSchluessel(
+      () => applyChange(leeresModell(), emptyHistory, "x", (draft) => removeNode(draft, "n0")),
+      "modell.wurzelNichtLoeschen",
+    );
   });
 });
 
@@ -237,11 +241,13 @@ describe("Verschieben", () => {
     );
 
     expect(isAncestor(angelegt.model, aussen!.nodeId, innen!.nodeId)).toBe(true);
-    expect(() =>
-      applyChange(angelegt.model, angelegt.history, "x", (draft) => {
-        moveNode(draft, aussen!.nodeId, innen!.nodeId, "value");
-      }),
-    ).toThrow(/Nachfahren/);
+    wirftSchluessel(
+      () =>
+        applyChange(angelegt.model, angelegt.history, "x", (draft) => {
+          moveNode(draft, aussen!.nodeId, innen!.nodeId, "value");
+        }),
+      "modell.inEigenenNachfahren",
+    );
   });
 
   it("weist eine unzulaessige Ablage zurueck", () => {
@@ -250,15 +256,15 @@ describe("Verschieben", () => {
       insertNode(draft, submodelId, "submodelElements", "AnnotatedRelationshipElement");
     });
     const operation = [...walk(angelegt.model)].find((n) => n.kind === "Operation")!;
-    const are = [...walk(angelegt.model)].find(
-      (n) => n.kind === "AnnotatedRelationshipElement",
-    )!;
+    const are = [...walk(angelegt.model)].find((n) => n.kind === "AnnotatedRelationshipElement")!;
 
-    expect(() =>
-      applyChange(angelegt.model, angelegt.history, "x", (draft) => {
-        moveNode(draft, operation.nodeId, are.nodeId, "annotations");
-      }),
-    ).toThrow(/nicht zulaessig/);
+    wirftSchluessel(
+      () =>
+        applyChange(angelegt.model, angelegt.history, "x", (draft) => {
+          moveNode(draft, operation.nodeId, are.nodeId, "annotations");
+        }),
+      "modell.nichtZulaessig",
+    );
   });
 });
 

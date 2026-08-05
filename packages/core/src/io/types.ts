@@ -1,3 +1,4 @@
+import { KernFehler, type Werte } from "../fehler.js";
 import type { EditorModel } from "../model/store.js";
 import type { UpgradeNote } from "../upgrade/v30ToV31.js";
 
@@ -22,7 +23,10 @@ export type AttachmentMap = ReadonlyMap<string, Attachment>;
 
 export interface ImportWarning {
   readonly kind: "fehlender-anhang" | "kollision" | "unbekannter-teil";
-  readonly message: string;
+  /** i18n-Schluessel des Warntextes, etwa `warnung.fehlenderAnhang` */
+  readonly schluessel: string;
+  /** Werte fuer die Interpolation */
+  readonly werte: Werte;
   /** aas-core-Pfad, wo vorhanden */
   readonly path?: string;
 }
@@ -43,12 +47,20 @@ export interface ExportOptions {
   readonly thumbnail?: Attachment | null;
 }
 
-/** Fehler beim Lesen einer Datei, immer mit lesbarer Meldung und wo moeglich mit Pfad. */
-export class ImportError extends Error {
+/**
+ * Fehler beim Lesen einer Datei, immer mit Schluessel und wo moeglich mit Pfad.
+ *
+ * Erbt von `KernFehler`: der Kern kennt keine Oberflaechensprache, `Error.message` traegt
+ * nur den englischen Entwicklertext fuer Protokolle.
+ */
+export class ImportError extends KernFehler {
   readonly path: string | undefined;
 
-  constructor(message: string, path?: string) {
-    super(path ? `${message} (bei ${path})` : message);
+  constructor(schluessel: string, entwicklertext: string, werte: Werte = {}, path?: string) {
+    super(schluessel, path ? `${entwicklertext} (at ${path})` : entwicklertext, {
+      ...werte,
+      ...(path === undefined ? {} : { pfad: path }),
+    });
     this.name = "ImportError";
     this.path = path;
   }

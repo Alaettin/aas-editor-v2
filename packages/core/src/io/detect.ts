@@ -23,7 +23,8 @@ export function detectFormat(bytes: Uint8Array, fileName?: string): AasFormat {
   if (extension === "aasx" || extension === "xml" || extension === "json") return extension;
 
   throw new ImportError(
-    "Format nicht erkannt. Erwartet wird JSON, XML oder ein AASX-Paket (ZIP-Container).",
+    "datei.formatUnbekannt",
+    "Unknown format: expected JSON, XML or an AASX package.",
   );
 }
 

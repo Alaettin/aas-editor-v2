@@ -4,6 +4,7 @@ import type * as AasTypes from "@aas-core-works/aas-core3.1-typescript/types";
 import { denormalize, normalize } from "./normalize.js";
 import type { JsonObject } from "./json.js";
 import type { EditorModel } from "./store.js";
+import { KernFehler } from "../fehler.js";
 
 /**
  * Bruecke zwischen den aas-core-Objekten und dem normalisierten Editor-Modell.
@@ -27,9 +28,11 @@ export function toAasCore(model: EditorModel): AasTypes.Environment {
   const result = jsonization.environmentFromJsonable(jsonable as jsonization.JsonValue);
   // Deserialisierer werfen nicht, sie geben ein "either" zurueck (Plan Abschnitt 13).
   if (result.error !== null) {
-    throw new Error(
-      `Editor-Modell laesst sich nicht in ein Environment zurueckwandeln: ` +
-        `${result.error.message} bei ${String(result.error.path)}`,
+    throw new KernFehler(
+      "modell.nichtZurueckwandelbar",
+      `Editor model cannot be converted back into an Environment: ` +
+        `${result.error.message} at ${String(result.error.path)}`,
+      { grund: result.error.message, pfad: String(result.error.path) },
     );
   }
   return result.mustValue();

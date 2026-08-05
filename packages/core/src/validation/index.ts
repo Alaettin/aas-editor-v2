@@ -1,3 +1,4 @@
+import type { Werte } from "../fehler.js";
 import { toAasCore } from "../model/aasCore.js";
 import { buildPathIndex, resolvePath } from "../model/paths.js";
 import type { EditorModel, NodeId } from "../model/store.js";
@@ -21,15 +22,16 @@ import { explain } from "./messages.js";
 export interface ValidationIssue {
   readonly severity: "constraint" | "warnung";
   /**
-   * Verstaendlicher deutscher Satz. Faellt auf die Rohmeldung zurueck, wenn es keine
-   * Uebersetzung gibt, siehe `translated`.
+   * i18n-Schluessel des verstaendlichen Satzes. `null` heisst: keine Uebersetzung
+   * gefunden, dann zeigt die Oberflaeche `message`. Der Kern kennt keine Sprache.
    */
-  readonly title: string;
-  /** Unveraenderte Meldung der Quelle, in der Oberflaeche aufklappbar */
+  readonly schluessel: string | null;
+  /** Werte fuer die Interpolation des Schluessels */
+  readonly werte: Werte;
+  /** Unveraenderte Meldung der Quelle, in der Oberflaeche aufklappbar. Immer englisch. */
   readonly message: string;
   /** Kennung wie AASd-131, sofern die Meldung eine traegt */
   readonly constraintId: string | null;
-  readonly translated: boolean;
   readonly aasPath: string;
   readonly nodeId: NodeId | null;
   /** Feld innerhalb des Knotens, leer wenn der Fehler am Knoten selbst haengt */
@@ -51,10 +53,10 @@ export async function validate(
     const explanation = explain(error.message);
     issues.push({
       severity: "constraint",
-      title: explanation.title,
+      schluessel: explanation.schluessel,
+      werte: explanation.werte,
       message: explanation.raw,
       constraintId: explanation.constraintId,
-      translated: explanation.translated,
       aasPath,
       nodeId: location?.nodeId ?? null,
       field: location?.field ?? "",
@@ -69,11 +71,13 @@ export async function validate(
     const location = resolvePath(index, aasPath);
     issues.push({
       severity: "warnung",
-      // Die Datenwarnungen formuliert der Editor selbst, sie sind schon verstaendlich.
-      title: warning.message,
-      message: warning.message,
+      // Die Datenwarnungen formuliert der Editor selbst, sie tragen deshalb ihren
+      // Schluessel schon mit. `message` bleibt leer: es gibt keine fremde Rohmeldung,
+      // hinter der mehr staende.
+      schluessel: warning.schluessel,
+      werte: warning.werte,
+      message: "",
       constraintId: null,
-      translated: true,
       aasPath,
       nodeId: location?.nodeId ?? null,
       field: location?.field ?? "",

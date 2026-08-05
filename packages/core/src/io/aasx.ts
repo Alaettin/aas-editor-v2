@@ -44,9 +44,7 @@ export async function importAasx(bytes: Uint8Array): Promise<AasxImportResult> {
     const specsByType = await pkg.SpecsByContentType();
     const spec = pickSpec(specsByType);
     if (!spec) {
-      throw new ImportError(
-        "Das AASX enthaelt keinen lesbaren Spec-Part. Erwartet wird ein Teil mit XML- oder JSON-Inhalt.",
-      );
+      throw new ImportError("datei.aasxOhneSpec", "The AASX package has no readable spec part.");
     }
 
     const text = spec.part.ReadAllText();
