@@ -9,37 +9,14 @@ import {
 } from "@/components/ui/dialog";
 import { KbdHint } from "@/components/ui/kbd";
 import { SectionLabel } from "@/components/ui/section-label";
+import { BEREICHE, TASTENWEGE } from "@/lib/shortcuts";
 
 /**
- * Tastaturwege, an einer Stelle nachlesbar. Die Liste ist von Hand gepflegt und muss mit
- * den Bindungen in Tree.tsx, AppShell.tsx und CommandPalette.tsx uebereinstimmen.
+ * Tastaturwege, an einer Stelle nachlesbar.
+ *
+ * Die Liste kommt aus `lib/shortcuts.ts` und wird nicht mehr hier gepflegt: sie stand
+ * frueher fuenffach im Code und war bereits auseinandergelaufen.
  */
-
-const GRUPPEN: readonly { titel: string; wege: readonly [string, string][] }[] = [
-  {
-    titel: "hilfe.gruppeAllgemein",
-    wege: [
-      ["Strg+K", "hilfe.palette"],
-      ["Strg+J", "hilfe.assistent"],
-      ["Strg+S", "hilfe.speichern"],
-      ["Strg+Z", "hilfe.rueckgaengig"],
-      ["Strg+Y", "hilfe.wiederholen"],
-    ],
-  },
-  {
-    titel: "hilfe.gruppeBaum",
-    wege: [
-      ["Hoch, Runter", "hilfe.bewegen"],
-      ["Rechts", "hilfe.aufklappen"],
-      ["Links", "hilfe.zuklappen"],
-      ["Pos1, Ende", "hilfe.anfangEnde"],
-      ["Entf", "hilfe.loeschen"],
-      ["Strg+D", "hilfe.duplizieren"],
-      ["Strg+C, Strg+X, Strg+V", "hilfe.zwischenablage"],
-      ["F2, Enter", "hilfe.idShort"],
-    ],
-  },
-];
 
 export function ShortcutsDialog({
   offen,
@@ -59,13 +36,13 @@ export function ShortcutsDialog({
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
-          {GRUPPEN.map((gruppe) => (
-            <div key={gruppe.titel} className="flex flex-col gap-2">
+          {BEREICHE.map((gruppe) => (
+            <div key={gruppe.bereich} className="flex flex-col gap-2">
               <SectionLabel>{t(gruppe.titel)}</SectionLabel>
-              {gruppe.wege.map(([taste, beschreibung]) => (
-                <div key={taste} className="flex items-baseline gap-3 text-sm">
-                  <KbdHint className="shrink-0">{taste}</KbdHint>
-                  <span className="text-muted-foreground">{t(beschreibung)}</span>
+              {TASTENWEGE.filter((weg) => weg.bereich === gruppe.bereich).map((weg) => (
+                <div key={weg.wirkung} className="flex items-baseline gap-3 text-sm">
+                  <KbdHint className="shrink-0">{weg.tasten}</KbdHint>
+                  <span className="text-muted-foreground">{t(weg.wirkung)}</span>
                 </div>
               ))}
             </div>

@@ -8,6 +8,7 @@ import { TypeDot } from "@/components/ui/type-dot";
 import { toneOf } from "@/lib/typeOf";
 import { cn } from "@/lib/utils";
 import { type TreeRow as Row } from "@/store/rows";
+import { useTranslation } from "react-i18next";
 
 /**
  * Eine Baumzeile. Bewusst `memo`: beim Scrollen durch ein Modell mit tausenden
@@ -47,6 +48,7 @@ export const TreeRowView = memo(function TreeRowView({
   onDragEnd,
   onContextMenu,
 }: TreeRowProps) {
+  const { t } = useTranslation();
   const befund = errorCount > 0 || warningCount > 0;
   const tone = toneOf(row.kind);
 
@@ -94,7 +96,7 @@ export const TreeRowView = memo(function TreeRowView({
           <button
             type="button"
             tabIndex={-1}
-            aria-label={row.expanded ? "Zuklappen" : "Aufklappen"}
+            aria-label={row.expanded ? t("baum.zuklappen") : t("baum.aufklappen")}
             className="flex size-4 shrink-0 items-center justify-center rounded-xs text-foreground-faint hover:text-foreground"
             onClick={(event) => {
               event.stopPropagation();
@@ -128,7 +130,7 @@ export const TreeRowView = memo(function TreeRowView({
         </span>
 
         {row.disambiguator ? (
-          <Chip tone="warn" mono title="Gleicher idShort wie ein Geschwisterelement">
+          <Chip tone="warn" mono title={t("baum.gleicherIdShort")}>
             {row.disambiguator}
           </Chip>
         ) : null}
@@ -137,12 +139,18 @@ export const TreeRowView = memo(function TreeRowView({
 
         <span className={cn("flex shrink-0 items-center gap-1", row.childCount === 0 && "ml-auto")}>
           {errorCount > 0 ? (
-            <Chip tone="warn" fill="solid" pill data-numeric title={`${errorCount} Constraints`}>
+            <Chip
+              tone="warn"
+              fill="solid"
+              pill
+              data-numeric
+              title={t("status.constraints", { count: errorCount })}
+            >
               {errorCount}
             </Chip>
           ) : null}
           {warningCount > 0 ? (
-            <Chip tone="warn" data-numeric title={`${warningCount} Warnungen`}>
+            <Chip tone="warn" data-numeric title={t("status.warnungen", { count: warningCount })}>
               {warningCount}
             </Chip>
           ) : null}

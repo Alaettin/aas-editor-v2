@@ -119,7 +119,7 @@ export function Inspector() {
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <header className="shrink-0 px-7 pt-3.5">
-        <nav aria-label="Pfad" className="flex flex-wrap items-center gap-1 text-xs">
+        <nav aria-label={t("baum.pfad")} className="flex flex-wrap items-center gap-1 text-xs">
           {breadcrumb.map((entry, index) => (
             <span key={entry.nodeId} className="flex items-center gap-1">
               {index > 0 ? <span className="text-muted-foreground">/</span> : null}

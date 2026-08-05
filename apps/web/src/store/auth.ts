@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { authApi, type Benutzer } from "@/api/auth";
 import { ApiError } from "@/api/client";
+import i18n from "@/i18n";
 
 /**
  * Anmeldezustand. Bewusst getrennt vom Editor-Store: die Anmeldung und die Projektliste
@@ -47,10 +48,10 @@ export const useAuth = create<AuthState>()((set) => ({
     } catch (error) {
       const fehler =
         error instanceof ApiError && error.status === 429
-          ? "Zu viele Versuche. Bitte spaeter erneut probieren."
+          ? i18n.t("fehler.zuVieleVersuche")
           : error instanceof ApiError
             ? error.message
-            : "Der Server ist nicht erreichbar.";
+            : i18n.t("fehler.serverNichtErreichbar");
       set({ status: "abgemeldet", benutzer: null, fehler });
       return false;
     }

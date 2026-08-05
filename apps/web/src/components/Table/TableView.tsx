@@ -30,6 +30,7 @@ import { useElementWidth } from "@/lib/useElementWidth";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@/store/editor";
 import { shortenMiddle } from "@/store/rows";
+import { inEingabefeld } from "@/lib/shortcuts";
 
 /**
  * Tabellensicht fuer Massenbearbeitung (Plan Abschnitt 8).
@@ -278,10 +279,30 @@ export default function TableView() {
         aria-colcount={spalten.length + 1}
         tabIndex={0}
         onKeyDown={(event) => {
+          // In einer Zelle gehoeren die Tasten der Eingabe, nicht der Tabelle.
+          if (inEingabefeld(event.target)) return;
+
           if (event.key === "Enter" && selection) {
             event.preventDefault();
             setView("formular");
+            return;
           }
+
+          // Pfeiltasten wie im Baum. Vorher liess sich die Zeile nur mit der Maus
+          // wechseln, obwohl die Fusszeile Enter als Weg ins Formular verspricht.
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          event.preventDefault();
+          if (zeilen.length === 0) return;
+          const jetzt = zeilen.findIndex((z) => z.node.nodeId === selection);
+          const ziel =
+            jetzt < 0
+              ? 0
+              : Math.min(
+                  Math.max(jetzt + (event.key === "ArrowDown" ? 1 : -1), 0),
+                  zeilen.length - 1,
+                );
+          const naechste = zeilen[ziel];
+          if (naechste) select(naechste.node.nodeId);
         }}
         className="flex-1 overflow-auto outline-none"
       >

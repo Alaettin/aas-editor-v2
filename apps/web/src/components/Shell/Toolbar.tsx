@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useAssistant } from "@/store/assistant";
 import { useEditor } from "@/store/editor";
 import { ViewSwitch } from "./ViewSwitch";
+import { ersteTasteFuer } from "@/lib/shortcuts";
 
 /**
  * Symbolwerkzeugleiste in drei Gruppen: Datei, Historie, Element. Danach die Validierung
@@ -40,6 +41,7 @@ function Trenner() {
 
 export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
   const { t } = useTranslation();
+  const serverStatus = useEditor((state) => state.serverStatus);
 
   const model = useEditor((state) => state.model);
   const selection = useEditor((state) => state.selection);
@@ -91,13 +93,30 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
   return (
     <div className="flex h-(--h-toolbar) shrink-0 items-center gap-0.5 border-b border-border bg-card px-2.5">
       {knopf(t("app.oeffnen"), <FolderOpen />, onOeffnen)}
-      {knopf(t("menu.speichern"), <Save />, () => void speichern(), projektId === null, "Strg+S")}
+      {/*
+        Die Beschriftung folgt dem Serverzustand: "Speichert ...", "Konflikt", "Erneut
+        speichern". Ein Knopf, der immer dasselbe sagt, verschweigt genau die Lage, in
+        der man ihn braucht.
+      */}
+      {knopf(
+        t(`speichern.${serverStatus}`),
+        <Save />,
+        () => void speichern(),
+        projektId === null,
+        ersteTasteFuer("hilfe.speichern"),
+      )}
       {knopf(t("app.exportieren"), <Download />, () => onExport("aasx"), !model)}
 
       <Trenner />
 
-      {knopf(t("app.rueckgaengig"), <Undo2 />, undo, !canUndo, "Strg+Z")}
-      {knopf(t("app.wiederholen"), <Redo2 />, redo, !canRedo, "Strg+Y")}
+      {knopf(
+        t("app.rueckgaengig"),
+        <Undo2 />,
+        undo,
+        !canUndo,
+        ersteTasteFuer("hilfe.rueckgaengig"),
+      )}
+      {knopf(t("app.wiederholen"), <Redo2 />, redo, !canRedo, ersteTasteFuer("hilfe.wiederholen"))}
 
       <Trenner />
 
@@ -112,14 +131,14 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
         <Copy />,
         () => selection && duplicateElement(selection),
         istWurzel,
-        "Strg+D",
+        ersteTasteFuer("hilfe.duplizieren"),
       )}
       {knopf(
         t("menu.loeschen"),
         <Trash2 />,
         () => selection && requestDelete([selection]),
         istWurzel,
-        "Entf",
+        ersteTasteFuer("hilfe.loeschen"),
       )}
 
       <Trenner />
@@ -147,7 +166,7 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
         >
           <MessageSquare data-icon="inline-start" />
           {t("assistent.titel")}
-          <KbdHint>Strg+J</KbdHint>
+          <KbdHint>{ersteTasteFuer("hilfe.assistent")}</KbdHint>
         </Button>
 
         <ViewSwitch />

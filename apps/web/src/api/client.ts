@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 /**
  * Duenne Huelle um fetch. Kein Cache, keine zweite Zustandsverwaltung: bei einer Handvoll
  * Endpunkten waere eine Abfragebibliothek neben Zustand ein zweites Paradigma ohne Gewinn.
@@ -38,7 +40,7 @@ export function onSitzungAbgelaufen(handler: (() => void) | null): void {
 
 async function fehlerAus(response: Response): Promise<ApiError> {
   let code = "serverfehler";
-  let message = `Der Server antwortete mit ${String(response.status)}.`;
+  let message = i18n.t("fehler.serverAntwortete", { status: response.status });
   let details: Record<string, unknown> = {};
   try {
     const body = (await response.json()) as Record<string, unknown>;

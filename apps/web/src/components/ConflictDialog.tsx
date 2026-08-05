@@ -49,7 +49,9 @@ export function ConflictDialog() {
   const alsNeuesSpeichern = async () => {
     setLaeuft("neu");
     schliessen();
-    const neueId = await alsNeues(`${projektName ?? "Projekt"} (Kopie)`);
+    const neueId = await alsNeues(
+      t("konflikt.kopieName", { name: projektName ?? t("konflikt.ohneName") }),
+    );
     setLaeuft(null);
     if (neueId !== null) void navigate(`/editor/${neueId}`);
   };

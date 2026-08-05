@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { KbdHint } from "@/components/ui/kbd";
 import { useEditor } from "@/store/editor";
+import { ersteTasteFuer } from "@/lib/shortcuts";
 
 /**
  * Filterfeld ueber dem Baum.
@@ -66,7 +67,7 @@ export function TreeFilter({ visibleCount }: { readonly visibleCount: number }) 
             onClick={() => window.dispatchEvent(new Event(PALETTE_EVENT))}
             className="ml-auto shrink-0"
           >
-            <KbdHint>Strg+K</KbdHint>
+            <KbdHint>{ersteTasteFuer("hilfe.palette")}</KbdHint>
           </button>
         )}
       </div>

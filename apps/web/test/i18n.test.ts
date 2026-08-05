@@ -6,10 +6,17 @@ import { describe, expect, it } from "vitest";
 import de from "../src/i18n/de.json" with { type: "json" };
 
 /**
- * Jeder `t("...")`-Aufruf muss einen Schluessel in de.json finden.
+ * Beide Richtungen.
  *
- * Bei rund achtzig neuen Zeichenketten in einer Phase ist ein vergessener Schluessel keine
- * Frage des Ob. Er faellt sonst erst auf, wenn im Bildschirm "menu.datei" steht.
+ * Jeder `t("...")`-Aufruf muss einen Schluessel in de.json finden: bei rund achtzig neuen
+ * Zeichenketten in einer Phase ist ein vergessener Schluessel keine Frage des Ob. Er
+ * faellt sonst erst auf, wenn im Bildschirm "menu.datei" steht.
+ *
+ * Und umgekehrt: kein Schluessel darf ungenutzt herumliegen. Nach Phase 8 waren
+ * fuenfundzwanzig davon tot, darunter der komplette `speichern.`-Block, waehrend die
+ * Statusleiste dieselben Zustaende unuebersetzt zeigte. Ein toter Schluessel ist kein
+ * Schoenheitsfehler, sondern der Hinweis auf eine Anzeige, die es nicht mehr gibt, oder
+ * auf eine, die ihren Text woanders herholt.
  */
 
 const SRC = fileURLToPath(new URL("../src", import.meta.url));
@@ -59,4 +66,49 @@ describe("Uebersetzungen", () => {
 
     expect([...fehlend].sort()).toEqual([]);
   });
+
+  it("hat keinen Schluessel, den niemand benutzt", () => {
+    const quelltext = dateien(SRC)
+      .map((datei) => readFileSync(datei, "utf8"))
+      .join("\n");
+
+    const unbenutzt: string[] = [];
+    for (const schluessel of alleSchluessel(de)) {
+      // Feste Aufrufe, Aufrufe mit Werten und die Praefixe zusammengesetzter Aufrufe
+      // wie t(`tabelle.spalte.${id}`) oder t(`sicht.${sicht}`).
+      if (quelltext.includes(`"${schluessel}"`)) continue;
+      if (BAUSTEINE.some((praefix) => schluessel.startsWith(praefix))) continue;
+      unbenutzt.push(schluessel);
+    }
+
+    expect(unbenutzt.sort()).toEqual([]);
+  });
 });
+
+/**
+ * Schluessel, die nur ueber ein Praefix zusammengesetzt werden. Sie stehen nie als
+ * Zeichenkette im Quelltext und muessen deshalb hier benannt sein, damit die Ausnahme
+ * eine Entscheidung bleibt und kein Loch.
+ */
+const BAUSTEINE = [
+  "tabelle.spalte.",
+  "sicht.",
+  "export.",
+  "feld.",
+  "gruppe.",
+  "befund.regel.",
+  // Die Beschriftung des Speichern-Knopfes folgt dem Serverzustand, siehe Toolbar.
+  "speichern.",
+];
+
+/** Alle Blattschluessel in Punktschreibweise. Pluralformen zaehlen als ihr Grundschluessel. */
+function alleSchluessel(baum: unknown, praefix = ""): string[] {
+  if (typeof baum !== "object" || baum === null) return [praefix];
+  const treffer: string[] = [];
+  for (const [name, wert] of Object.entries(baum as Record<string, unknown>)) {
+    const voll = praefix === "" ? name : `${praefix}.${name}`;
+    // i18next-Pluralformen: "knoten_one" gehoert zu "knoten".
+    treffer.push(...alleSchluessel(wert, voll.replace(/_(one|other|zero|few|many)$/, "")));
+  }
+  return treffer;
+}

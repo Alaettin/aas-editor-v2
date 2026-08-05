@@ -28,6 +28,7 @@ import { ShortcutsDialog } from "@/components/Shell/ShortcutsDialog";
 import { StatusBar } from "@/components/Shell/StatusBar";
 import { Toolbar } from "@/components/Shell/Toolbar";
 import { useAssistant } from "@/store/assistant";
+import { inEingabefeld } from "@/lib/shortcuts";
 import { useEditor } from "@/store/editor";
 
 /**
@@ -97,6 +98,9 @@ export function AppShell() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return;
+      // Rueckgaengig im Textfeld ist Sache des Textfelds. Ohne diese Zeile machte
+      // Strg+Z waehrend des Tippens das ganze Modell rueckgaengig.
+      if (inEingabefeld(event.target)) return;
       const taste = event.key.toLowerCase();
       if (taste === "z" && !event.shiftKey) {
         event.preventDefault();

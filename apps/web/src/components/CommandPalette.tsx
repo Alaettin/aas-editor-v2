@@ -32,6 +32,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { useEditor } from "@/store/editor";
+import { ersteTasteFuer } from "@/lib/shortcuts";
 
 /**
  * Kommando-Palette, Strg oder Cmd plus K (Plan Abschnitt 8).
@@ -195,12 +196,12 @@ export function CommandPalette() {
             <CommandItem value="rueckgaengig" onSelect={() => ausfuehren(undo)}>
               <Undo2 />
               {t("app.rueckgaengig")}
-              <CommandShortcut>Strg+Z</CommandShortcut>
+              <CommandShortcut>{ersteTasteFuer("hilfe.rueckgaengig")}</CommandShortcut>
             </CommandItem>
             <CommandItem value="wiederholen" onSelect={() => ausfuehren(redo)}>
               <Redo2 />
               {t("app.wiederholen")}
-              <CommandShortcut>Strg+Y</CommandShortcut>
+              <CommandShortcut>{ersteTasteFuer("hilfe.wiederholen")}</CommandShortcut>
             </CommandItem>
 
             <CommandItem

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/menubar";
 import { SaveChip } from "./SaveChip";
 import { useEditor, type Density, type Theme, type View } from "@/store/editor";
+import { ersteTasteFuer } from "@/lib/shortcuts";
 
 /**
  * Die Menuezeile. Jeder Eintrag hat eine Aktion, es gibt keinen toten Punkt.
@@ -112,7 +113,7 @@ export function MenuBar({
             <MenubarItem onSelect={onOeffnen}>{t("app.oeffnen")}</MenubarItem>
             <MenubarItem disabled={projektId === null} onSelect={() => void speichern()}>
               {t("menu.speichern")}
-              <MenubarShortcut>Strg+S</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.speichern")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem
               disabled={!model}
@@ -144,11 +145,11 @@ export function MenuBar({
           <MenubarContent>
             <MenubarItem disabled={!canUndo} onSelect={undo}>
               {t("app.rueckgaengig")}
-              <MenubarShortcut>Strg+Z</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.rueckgaengig")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem disabled={!canRedo} onSelect={redo}>
               {t("app.wiederholen")}
-              <MenubarShortcut>Strg+Y</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.wiederholen")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem
@@ -156,21 +157,21 @@ export function MenuBar({
               onSelect={() => selection && cutNode(selection)}
             >
               {t("menu.ausschneiden")}
-              <MenubarShortcut>Strg+X</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.ausschneiden")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem
               disabled={!selection || istWurzel}
               onSelect={() => selection && copyNode(selection)}
             >
               {t("menu.kopieren")}
-              <MenubarShortcut>Strg+C</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.kopieren")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem
               disabled={!selection || clipboard === null}
               onSelect={() => selection && requestPaste(selection)}
             >
               {t("menu.einfuegen")}
-              <MenubarShortcut>Strg+V</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.einfuegen")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarSub>
@@ -193,14 +194,14 @@ export function MenuBar({
               onSelect={() => selection && duplicateElement(selection)}
             >
               {t("menu.duplizieren")}
-              <MenubarShortcut>Strg+D</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.duplizieren")}</MenubarShortcut>
             </MenubarItem>
             <MenubarItem
               disabled={!selection || istWurzel}
               onSelect={() => selection && requestDelete([selection])}
             >
               {t("menu.loeschen")}
-              <MenubarShortcut>Entf</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.loeschen")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem
@@ -267,7 +268,7 @@ export function MenuBar({
             </MenubarItem>
             <MenubarItem disabled={!model} onSelect={onPalette}>
               {t("menu.palette")}
-              <MenubarShortcut>Strg+K</MenubarShortcut>
+              <MenubarShortcut>{ersteTasteFuer("hilfe.palette")}</MenubarShortcut>
             </MenubarItem>
             <MenubarSeparator />
             <MenubarItem onSelect={onEinstellungen}>{t("werkzeug.einstellungen")}</MenubarItem>

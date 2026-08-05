@@ -111,7 +111,16 @@ export function Tree() {
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
-      if (!model || !selection) return;
+      if (!model) return;
+      // Ohne Auswahl reagierte der Baum bisher auf gar keine Taste, obwohl `move()` den
+      // Fall "noch nichts gewaehlt" kennt. Der Zweig war damit unerreichbar.
+      if (!selection) {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home") {
+          event.preventDefault();
+          if (rows[0]) select(rows[0].nodeId);
+        }
+        return;
+      }
       const row = rows[rowIndex.get(selection) ?? -1];
       if (!row) return;
 

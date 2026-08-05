@@ -11,19 +11,14 @@
     "erscheinung": "Darstellung",
     "hell": "Hell",
     "dunkel": "Dunkel",
-    "hilfe": "Tastaturwege",
     "palette": "Kommando-Palette (Strg+K)",
-    "zurListe": "Zu den Projekten",
-    "schliessen": "Schliessen",
     "zumInhalt": "Zum Inhalt springen"
   },
   "status": {
     "knoten": "{{count}} Elemente",
     "anhaenge": "{{count}} Anhaenge",
     "keineDatei": "Keine Datei geoeffnet",
-    "quelle": "Quelle: {{format}}, Metamodell {{version}}",
     "versionUnbekannt": "ohne Versionsmarker",
-    "gespeichertNein": "Nicht gespeichert",
     "wirdGelesen": "Wird gelesen ...",
     "constraints": "{{count}} Constraints",
     "warnungen": "{{count}} Warnungen",
@@ -42,16 +37,12 @@
   },
   "baum": {
     "titel": "Struktur",
-    "leer": "Diese Umgebung ist leer.",
     "neu": "Neu",
     "neuIn": "In {{slot}} anlegen",
     "duplizieren": "Duplizieren",
     "loeschen": "Loeschen",
-    "umbenennen": "Umbenennen",
     "aufklappen": "Aufklappen",
     "zuklappen": "Zuklappen",
-    "alleAufklappen": "Alle aufklappen",
-    "alleZuklappen": "Alle zuklappen",
     "loeschenTitel": "{{name}} loeschen?",
     "loeschenText": "Das Element und alle darin enthaltenen Elemente werden entfernt. Rueckgaengig machen ist moeglich.",
     "abbrechen": "Abbrechen",
@@ -63,27 +54,23 @@
     "kopieren": "Kopieren",
     "ausschneiden": "Ausschneiden",
     "einfuegen": "Einfuegen",
-    "loeschenTitelMehrere": "{{count}} Elemente loeschen?"
+    "loeschenTitelMehrere": "{{count}} Elemente loeschen?",
+    "pfad": "Pfad",
+    "gleicherIdShort": "Gleicher idShort wie ein Geschwisterelement"
   },
   "inspektor": {
-    "titel": "Eigenschaften",
     "nichtsGewaehlt": "Kein Element gewaehlt.",
     "nichtsGewaehltText": "Waehle links ein Element aus, um seine Eigenschaften zu bearbeiten.",
     "hinzufuegen": "Hinzufuegen",
     "entfernen": "Entfernen",
     "leer": "Noch nichts hinterlegt.",
-    "pflicht": "Pflichtfeld",
     "sprache": "Sprache",
     "text": "Text",
     "schluessel": "Keys",
-    "schluesselTyp": "Typ",
     "schluesselWert": "Wert",
-    "datei": "Datei",
     "dateiWaehlen": "Datei waehlen",
     "dateiErsetzen": "Ersetzen",
-    "keinAnhang": "Kein Anhang im Paket unter diesem Pfad.",
-    "groesse": "{{size}}",
-    "phase5": "Der Inhalt nach IEC 61360 wird in einer spaeteren Ausbaustufe bearbeitbar."
+    "keinAnhang": "Kein Anhang im Paket unter diesem Pfad."
   },
   "gruppe": {
     "allgemein": "Allgemein",
@@ -148,7 +135,6 @@
     "importFehlgeschlagen": "Die Datei liess sich nicht lesen.",
     "speichern": "Speichern fehlgeschlagen",
     "export": "Export fehlgeschlagen",
-    "laden": "Laden fehlgeschlagen",
     "loeschen": "Loeschen fehlgeschlagen",
     "anlegen": "Anlegen fehlgeschlagen",
     "version": "Die Version liess sich nicht anlegen",
@@ -226,8 +212,7 @@
       "valueType": "valueType",
       "value": "value",
       "semanticId": "semanticId"
-    },
-    "laedt": "Wird aufgebaut ..."
+    }
   },
   "graph": {
     "leerTitel": "Nichts zu zeigen",
@@ -247,7 +232,6 @@
     "erneut": "Erneut versuchen"
   },
   "anmeldung": {
-    "hinweis": "Bitte anmelden, um an Projekten zu arbeiten.",
     "benutzer": "Benutzername",
     "passwort": "Passwort",
     "anmelden": "Anmelden",
@@ -302,7 +286,9 @@
     "alsNeues": "Als neues Projekt speichern",
     "ueberschreiben": "Serverstand ueberschreiben (mit Schnappschuss)",
     "serverstand": "Serverstand laden, eigene Aenderungen verwerfen",
-    "versionLabel": "vor dem Ueberschreiben"
+    "versionLabel": "vor dem Ueberschreiben",
+    "kopieName": "{{name}} (Kopie)",
+    "ohneName": "Projekt"
   },
   "menu": {
     "datei": "Datei",
@@ -355,8 +341,17 @@
     "anfangEnde": "Erste und letzte sichtbare Zeile",
     "loeschen": "Loeschen, mit Rueckfrage",
     "duplizieren": "Duplizieren",
-    "zwischenablage": "Kopieren, ausschneiden, einfuegen",
-    "idShort": "idShort im Formular fokussieren"
+    "idShort": "idShort im Formular fokussieren",
+    "gruppeTabelle": "Tabelle",
+    "gruppeFormular": "Formular",
+    "filterLeeren": "Filter leeren",
+    "zeileWechseln": "Zeile wechseln",
+    "zumFormular": "Zum Formular springen",
+    "feldUebernehmen": "Eingabe uebernehmen",
+    "feldVerwerfen": "Eingabe verwerfen",
+    "kopieren": "Kopieren",
+    "ausschneiden": "Ausschneiden",
+    "einfuegen": "Einfuegen"
   },
   "assistent": {
     "titel": "Assistent",
@@ -390,8 +385,7 @@
     "befundeImElement_one": "{{count}} in diesem Element",
     "befundeImElement_other": "{{count}} in diesem Element",
     "aufklappen": "Befunde aufklappen",
-    "zuklappen": "Befunde zuklappen",
-    "hinzufuegen": "Hinzufuegen"
+    "zuklappen": "Befunde zuklappen"
   },
   "melden": {
     "gespeichert": "Projekt gespeichert.",
