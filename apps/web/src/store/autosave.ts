@@ -25,6 +25,12 @@ export interface Draft {
   readonly attachmentPaths: readonly string[];
   readonly savedAt: number;
   readonly nodeCount: number;
+  /**
+   * Zu welchem Serverprojekt der Entwurf gehoert, falls es eines gibt. Ohne das wuerde
+   * ein Entwurf aus Projekt A beim Oeffnen von Projekt B angeboten.
+   */
+  readonly projektId?: string | null;
+  readonly revision?: number;
 }
 
 let dbPromise: Promise<IDBPDatabase> | null = null;

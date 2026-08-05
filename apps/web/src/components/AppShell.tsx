@@ -1,12 +1,16 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import {
+  ArrowLeft,
   Download,
   FolderOpen,
+  History,
   Moon,
   Redo2,
   Rows2,
   Rows3,
+  Save,
   Sun,
   Undo2,
 } from "lucide-react";
@@ -31,6 +35,8 @@ import { IssuePanel } from "@/components/Issues/IssuePanel";
 import { ExportDialog, needsExportWarning } from "@/components/ExportDialog";
 import { CommandPalette } from "@/components/CommandPalette";
 import { RestoreDialog } from "@/components/RestoreDialog";
+import { ConflictDialog } from "@/components/ConflictDialog";
+import { VersionDialog } from "@/components/Versions/VersionDialog";
 import { nodeCount, useEditor, type View } from "@/store/editor";
 
 /**
@@ -51,6 +57,7 @@ export function AppShell() {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [exportFormat, setExportFormat] = useState<"json" | "xml" | "aasx" | null>(null);
+  const [versionenOffen, setVersionenOffen] = useState(false);
 
   const model = useEditor((state) => state.model);
   const meta = useEditor((state) => state.meta);
@@ -72,6 +79,12 @@ export function AppShell() {
   const setTheme = useEditor((state) => state.setTheme);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
   const setView = useEditor((state) => state.setView);
+
+  const projektId = useEditor((state) => state.projektId);
+  const projektName = useEditor((state) => state.projektName);
+  const serverStatus = useEditor((state) => state.serverStatus);
+  const anhaengeBereit = useEditor((state) => state.anhaengeBereit);
+  const speichern = useEditor((state) => state.speichern);
 
   /** Warnen statt blockieren: gibt es nichts zu sagen, wird sofort exportiert. */
   const requestExport = (format: "json" | "xml" | "aasx") => {
@@ -120,11 +133,45 @@ export function AppShell() {
       }}
     >
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-border bg-sidebar px-3">
-        <span className="mr-2 text-sm font-semibold">{t("app.titel")}</span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" asChild>
+              <Link to="/projekte" aria-label={t("app.zurListe")}>
+                <ArrowLeft />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t("app.zurListe")}</TooltipContent>
+        </Tooltip>
+
+        <span className="mr-2 max-w-48 truncate text-sm font-semibold">
+          {projektName ?? t("app.titel")}
+        </span>
 
         <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
           <FolderOpen data-icon="inline-start" />
           {t("app.oeffnen")}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          data-speichern
+          disabled={!model || projektId === null || serverStatus === "speichert"}
+          onClick={() => void speichern()}
+        >
+          <Save data-icon="inline-start" />
+          {t(`speichern.${serverStatus}`)}
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={projektId === null}
+          onClick={() => setVersionenOffen(true)}
+        >
+          <History data-icon="inline-start" />
+          {t("versionen.knopf")}
         </Button>
 
         <DropdownMenu>
@@ -276,6 +323,7 @@ export function AppShell() {
             {meta.attachments.length > 0 ? (
               <span data-numeric>{t("status.anhaenge", { count: meta.attachments.length })}</span>
             ) : null}
+            {!anhaengeBereit ? <span>{t("status.anhaengeLaden")}</span> : null}
           </>
         ) : (
           <span>{t("status.keineDatei")}</span>
@@ -316,6 +364,8 @@ export function AppShell() {
 
       <CommandPalette />
       <RestoreDialog />
+      <ConflictDialog />
+      <VersionDialog offen={versionenOffen} onClose={() => setVersionenOffen(false)} />
 
       <input
         ref={inputRef}

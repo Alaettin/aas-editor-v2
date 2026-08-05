@@ -3,11 +3,13 @@ import {
   applyChange,
   copySubtree,
   countNodes,
+  denormalize,
   duplicateNode,
   emptyHistory,
   getNode,
   insertNode,
   moveNode,
+  normalize,
   pasteSubtree,
   removeNode,
   redo as redoModel,
@@ -23,6 +25,8 @@ import {
 } from "@aas-editor/core";
 import type { ValidationIssue } from "@aas-editor/core/validation";
 
+import { ApiError } from "@/api/client";
+import { filesApi, projectsApi, versionsApi } from "@/api/projects";
 import { aasWorker, type AttachmentInfo, type OpenResult } from "@/worker/bridge";
 import { clearDraft, createAutosave, loadDraft, type Draft } from "./autosave";
 
@@ -52,6 +56,17 @@ export type Density = "compact" | "cozy";
 export type View = "formular" | "tabelle" | "graph";
 export type Theme = "light" | "dark";
 export type Status = "leer" | "laedt" | "bereit" | "fehler";
+/**
+ * Verhaeltnis zum Serverstand. "ohneProjekt" heisst: aus einer Datei geoeffnet und noch
+ * nirgends abgelegt.
+ */
+export type ServerStatus =
+  | "ohneProjekt"
+  | "gespeichert"
+  | "geaendert"
+  | "speichert"
+  | "konflikt"
+  | "fehler";
 
 interface OpenMeta {
   readonly format: OpenResult["format"];
@@ -91,6 +106,26 @@ interface EditorState {
 
   openFile: (file: File) => Promise<void>;
   exportAs: (format: "json" | "xml" | "aasx") => Promise<void>;
+
+  /** Das Projekt auf dem Server, zu dem der geoeffnete Stand gehoert. */
+  projektId: string | null;
+  projektName: string | null;
+  /** Erwartete Revision fuer das optimistische Sperren. */
+  revision: number;
+  serverStatus: ServerStatus;
+  serverKonflikt: { aktuelleRevision: number; aktualisiertAm: number } | null;
+  /**
+   * Ob die Anhangs-Bytes im Worker liegen. Solange sie fehlen, meldet die Validierung
+   * jedes File-Element als fehlenden Anhang und ein AASX-Export waere unvollstaendig.
+   */
+  anhaengeBereit: boolean;
+
+  ladeProjekt: (id: string) => Promise<void>;
+  speichern: () => Promise<void>;
+  alsNeuesProjektSpeichern: (name: string) => Promise<string | null>;
+  konfliktSchliessen: () => void;
+  versionAnlegen: (label: string | null) => Promise<void>;
+  versionLaden: (versionId: string) => Promise<void>;
 
   /** Ein gefundener Entwurf aus IndexedDB, der zur Wiederherstellung angeboten wird */
   draft: Draft | null;
@@ -145,6 +180,9 @@ let validateTimer: ReturnType<typeof setTimeout> | undefined;
 /** Entprelltes Schreiben in IndexedDB, siehe autosave.ts. */
 const autosave = createAutosave();
 
+/** Welches Projekt gerade geladen wird, gegen doppelte Effektaufrufe. */
+let laufendeLadung: string | null = null;
+
 function scheduleValidation(set: (partial: Partial<EditorState>) => void): void {
   clearTimeout(validateTimer);
   validateTimer = setTimeout(() => {
@@ -174,7 +212,20 @@ export const useEditor = create<EditorState>()((set, get) => {
       return;
     }
 
-    set({ model: result.model, history: result.history, dirty: true, error: null });
+    set({
+      model: result.model,
+      history: result.history,
+      dirty: true,
+      error: null,
+      // Ein Konflikt bleibt stehen, bis er beantwortet ist. Alles andere heisst jetzt
+      // "ungespeichert".
+      serverStatus:
+        get().serverStatus === "konflikt"
+          ? "konflikt"
+          : get().projektId === null
+            ? "ohneProjekt"
+            : "geaendert",
+    });
     void aasWorker().applyPatches(result.change.patches);
     scheduleValidation(set);
 
@@ -187,6 +238,8 @@ export const useEditor = create<EditorState>()((set, get) => {
         attachmentPaths: meta.attachments.map((entry) => entry.path),
         savedAt: Date.now(),
         nodeCount: countNodes(result.model),
+        projektId: get().projektId,
+        revision: get().revision,
       });
     }
   };
@@ -207,6 +260,13 @@ export const useEditor = create<EditorState>()((set, get) => {
     filter: "",
     clipboard: null,
     draft: null,
+
+    projektId: null,
+    projektName: null,
+    revision: 0,
+    serverStatus: "ohneProjekt",
+    serverKonflikt: null,
+    anhaengeBereit: true,
 
     density: "cozy",
     view: "formular",
@@ -246,6 +306,13 @@ export const useEditor = create<EditorState>()((set, get) => {
           issues: [],
           dirty: false,
           error: null,
+          // Eine Datei gehoert zu keinem Projekt, bis sie eines wird.
+          projektId: null,
+          projektName: null,
+          revision: 0,
+          serverStatus: "ohneProjekt",
+          serverKonflikt: null,
+          anhaengeBereit: true,
         });
 
         const issues = await aasWorker().validate();
@@ -273,12 +340,183 @@ export const useEditor = create<EditorState>()((set, get) => {
       }
     },
 
+    async ladeProjekt(id) {
+      if (get().projektId === id && get().model) return;
+      // React ruft den Effekt der Editor-Route im Entwicklungsbetrieb zweimal auf. Ohne
+      // diese Sperre laedt das Projekt doppelt, samt aller Anhaenge.
+      if (laufendeLadung === id) return;
+      laufendeLadung = id;
+      set({ status: "laedt", error: null, draft: null, anhaengeBereit: false });
+
+      try {
+        const detail = await projectsApi.get(id);
+        const model = normalize(detail.environment as Parameters<typeof normalize>[0]);
+        await aasWorker().setModel(model);
+
+        set({
+          model,
+          history: emptyHistory,
+          meta: {
+            format: (detail.projekt.sourceFormat || "json") as OpenResult["format"],
+            sourceVersion: detail.projekt.metamodelVersion as OpenResult["sourceVersion"],
+            fileName: `${detail.projekt.name}.${detail.projekt.sourceFormat || "json"}`,
+            attachments: NO_ATTACHMENTS,
+            hasThumbnail: false,
+          },
+          status: "bereit",
+          selection: model.rootId,
+          expanded: aufgeklappteWurzel(model),
+          issues: [],
+          dirty: false,
+          error: null,
+          projektId: detail.projekt.id,
+          projektName: detail.projekt.name,
+          revision: detail.revision,
+          serverStatus: "gespeichert",
+          serverKonflikt: null,
+        });
+
+        // Erst die Bytes, dann validieren. Andernfalls meldet die Validierung fuer jedes
+        // File-Element kurz einen fehlenden Anhang und der Nutzer haelt seine Datei fuer
+        // kaputt.
+        await anhaengeHolen(id, set);
+        set({ issues: await aasWorker().validate() });
+      } catch (error) {
+        set({
+          status: "fehler",
+          error: error instanceof ApiError ? error.message : (error as Error).message,
+          anhaengeBereit: true,
+        });
+      } finally {
+        laufendeLadung = null;
+      }
+    },
+
+    async speichern() {
+      const { model, projektId, revision, meta } = get();
+      if (!model || projektId === null) return;
+
+      set({ serverStatus: "speichert", error: null });
+      try {
+        await anhaengeHochladen(projektId);
+        const antwort = await projectsApi.save(projektId, {
+          revision,
+          environment: denormalize(model),
+          nodeCount: countNodes(model),
+          ...(meta ? { sourceFormat: meta.format } : {}),
+        });
+        set({
+          revision: antwort.projekt.revision,
+          projektName: antwort.projekt.name,
+          serverStatus: "gespeichert",
+          serverKonflikt: null,
+          dirty: false,
+        });
+        // Gespeichert heisst gesichert, der lokale Entwurf wird nicht mehr gebraucht.
+        void clearDraft();
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409 && error.code === "revision-konflikt") {
+          set({
+            serverStatus: "konflikt",
+            serverKonflikt: {
+              aktuelleRevision: Number(error.details["aktuelleRevision"] ?? 0),
+              aktualisiertAm: Number(error.details["aktualisiertAm"] ?? 0),
+            },
+          });
+          return;
+        }
+        set({
+          serverStatus: "fehler",
+          error: error instanceof ApiError ? error.message : (error as Error).message,
+        });
+      }
+    },
+
+    async alsNeuesProjektSpeichern(name) {
+      const { model, meta } = get();
+      if (!model) return null;
+
+      set({ serverStatus: "speichert", error: null });
+      try {
+        const antwort = await projectsApi.create({
+          name,
+          environment: denormalize(model),
+          nodeCount: countNodes(model),
+          ...(meta ? { sourceFormat: meta.format } : {}),
+        });
+        set({
+          projektId: antwort.project.id,
+          projektName: antwort.project.name,
+          revision: antwort.project.revision,
+          serverStatus: "gespeichert",
+          serverKonflikt: null,
+          dirty: false,
+        });
+        // Die Anhaenge gehoeren zum neuen Projekt, sie werden danach hochgeladen.
+        await anhaengeHochladen(antwort.project.id);
+        void clearDraft();
+        return antwort.project.id;
+      } catch (error) {
+        set({
+          serverStatus: "fehler",
+          error: error instanceof ApiError ? error.message : (error as Error).message,
+        });
+        return null;
+      }
+    },
+
+    konfliktSchliessen: () =>
+      set({ serverKonflikt: null, serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert" }),
+
+    async versionAnlegen(label) {
+      const { projektId } = get();
+      if (projektId === null) return;
+      try {
+        await versionsApi.create(projektId, label);
+      } catch (error) {
+        set({ error: error instanceof ApiError ? error.message : (error as Error).message });
+      }
+    },
+
+    async versionLaden(versionId) {
+      const { projektId } = get();
+      if (projektId === null) return;
+
+      set({ status: "laedt", error: null });
+      try {
+        const geladen = await versionsApi.get(projektId, versionId);
+        const model = normalize(geladen.environment as Parameters<typeof normalize>[0]);
+        await aasWorker().setModel(model);
+        await anhaengeHolen(projektId, set);
+
+        // Eine geladene Version ist noch nicht der Serverstand: sie muss gespeichert
+        // werden, sonst waere das Zurueckholen ein stilles Ueberschreiben.
+        set({
+          model,
+          history: emptyHistory,
+          status: "bereit",
+          selection: model.rootId,
+          expanded: aufgeklappteWurzel(model),
+          dirty: true,
+          serverStatus: "geaendert",
+          issues: await aasWorker().validate(),
+        });
+      } catch (error) {
+        set({
+          status: "fehler",
+          error: error instanceof ApiError ? error.message : (error as Error).message,
+        });
+      }
+    },
+
     async checkForDraft() {
       // Nur anbieten, solange nichts geoeffnet ist. Sonst wuerde die Rueckfrage die
       // gerade geladene Datei infrage stellen.
       if (get().model) return;
       const draft = await loadDraft();
-      if (draft) set({ draft });
+      // Ein Entwurf, der zu einem Projekt gehoert, wird nur dort angeboten. Im
+      // dateibasierten Betrieb waere er ohne Zusammenhang.
+      if (draft && (draft.projektId ?? null) === null) set({ draft });
     },
 
     async restoreDraft() {
@@ -519,6 +757,83 @@ export const useEditor = create<EditorState>()((set, get) => {
  */
 if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>)["__aasEditorStore"] = useEditor;
+}
+
+/** Wurzel und Identifiables offen, alles darunter zu. Wie beim Oeffnen einer Datei. */
+function aufgeklappteWurzel(model: EditorModel): Record<NodeId, true> {
+  const expanded: Record<NodeId, true> = { [model.rootId]: true };
+  for (const ids of Object.values(model.nodes[model.rootId]?.children ?? {})) {
+    for (const id of ids) expanded[id] = true;
+  }
+  return expanded;
+}
+
+/** Hoechstens vier gleichzeitig, damit ein Modell mit vielen Anhaengen den Browser nicht flutet. */
+async function inGruppen<T>(werte: readonly T[], arbeit: (wert: T) => Promise<void>): Promise<void> {
+  const offen = [...werte];
+  const laeufer = Array.from({ length: Math.min(4, offen.length) }, async () => {
+    for (let naechster = offen.shift(); naechster !== undefined; naechster = offen.shift()) {
+      await arbeit(naechster);
+    }
+  });
+  await Promise.all(laeufer);
+}
+
+/**
+ * Holt die Anhangs-Bytes vom Server in den Worker. Erst danach sind Validierung und
+ * AASX-Export vollstaendig.
+ */
+async function anhaengeHolen(
+  projektId: string,
+  set: (partial: Partial<EditorState>) => void,
+): Promise<void> {
+  try {
+    const { items } = await filesApi.list(projektId);
+    await inGruppen(items, async (datei) => {
+      const { bytes } = await filesApi.download(projektId, datei.id);
+      await aasWorker().putAttachment(datei.path, datei.contentType, bytes);
+    });
+    set({
+      anhaengeBereit: true,
+      meta: {
+        ...(useEditor.getState().meta as OpenMeta),
+        attachments: items.map((datei) => ({
+          path: datei.path,
+          contentType: datei.contentType,
+          size: datei.size,
+        })),
+      },
+    });
+  } catch {
+    // Fehlende Anhaenge machen das Modell nicht unbrauchbar. Die Statusleiste zeigt
+    // weiterhin, dass sie fehlen.
+    set({ anhaengeBereit: true });
+  }
+}
+
+/**
+ * Laedt hoch, was der Server noch nicht hat oder was sich geaendert hat. Muss **vor** dem
+ * Speichern des Modells laufen, sonst raeumt der Server Anhaenge weg, die er nicht kennt.
+ */
+async function anhaengeHochladen(projektId: string): Promise<void> {
+  const [{ items }, lokal] = await Promise.all([
+    filesApi.list(projektId),
+    aasWorker().listAttachments(),
+  ]);
+  const bekannt = new Map(items.map((datei) => [datei.path, datei.sha256]));
+
+  await inGruppen(lokal, async (info) => {
+    const anhang = await aasWorker().getAttachment(info.path);
+    if (anhang === null) return;
+    const summe = await sha256Hex(anhang.bytes);
+    if (bekannt.get(info.path) === summe) return;
+    await filesApi.upload(projektId, info.path, anhang.contentType, anhang.bytes);
+  });
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes as unknown as ArrayBuffer);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 function renameTo(fileName: string, format: string): string {

@@ -12,7 +12,8 @@
     "hell": "Hell",
     "dunkel": "Dunkel",
     "hilfe": "Tastaturwege",
-    "palette": "Kommando-Palette (Strg+K)"
+    "palette": "Kommando-Palette (Strg+K)",
+    "zurListe": "Zu den Projekten"
   },
   "status": {
     "knoten": "{{count}} Elemente",
@@ -24,7 +25,8 @@
     "wirdGelesen": "Wird gelesen ...",
     "constraints": "{{count}} Constraints",
     "warnungen": "{{count}} Warnungen",
-    "keineBefunde": "Keine Befunde"
+    "keineBefunde": "Keine Befunde",
+    "anhaengeLaden": "Anhaenge werden geladen ..."
   },
   "leer": {
     "titel": "Keine Umgebung geoeffnet",
@@ -198,5 +200,59 @@
     "umfang": "{{knoten}} Knoten, {{kanten}} Kanten",
     "dauer": "Layout {{ms}} ms",
     "allesZeigen": "Alle {{count}} zeigen"
+  },
+  "anmeldung": {
+    "hinweis": "Bitte anmelden, um an Projekten zu arbeiten.",
+    "benutzer": "Benutzername",
+    "passwort": "Passwort",
+    "anmelden": "Anmelden",
+    "laeuft": "Wird geprueft ...",
+    "abmelden": "Abmelden"
+  },
+  "projekte": {
+    "titel": "Projekte",
+    "neu": "Neues Projekt",
+    "neuTitel": "Neues Projekt",
+    "neuText": "Leer beginnen oder eine vorhandene Datei uebernehmen.",
+    "name": "Name",
+    "ausDatei": "Datei waehlen",
+    "ohneDatei": "Keine Datei gewaehlt",
+    "anlegen": "Anlegen",
+    "abbrechen": "Abbrechen",
+    "leerTitel": "Noch keine Projekte",
+    "leerText": "Ein neues Projekt anlegen oder eine AAS-Datei uebernehmen.",
+    "zeile": "{{knoten}} Elemente, Fassung {{revision}}, geaendert {{datum}}",
+    "mehr": "Mehr laden",
+    "loeschen": "Loeschen",
+    "loeschenTitel": "Projekt loeschen?",
+    "loeschenText": "\"{{name}}\" wird mit allen Versionen und Anhaengen geloescht. Das laesst sich nicht rueckgaengig machen."
+  },
+  "speichern": {
+    "ohneProjekt": "Als Projekt speichern",
+    "gespeichert": "Gespeichert",
+    "geaendert": "Speichern",
+    "speichert": "Speichert ...",
+    "konflikt": "Konflikt",
+    "fehler": "Erneut speichern"
+  },
+  "versionen": {
+    "knopf": "Versionen",
+    "titel": "Versionen",
+    "text": "Ein Schnappschuss haelt den ganzen Stand fest. Das Laden ersetzt den aktuellen Stand, gespeichert wird er erst danach.",
+    "labelPlatzhalter": "Beschreibung, freiwillig",
+    "anlegen": "Schnappschuss",
+    "leer": "Noch keine Version",
+    "ohneLabel": "Ohne Beschreibung",
+    "zeile": "{{datum}}, Fassung {{revision}}, {{knoten}} Elemente",
+    "laden": "Laden",
+    "schliessen": "Schliessen"
+  },
+  "konflikt": {
+    "titel": "Der Serverstand ist neuer",
+    "text": "Der eigene Stand baut auf Fassung {{eigene}} auf, auf dem Server steht Fassung {{server}}. Es wurde nichts ueberschrieben.",
+    "alsNeues": "Als neues Projekt speichern",
+    "ueberschreiben": "Serverstand ueberschreiben (mit Schnappschuss)",
+    "serverstand": "Serverstand laden, eigene Aenderungen verwerfen",
+    "versionLabel": "vor dem Ueberschreiben"
   }
 }

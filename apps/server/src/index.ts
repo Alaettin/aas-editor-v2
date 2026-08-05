@@ -1,27 +1,29 @@
-import Fastify from "fastify";
+import { fileURLToPath } from "node:url";
+import { buildServer } from "./app.js";
+import { readEnv } from "./env.js";
 
-const port = Number(process.env.PORT ?? 3200);
-const host = process.env.HOST ?? "0.0.0.0";
+/**
+ * Einstiegspunkt: Umgebung lesen, Server bauen, lauschen. Sonst nichts.
+ *
+ * Der Migrationsordner wird hier aufgeloest, weil nur diese Datei in beiden Faellen genau
+ * eine Ebene unter apps/server liegt: als src/index.ts im Entwicklungsbetrieb und als
+ * gebuendeltes dist/index.js im Container.
+ */
 
-export function buildServer() {
-  const app = Fastify({
-    logger: {
-      level: process.env.LOG_LEVEL ?? "info",
-    },
-  });
-
-  app.get("/api/health", async () => ({
-    status: "ok",
-    version: "0.1.0",
-    metamodel: "3.1",
-  }));
-
-  return app;
+// Die .env liegt im Wurzelverzeichnis des Repos. Im Container kommt die Umgebung aus
+// Compose, dort gibt es keine Datei und das ist kein Fehler.
+try {
+  process.loadEnvFile(fileURLToPath(new URL("../../../.env", import.meta.url)));
+} catch {
+  // absichtlich still
 }
 
-const app = buildServer();
+const env = readEnv();
+const migrationsFolder = fileURLToPath(new URL("../drizzle", import.meta.url));
 
-app.listen({ port, host }).catch((err: unknown) => {
+const { app } = await buildServer(env, migrationsFolder);
+
+app.listen({ port: env.port, host: env.host }).catch((err: unknown) => {
   app.log.error(err);
   process.exit(1);
 });

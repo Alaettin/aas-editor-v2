@@ -32,7 +32,13 @@ haelt nur fest, was beim Schreiben von Code taeglich greift.
 7. **Validierung kommt ausschliesslich aus `verification.verify()`.** Keine handgeschriebenen
    Metamodell-Regeln. Zusaetzliche Datenwarnungen (fehlender Anhang, doppelte `id`) sind klar als
    Warnung zu kennzeichnen, nicht als Constraint.
-8. **Kein Push ohne ausdrueckliche Ansage.**
+8. **Identifiables liegen in der Datenbank einzeln, eine Zeile je Shell, Submodel und
+   ConceptDescription**, adressierbar ueber ihre fachliche `id`. Kein Blob je Projekt: nur so
+   kann der Editor spaeter ein einzelnes Submodel nach IDTA-01002 ausliefern. Blob ist allein
+   der Versionsschnappschuss.
+9. **Anmeldelogik ausschliesslich in `apps/server/src/auth/provider.ts`.** Routen sehen nur
+   `requireAuth` und `app.auth`. Ein Wechsel auf OIDC darf keine Route anfassen muessen.
+10. **Kein Push ohne ausdrueckliche Ansage.**
 
 ## Stolperfallen der SDK
 

@@ -12,6 +12,7 @@ services:
       AUTH_PASSWORD: ${AUTH_PASSWORD}
       SESSION_SECRET: ${SESSION_SECRET}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-720}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
     volumes:
       # SQLite-Datei und Anhaenge, Backup ist ein Kopiervorgang dieses Volumes
       - aas-data:/data

@@ -14,7 +14,6 @@ import {
   importFile,
   type AasFormat,
   type Attachment,
-  type AttachmentMap,
 } from "@aas-editor/core/io";
 import { validate } from "@aas-editor/core/validation";
 
@@ -44,7 +43,9 @@ const ELK_KERN_URL = new URL("elkjs/lib/elk-worker.min.js", import.meta.url).hre
  */
 
 let model: EditorModel | null = null;
-let attachments: AttachmentMap = new Map();
+// Veraenderbar, seit die Serverablage einzelne Anhaenge nachreicht. Nach aussen bleibt es
+// eine AttachmentMap, also eine ReadonlyMap.
+let attachments: Map<string, Attachment> = new Map();
 let thumbnail: Attachment | null = null;
 
 function requireModel(): EditorModel {
@@ -56,7 +57,7 @@ const api: AasWorkerApi = {
   async open(bytes, fileName) {
     const result = await importFile(bytes, fileName);
     model = result.model;
-    attachments = result.attachments;
+    attachments = new Map(result.attachments);
     thumbnail = result.thumbnail;
 
     const openResult: OpenResult = {
@@ -151,6 +152,34 @@ const api: AasWorkerApi = {
       height: nodes.reduce((max, node) => Math.max(max, node.y + node.height), 0),
       durationMs: dauer,
     };
+  },
+
+  async listAttachments() {
+    return [...attachments.values()].map((a) => ({
+      path: a.path,
+      contentType: a.contentType,
+      size: a.bytes.length,
+    }));
+  },
+
+  async getAttachment(path: string) {
+    const found = attachments.get(path);
+    if (!found) return null;
+    // Eine Kopie, nicht das Original: der uebertragene Puffer wird auf dieser Seite
+    // sonst geleert und der Anhang waere beim naechsten Export weg.
+    const bytes = found.bytes.slice();
+    return Comlink.transfer(
+      { path: found.path, contentType: found.contentType, bytes },
+      [bytes.buffer as ArrayBuffer],
+    );
+  },
+
+  async putAttachment(path: string, contentType: string, bytes: Uint8Array) {
+    attachments.set(path, { path, contentType, bytes });
+  },
+
+  async removeAttachment(path: string) {
+    attachments.delete(path);
   },
 
   async nodeCount() {

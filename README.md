@@ -4,7 +4,29 @@ Web-basierter Editor fuer Asset Administration Shells (AAS) auf Basis der TypeSc
 aas-core-works. Import aus JSON, XML und AASX in Metamodell 3.0 und 3.1, Export immer in 3.1,
 Validierung gegen die aas-core-Constraints, alles clientseitig im Web Worker.
 
-Stand: Phase 0 bis 2 (Geruest, Kern-Datenmodell, Import und Export). Die Oberflaeche folgt.
+Stand: Phase 0 bis 7. Oberflaeche mit Baum, Formular, Tabelle und Graph, Live-Validierung,
+dazu Anmeldung und Projekte auf dem Server samt Versionen und Anhaengen.
+
+## Anmeldung und Projekte
+
+Ein einzelner Benutzer, Zugangsdaten in der `.env` (`AUTH_USERNAME`, `AUTH_PASSWORD`,
+`SESSION_SECRET`). Keine Benutzertabelle, keine Registrierung: das ist ein Platzhalter hinter
+dem `AuthProvider`-Interface in `apps/server/src/auth/provider.ts` und wird spaeter ausgetauscht,
+ohne dass eine Route sich aendert.
+
+Nach der Anmeldung fuehrt `/projekte` die gespeicherten Staende. Ein Projekt entsteht leer oder
+aus einer vorhandenen Datei. Gespeichert wird ueber die Kopfleiste; laeuft dabei ein zweiter Tab
+mit, meldet der Server einen Konflikt statt zu ueberschreiben. Der Versionsverlauf legt
+komprimierte Schnappschuesse an und holt sie zurueck.
+
+Identifiables liegen einzeln in der Datenbank, adressierbar ueber ihre base64url-kodierte `id`:
+
+```bash
+curl --cookie "aas_sitzung=..." \
+  http://localhost:3200/api/projects/<projektId>/submodels/<kodierte-id>
+```
+
+Das ist die Vorbereitung auf die Ausbaustufe "Submodel Repository" nach IDTA-01002.
 
 ## Voraussetzungen
 

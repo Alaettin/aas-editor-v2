@@ -16,6 +16,12 @@ export interface AttachmentInfo {
   readonly size: number;
 }
 
+export interface AttachmentBytes {
+  readonly path: string;
+  readonly contentType: string;
+  readonly bytes: Uint8Array;
+}
+
 export interface OpenResult {
   readonly model: EditorModel;
   readonly format: AasFormat;
@@ -45,6 +51,18 @@ export interface AasWorkerApi {
   applyPatches(patches: readonly Patch[]): Promise<void>;
   validate(): Promise<readonly ValidationIssue[]>;
   exportAs(format: AasFormat): Promise<ExportedFile>;
+
+  /**
+   * Zugang zu den Anhangs-Bytes, die sonst ausschliesslich hier liegen.
+   *
+   * Gebraucht fuer die Serverablage: beim Speichern werden sie einzeln geholt und
+   * hochgeladen, beim Laden einzeln zurueckgelegt. Sie wandern bewusst nicht als Ganzes
+   * ueber die Bruecke, eine AASX kann zweistellig viele Megabyte tragen.
+   */
+  listAttachments(): Promise<readonly AttachmentInfo[]>;
+  getAttachment(path: string): Promise<AttachmentBytes | null>;
+  putAttachment(path: string, contentType: string, bytes: Uint8Array): Promise<void>;
+  removeAttachment(path: string): Promise<void>;
 
   /**
    * Berechnet das Graph-Layout. elkjs (456 KB gzip) wird dabei erst geladen, wenn der
