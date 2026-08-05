@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "leistung": "vitest run test/leistung.test.ts --reporter=verbose"
   },
   "dependencies": {
     "@aas-editor/core": "workspace:*",
