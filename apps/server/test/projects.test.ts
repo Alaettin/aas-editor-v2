@@ -58,8 +58,9 @@ describe("Projekte", () => {
       url: `/api/projects/${projekt.id}`,
       headers: { cookie: server.cookie },
     });
-    const environmentZurueck = gelesen.json<{ environment: Record<string, { idShort: string }[]> }>()
-      .environment;
+    const environmentZurueck = gelesen.json<{
+      environment: Record<string, { idShort: string }[]>;
+    }>().environment;
     expect(environmentZurueck["submodels"]![0]!.idShort).toBe("TypenschildNeu");
   });
 
@@ -132,5 +133,38 @@ describe("Projekte", () => {
       headers: { cookie: server.cookie },
     });
     expect(submodels.statusCode).toBe(404);
+  });
+
+  it("traegt auch mehr Teilmodelle, als SQLite Variablen bindet", async () => {
+    // SQLite bindet je Anweisung hoechstens 32.766 Werte. Bei sechs Spalten je Zeile
+    // reisst ein einziges `values([...])` ab rund 5.400 Teilmodellen. Achttausend liegen
+    // sicher darueber, und genau davor schuetzt die Aufteilung in Bloecke.
+    const environment = {
+      assetAdministrationShells: [],
+      submodels: Array.from({ length: 8000 }, (_, i) => ({
+        id: `https://beispiel.de/sm/${String(i)}`,
+        idShort: `Teilmodell${String(i)}`,
+        modelType: "Submodel",
+      })),
+      conceptDescriptions: [],
+    };
+
+    const angelegt = await server.app.inject({
+      method: "POST",
+      url: "/api/projects",
+      headers: { cookie: server.cookie },
+      payload: { name: "Viele Teilmodelle", environment, nodeCount: 8001 },
+    });
+    expect(angelegt.statusCode).toBe(201);
+    const id = angelegt.json<{ project: { id: string } }>().project.id;
+
+    const gelesen = await server.app.inject({
+      method: "GET",
+      url: `/api/projects/${id}`,
+      headers: { cookie: server.cookie },
+    });
+    expect(gelesen.statusCode).toBe(200);
+    const zurueck = gelesen.json<{ environment: { submodels: unknown[] } }>().environment;
+    expect(zurueck.submodels).toHaveLength(8000);
   });
 });

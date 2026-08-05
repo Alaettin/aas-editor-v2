@@ -8,11 +8,11 @@ export function versionRoutes(app: FastifyInstance, db: Db): void {
   app.register((scope, _opts, done) => {
     scope.addHook("preHandler", app.requireAuth);
 
-    scope.post("/api/projects/:id/versions", (req, reply) => {
+    scope.post("/api/projects/:id/versions", async (req, reply) => {
       const { id } = req.params as { id: string };
       const body = (req.body ?? {}) as { label?: unknown };
       getProject(db, id);
-      const version = createVersion(db, id, {
+      const version = await createVersion(db, id, {
         label: typeof body.label === "string" && body.label !== "" ? body.label : null,
       });
       void reply.code(201);
@@ -26,9 +26,9 @@ export function versionRoutes(app: FastifyInstance, db: Db): void {
       return listVersions(db, id, page);
     });
 
-    scope.get("/api/projects/:id/versions/:versionId", (req) => {
+    scope.get("/api/projects/:id/versions/:versionId", async (req) => {
       const { id, versionId } = req.params as { id: string; versionId: string };
-      return readVersion(db, id, versionId);
+      return await readVersion(db, id, versionId);
     });
 
     done();

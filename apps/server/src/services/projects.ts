@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray, lt, notInArray, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, or } from "drizzle-orm";
 import type { Db, Tx } from "../db/client.js";
 import {
   conceptDescriptions,
@@ -76,7 +76,10 @@ export function listProjects(db: Db, page: PageQuery): Page<ProjectSummary> {
     .limit(page.limit + 1)
     .all();
 
-  return toPage(rows.map(toSummary), page.limit, (row): Cursor => ({ k: row.createdAt, i: row.id }));
+  return toPage(rows.map(toSummary), page.limit, (row): Cursor => ({
+    k: row.createdAt,
+    i: row.id,
+  }));
 }
 
 export function getProject(db: Db, id: string): ProjectRow {
@@ -182,19 +185,15 @@ export function saveProject(
 
     // Anhaenge nicht loeschen, nur als unreferenziert markieren: sonst verliert eine
     // aeltere Version ihre Bytes.
+    // Erst alles auf unreferenziert, dann die tatsaechlich verwendeten Pfade wieder
+    // hoch. Ein `notInArray` ueber tausende Pfade waere dieselbe Variablengrenze wie
+    // oben, und der Umweg ueber zwei Anweisungen kommt ohne aus.
     const paths = [...referenced];
-    tx.update(files)
-      .set({ referenced: false })
-      .where(
-        paths.length === 0
-          ? eq(files.projectId, id)
-          : and(eq(files.projectId, id), notInArray(files.path, paths)),
-      )
-      .run();
-    if (paths.length > 0) {
+    tx.update(files).set({ referenced: false }).where(eq(files.projectId, id)).run();
+    for (const block of inBloecken(paths)) {
       tx.update(files)
         .set({ referenced: true })
-        .where(and(eq(files.projectId, id), inArray(files.path, paths)))
+        .where(and(eq(files.projectId, id), inArray(files.path, block)))
         .run();
     }
   });
@@ -236,9 +235,24 @@ function insertIdentifiables(
     typeof shells,
   ][]) {
     const rows = split.rows[slot];
-    if (rows.length === 0) continue;
-    tx.insert(table)
-      .values(rows.map((row) => ({ ...row, projectId, updatedAt: now })))
-      .run();
+    for (const block of inBloecken(rows)) {
+      tx.insert(table)
+        .values(block.map((row) => ({ ...row, projectId, updatedAt: now })))
+        .run();
+    }
   }
+}
+
+/**
+ * SQLite bindet je Anweisung hoechstens `SQLITE_MAX_VARIABLE_NUMBER` Werte, vorgabemaessig
+ * 32.766. Bei sechs Spalten je Zeile reisst ein Modell mit einigen tausend Teilmodellen
+ * das in einer einzigen `values([...])`-Anweisung. Zweihundert Zeilen je Block liegen
+ * weit darunter und kosten gegenueber einem Rundumschlag nichts messbares.
+ */
+const BLOCK = 200;
+
+function inBloecken<T>(werte: readonly T[]): T[][] {
+  const bloecke: T[][] = [];
+  for (let i = 0; i < werte.length; i += BLOCK) bloecke.push(werte.slice(i, i + BLOCK));
+  return bloecke;
 }

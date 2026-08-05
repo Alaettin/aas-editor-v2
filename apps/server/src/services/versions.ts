@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { gunzipSync, gzipSync } from "node:zlib";
+import { promisify } from "node:util";
+import { gunzip, gzip } from "node:zlib";
 import { and, desc, eq, lt, or } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { projectVersions } from "../db/schema.js";
@@ -12,7 +13,14 @@ import { toPage, type Cursor, type Page, type PageQuery } from "./pagination.js"
  * Versionen sind vollstaendige, komprimierte Schnappschuesse der ganzen Umgebung. Das ist
  * der eine Ort, an dem ein Blob richtig ist (Plan Abschnitt 9): eine Version wird nie
  * teilweise gelesen, nur ganz wiederhergestellt.
+ *
+ * Gepackt wird **nicht** synchron. Der Schnappschuss eines Modells mit zehntausend
+ * Elementen ist ein gutes Megabyte, und `gzipSync` haelt dafuer den Ereignisfaden an:
+ * solange niemand sonst bedient wird. Die asynchrone Fassung laeuft im Threadpool.
  */
+
+const packe = promisify(gzip);
+const entpacke = promisify(gunzip);
 
 export interface VersionSummary {
   readonly id: string;
@@ -26,14 +34,14 @@ export interface VersionSummary {
   readonly createdAt: number;
 }
 
-export function createVersion(
+export async function createVersion(
   db: Db,
   projectId: string,
   options: { label?: string | null; reason?: string } = {},
-): VersionSummary {
+): Promise<VersionSummary> {
   const project = getProject(db, projectId);
   const environment = readEnvironment(db, projectId);
-  const snapshot = gzipSync(Buffer.from(JSON.stringify(environment), "utf8"));
+  const snapshot = await packe(Buffer.from(JSON.stringify(environment), "utf8"));
 
   const row = {
     id: randomUUID(),
@@ -85,11 +93,11 @@ export function listVersions(db: Db, projectId: string, page: PageQuery): Page<V
   return toPage(rows, page.limit, (row): Cursor => ({ k: row.createdAt, i: row.id }));
 }
 
-export function readVersion(
+export async function readVersion(
   db: Db,
   projectId: string,
   versionId: string,
-): { version: VersionSummary; environment: Json } {
+): Promise<{ version: VersionSummary; environment: Json }> {
   const row = db
     .select()
     .from(projectVersions)
@@ -97,7 +105,7 @@ export function readVersion(
     .get();
   if (row === undefined) throw notFound("Version nicht gefunden.");
 
-  const environment = JSON.parse(gunzipSync(row.snapshot).toString("utf8")) as Json;
+  const environment = JSON.parse((await entpacke(row.snapshot)).toString("utf8")) as Json;
   return { version: toSummary(row), environment };
 }
 
