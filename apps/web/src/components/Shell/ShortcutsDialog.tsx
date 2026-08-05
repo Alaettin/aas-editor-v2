@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { KbdHint } from "@/components/ui/kbd";
 import { SectionLabel } from "@/components/ui/section-label";
-import { BEREICHE, TASTENWEGE } from "@/lib/shortcuts";
+import { BEREICHE, TASTENWEGE, tastenFuer } from "@/lib/shortcuts";
 
 /**
  * Tastaturwege, an einer Stelle nachlesbar.
@@ -41,7 +41,7 @@ export function ShortcutsDialog({
               <SectionLabel>{t(gruppe.titel)}</SectionLabel>
               {TASTENWEGE.filter((weg) => weg.bereich === gruppe.bereich).map((weg) => (
                 <div key={weg.wirkung} className="flex items-baseline gap-3 text-sm">
-                  <KbdHint className="shrink-0">{weg.tasten}</KbdHint>
+                  <KbdHint className="shrink-0">{tastenFuer(weg.wirkung)}</KbdHint>
                   <span className="text-muted-foreground">{t(weg.wirkung)}</span>
                 </div>
               ))}

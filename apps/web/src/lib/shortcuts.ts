@@ -1,3 +1,5 @@
+import i18n from "@/i18n";
+
 /**
  * Die Tastenwege, an genau einer Stelle.
  *
@@ -10,55 +12,88 @@
  * dort, wo sie hingehoeren: die globalen in `AppShell`, die des Baums in `Tree`, die der
  * Felder im jeweiligen Editor. Eine zentrale Ausloesung waere eine zweite Wahrheit ueber
  * den Zustand und damit genau das Problem, das hier behoben wird.
+ *
+ * Die Tasten stehen als **Marken**, nicht als fertiger Text: "Strg" heisst auf Englisch
+ * "Ctrl", "Entf" heisst "Del", und "Hoch" heisst "Up". Ein englischer Nutzer, der im
+ * Hilfe-Dialog "Strg+Entf" liest, sucht auf seiner Tastatur vergeblich.
  */
 
 export type Bereich = "allgemein" | "baum" | "tabelle" | "formular";
 
+/**
+ * Eine Tastenfolge als Marken, etwa `["strg", "shift", "z"]`.
+ *
+ * Einzelne Buchstaben und Ziffern bleiben, wie sie sind: die Taste `Z` heisst in jeder
+ * Sprache `Z`. Alles andere wird ueber `taste.*` uebersetzt.
+ */
+export type Folge = readonly string[];
+
 export interface Tastenweg {
-  /** Wie die Tasten dem Nutzer gezeigt werden, etwa "Strg+S". */
-  readonly tasten: string;
-  /** Schluessel der Beschreibung in de.json */
+  /** Alle Wege zur selben Wirkung. Der erste ist der, den Menues zeigen. */
+  readonly folgen: readonly Folge[];
+  /** Schluessel der Beschreibung in den Sprachdateien */
   readonly wirkung: string;
   readonly bereich: Bereich;
 }
 
 export const TASTENWEGE: readonly Tastenweg[] = [
-  { tasten: "Strg+K", wirkung: "hilfe.palette", bereich: "allgemein" },
-  { tasten: "Strg+J", wirkung: "hilfe.assistent", bereich: "allgemein" },
-  { tasten: "Strg+S", wirkung: "hilfe.speichern", bereich: "allgemein" },
-  { tasten: "Strg+Z", wirkung: "hilfe.rueckgaengig", bereich: "allgemein" },
-  { tasten: "Strg+Y, Strg+Shift+Z", wirkung: "hilfe.wiederholen", bereich: "allgemein" },
+  { folgen: [["strg", "K"]], wirkung: "hilfe.palette", bereich: "allgemein" },
+  { folgen: [["strg", "J"]], wirkung: "hilfe.assistent", bereich: "allgemein" },
+  { folgen: [["strg", "S"]], wirkung: "hilfe.speichern", bereich: "allgemein" },
+  { folgen: [["strg", "Z"]], wirkung: "hilfe.rueckgaengig", bereich: "allgemein" },
+  {
+    folgen: [
+      ["strg", "Y"],
+      ["strg", "shift", "Z"],
+    ],
+    wirkung: "hilfe.wiederholen",
+    bereich: "allgemein",
+  },
 
-  { tasten: "Hoch, Runter", wirkung: "hilfe.bewegen", bereich: "baum" },
-  { tasten: "Rechts", wirkung: "hilfe.aufklappen", bereich: "baum" },
-  { tasten: "Links", wirkung: "hilfe.zuklappen", bereich: "baum" },
-  { tasten: "Pos1, Ende", wirkung: "hilfe.anfangEnde", bereich: "baum" },
-  { tasten: "Entf", wirkung: "hilfe.loeschen", bereich: "baum" },
-  { tasten: "Strg+D", wirkung: "hilfe.duplizieren", bereich: "baum" },
-  { tasten: "Strg+C", wirkung: "hilfe.kopieren", bereich: "baum" },
-  { tasten: "Strg+X", wirkung: "hilfe.ausschneiden", bereich: "baum" },
-  { tasten: "Strg+V", wirkung: "hilfe.einfuegen", bereich: "baum" },
-  { tasten: "F2, Enter", wirkung: "hilfe.idShort", bereich: "baum" },
-  { tasten: "Esc", wirkung: "hilfe.filterLeeren", bereich: "baum" },
+  { folgen: [["hoch"], ["runter"]], wirkung: "hilfe.bewegen", bereich: "baum" },
+  { folgen: [["rechts"]], wirkung: "hilfe.aufklappen", bereich: "baum" },
+  { folgen: [["links"]], wirkung: "hilfe.zuklappen", bereich: "baum" },
+  { folgen: [["pos1"], ["ende"]], wirkung: "hilfe.anfangEnde", bereich: "baum" },
+  { folgen: [["entf"]], wirkung: "hilfe.loeschen", bereich: "baum" },
+  { folgen: [["strg", "D"]], wirkung: "hilfe.duplizieren", bereich: "baum" },
+  { folgen: [["strg", "C"]], wirkung: "hilfe.kopieren", bereich: "baum" },
+  { folgen: [["strg", "X"]], wirkung: "hilfe.ausschneiden", bereich: "baum" },
+  { folgen: [["strg", "V"]], wirkung: "hilfe.einfuegen", bereich: "baum" },
+  { folgen: [["f2"], ["enter"]], wirkung: "hilfe.idShort", bereich: "baum" },
+  { folgen: [["esc"]], wirkung: "hilfe.filterLeeren", bereich: "baum" },
 
-  { tasten: "Hoch, Runter", wirkung: "hilfe.zeileWechseln", bereich: "tabelle" },
-  { tasten: "Enter", wirkung: "hilfe.zumFormular", bereich: "tabelle" },
+  { folgen: [["hoch"], ["runter"]], wirkung: "hilfe.zeileWechseln", bereich: "tabelle" },
+  { folgen: [["enter"]], wirkung: "hilfe.zumFormular", bereich: "tabelle" },
 
-  { tasten: "Enter", wirkung: "hilfe.feldUebernehmen", bereich: "formular" },
-  { tasten: "Esc", wirkung: "hilfe.feldVerwerfen", bereich: "formular" },
+  { folgen: [["enter"]], wirkung: "hilfe.feldUebernehmen", bereich: "formular" },
+  { folgen: [["esc"]], wirkung: "hilfe.feldVerwerfen", bereich: "formular" },
 ];
 
-/** Die Tasten eines Weges, fuer die Anzeige im Menue oder an einem Knopf. */
+/** Eine einzelne Marke in Worten. Buchstaben und Ziffern bleiben unveraendert. */
+function marke(name: string): string {
+  if (name.length === 1) return name;
+  return i18n.t(`taste.${name}`);
+}
+
+/** Eine Folge als Text, etwa "Strg+Shift+Z" oder "Ctrl+Shift+Z". */
+export function folgeAlsText(folge: Folge): string {
+  return folge.map(marke).join("+");
+}
+
+/** Alle Wege zu einer Wirkung, durch Komma getrennt. Fuer den Hilfe-Dialog. */
 export function tastenFuer(wirkung: string): string {
-  return TASTENWEGE.find((weg) => weg.wirkung === wirkung)?.tasten ?? "";
+  const weg = TASTENWEGE.find((eintrag) => eintrag.wirkung === wirkung);
+  return weg ? weg.folgen.map(folgeAlsText).join(", ") : "";
 }
 
 /**
- * Die **erste** Tastenfolge eines Weges. Menues und Knopfhinweise haben nur Platz fuer
- * eine; im Hilfe-Dialog stehen alle.
+ * Der **erste** Weg zu einer Wirkung. Menues und Knopfhinweise haben nur Platz fuer einen;
+ * im Hilfe-Dialog stehen alle.
  */
 export function ersteTasteFuer(wirkung: string): string {
-  return tastenFuer(wirkung).split(",")[0]?.trim() ?? "";
+  const weg = TASTENWEGE.find((eintrag) => eintrag.wirkung === wirkung);
+  const erste = weg?.folgen[0];
+  return erste ? folgeAlsText(erste) : "";
 }
 
 export const BEREICHE: readonly { bereich: Bereich; titel: string }[] = [

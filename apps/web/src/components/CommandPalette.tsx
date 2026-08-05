@@ -86,6 +86,16 @@ export function CommandPalette() {
     };
   }, []);
 
+  /**
+   * Suchbegriffe je Befehl, in der aktiven Sprache.
+   *
+   * cmdk sucht im `value`, nicht in der Beschriftung. Standen dort weiter die deutschen
+   * Stichwoerter, faende ein englischer Nutzer mit "undo" nichts, obwohl "Undo" im Bild
+   * steht.
+   */
+  const stichwort = (...gruppen: string[]) =>
+    gruppen.map((gruppe) => t(`palette.stichwort.${gruppe}`)).join(" ");
+
   const treffer = useMemo(() => {
     if (!model || query.trim() === "") return [];
     return search(model, query, 30);
@@ -145,7 +155,7 @@ export function CommandPalette() {
 
           <CommandGroup heading={t("palette.sichten")}>
             <CommandItem
-              value="sicht formular eigenschaften"
+              value={stichwort("sicht", "formular")}
               disabled={!model}
               onSelect={() => ausfuehren(() => setView("formular"))}
             >
@@ -153,7 +163,7 @@ export function CommandPalette() {
               {t("palette.zuFormular")}
             </CommandItem>
             <CommandItem
-              value="sicht tabelle"
+              value={stichwort("sicht", "tabelle")}
               disabled={!model}
               onSelect={() => ausfuehren(() => setView("tabelle"))}
             >
@@ -161,7 +171,7 @@ export function CommandPalette() {
               {t("palette.zuTabelle")}
             </CommandItem>
             <CommandItem
-              value="sicht graph beziehungen"
+              value={stichwort("sicht", "graph")}
               disabled={!model}
               onSelect={() => ausfuehren(() => setView("graph"))}
             >
@@ -174,7 +184,7 @@ export function CommandPalette() {
 
           <CommandGroup heading={t("palette.befehle")}>
             <CommandItem
-              value="datei oeffnen"
+              value={stichwort("oeffnen")}
               onSelect={() =>
                 ausfuehren(() =>
                   document.querySelector<HTMLInputElement>('input[type="file"]')?.click(),
@@ -188,7 +198,7 @@ export function CommandPalette() {
             {(["json", "xml", "aasx"] as const).map((format) => (
               <CommandItem
                 key={format}
-                value={`export ${format}`}
+                value={`${stichwort("export")} ${format}`}
                 disabled={!model}
                 onSelect={() => ausfuehren(() => void exportAs(format))}
               >
@@ -197,19 +207,19 @@ export function CommandPalette() {
               </CommandItem>
             ))}
 
-            <CommandItem value="rueckgaengig" onSelect={() => ausfuehren(undo)}>
+            <CommandItem value={stichwort("rueckgaengig")} onSelect={() => ausfuehren(undo)}>
               <Undo2 />
               {t("app.rueckgaengig")}
               <CommandShortcut>{ersteTasteFuer("hilfe.rueckgaengig")}</CommandShortcut>
             </CommandItem>
-            <CommandItem value="wiederholen" onSelect={() => ausfuehren(redo)}>
+            <CommandItem value={stichwort("wiederholen")} onSelect={() => ausfuehren(redo)}>
               <Redo2 />
               {t("app.wiederholen")}
               <CommandShortcut>{ersteTasteFuer("hilfe.wiederholen")}</CommandShortcut>
             </CommandItem>
 
             <CommandItem
-              value="befunde panel"
+              value={stichwort("befunde")}
               onSelect={() => ausfuehren(() => setIssuePanelOpen(!issuePanelOpen))}
             >
               <ShieldAlert />
@@ -217,7 +227,7 @@ export function CommandPalette() {
             </CommandItem>
 
             <CommandItem
-              value="darstellung hell dunkel"
+              value={stichwort("darstellung")}
               onSelect={() => ausfuehren(() => setTheme(theme === "dark" ? "light" : "dark"))}
             >
               {theme === "dark" ? <Sun /> : <Moon />}
@@ -225,7 +235,7 @@ export function CommandPalette() {
             </CommandItem>
 
             <CommandItem
-              value="dichte"
+              value={stichwort("dichte")}
               onSelect={() => ausfuehren(() => setDensity(density === "cozy" ? "compact" : "cozy"))}
             >
               {density === "cozy" ? <Rows3 /> : <Rows2 />}
@@ -233,7 +243,7 @@ export function CommandPalette() {
             </CommandItem>
 
             <CommandItem
-              value="sprache language deutsch english"
+              value={stichwort("sprache")}
               onSelect={() => ausfuehren(() => setLanguage(language === "de" ? "en" : "de"))}
             >
               <Languages />

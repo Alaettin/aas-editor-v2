@@ -235,7 +235,21 @@
     "sichten": "Sichten",
     "zuFormular": "Zum Formular wechseln",
     "zuTabelle": "Zur Tabelle wechseln",
-    "zuGraph": "Zum Graphen wechseln"
+    "zuGraph": "Zum Graphen wechseln",
+    "stichwort": {
+      "sicht": "Sicht Ansicht",
+      "formular": "Formular Eigenschaften Felder",
+      "tabelle": "Tabelle Liste",
+      "graph": "Graph Beziehungen Karte",
+      "oeffnen": "Datei öffnen laden importieren",
+      "export": "Export exportieren speichern als",
+      "rueckgaengig": "rückgängig zurück",
+      "wiederholen": "wiederholen vorwärts",
+      "befunde": "Befunde Panel Fehler Warnungen",
+      "darstellung": "Darstellung hell dunkel Thema",
+      "dichte": "Dichte kompakt komfortabel",
+      "sprache": "Sprache Deutsch Englisch"
+    }
   },
   "einfuegen": {
     "titel": "Einfügen: bereits vergebene id",
@@ -508,5 +522,20 @@
     "operationVariableKeinObjekt": "{{kind}}: OperationVariable[{{index}}] ist kein Objekt.",
     "operationVariableOhneValue": "{{kind}}: OperationVariable[{{index}}] hat kein value.",
     "nichtZurueckwandelbar": "Das Modell lässt sich nicht in ein Environment zurückwandeln: {{grund}} bei {{pfad}}"
+  },
+  "taste": {
+    "strg": "Strg",
+    "shift": "Umschalt",
+    "alt": "Alt",
+    "entf": "Entf",
+    "pos1": "Pos1",
+    "ende": "Ende",
+    "hoch": "Hoch",
+    "runter": "Runter",
+    "links": "Links",
+    "rechts": "Rechts",
+    "enter": "Enter",
+    "esc": "Esc",
+    "f2": "F2"
   }
 }

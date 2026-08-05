@@ -235,7 +235,21 @@
     "sichten": "Views",
     "zuFormular": "Switch to the form",
     "zuTabelle": "Switch to the table",
-    "zuGraph": "Switch to the graph"
+    "zuGraph": "Switch to the graph",
+    "stichwort": {
+      "sicht": "view",
+      "formular": "form properties fields",
+      "tabelle": "table list",
+      "graph": "graph relations map",
+      "oeffnen": "file open load import",
+      "export": "export save as",
+      "rueckgaengig": "undo back",
+      "wiederholen": "redo forward",
+      "befunde": "findings panel errors warnings",
+      "darstellung": "appearance light dark theme",
+      "dichte": "density compact comfortable",
+      "sprache": "language german english deutsch"
+    }
   },
   "einfuegen": {
     "titel": "Paste: id already in use",
@@ -508,5 +522,20 @@
     "operationVariableKeinObjekt": "{{kind}}: OperationVariable[{{index}}] is not an object.",
     "operationVariableOhneValue": "{{kind}}: OperationVariable[{{index}}] has no value.",
     "nichtZurueckwandelbar": "The model cannot be converted back into an Environment: {{grund}} at {{pfad}}"
+  },
+  "taste": {
+    "strg": "Ctrl",
+    "shift": "Shift",
+    "alt": "Alt",
+    "entf": "Del",
+    "pos1": "Home",
+    "ende": "End",
+    "hoch": "Up",
+    "runter": "Down",
+    "links": "Left",
+    "rechts": "Right",
+    "enter": "Enter",
+    "esc": "Esc",
+    "f2": "F2"
   }
 }

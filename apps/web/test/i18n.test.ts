@@ -274,6 +274,10 @@ const BAUSTEINE = [
   "modell.",
   // Servercodes: der Klient setzt sie ueber `fehler.server.${code}` zusammen.
   "fehler.server.",
+  // Tastenmarken: `shortcuts.ts` setzt sie ueber `taste.${marke}` zusammen.
+  "taste.",
+  // Suchbegriffe der Palette, ueber `palette.stichwort.${gruppe}` zusammengesetzt.
+  "palette.stichwort.",
   // Die Beschriftung des Speichern-Knopfes folgt dem Serverzustand, siehe Toolbar.
   "speichern.",
 ];
