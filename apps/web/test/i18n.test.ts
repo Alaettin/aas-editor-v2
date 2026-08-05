@@ -83,7 +83,117 @@ describe("Uebersetzungen", () => {
 
     expect(unbenutzt.sort()).toEqual([]);
   });
+
+  it("schreibt Deutsch mit echten Umlauten", () => {
+    // Bis Phase 9 stand ueberall die ASCII-Umschrift: "Oeffnen", "Rueckgaengig", "liess".
+    // Beim Bauen war das bequem, im fertigen Programm ist es schlicht falsch.
+    //
+    // Geprueft wird gegen eine **Liste**, nicht gegen ein Muster. Ein Muster auf "ue"
+    // schluege bei "Neues", "value" und "Passwort" an, und eine Regel, die staendig
+    // falschen Alarm gibt, wird abgeschaltet statt befolgt.
+    const treffer: string[] = [];
+
+    const suche = (knoten: unknown, pfad: string): void => {
+      if (typeof knoten === "string") {
+        for (const falsch of UMSCHRIFT) {
+          if (knoten.includes(falsch)) treffer.push(`${pfad}: "${falsch}" in "${knoten}"`);
+        }
+        return;
+      }
+      if (typeof knoten !== "object" || knoten === null) return;
+      for (const [name, wert] of Object.entries(knoten as Record<string, unknown>)) {
+        suche(wert, pfad === "" ? name : `${pfad}.${name}`);
+      }
+    };
+
+    suche(de, "");
+    expect(treffer.sort()).toEqual([]);
+  });
 });
+
+/**
+ * Umschriften, die in der deutschen Fassung nichts mehr zu suchen haben.
+ *
+ * Bewusst Wortstaemme und keine Buchstabenpaare: `value`, `Neues`, `Passwort`,
+ * `Schnappschuss` und `fokussieren` sind richtig geschrieben und duerfen nicht anschlagen.
+ * Wer einen Text ergaenzt und einen Stamm vermisst, traegt ihn hier nach.
+ */
+const UMSCHRIFT = [
+  "ueber",
+  "Ueber",
+  "fuer",
+  "Fuer",
+  "koennen",
+  "moeglich",
+  "oeffn",
+  "Oeffn",
+  "geoeffnet",
+  "loesch",
+  "Loesch",
+  "geloescht",
+  "Geloescht",
+  "waehl",
+  "Waehl",
+  "gewaehlt",
+  "zaehl",
+  "anhaeng",
+  "Anhaeng",
+  "aenderung",
+  "Aenderung",
+  "geaendert",
+  "zulaessig",
+  "vollstaendig",
+  "Behaelter",
+  "eintraege",
+  "Eintraege",
+  "naechste",
+  "spaeter",
+  "erklaer",
+  "auspraeg",
+  "Auspraeg",
+  "laesst",
+  "liess",
+  "laeuft",
+  "haelt",
+  "faellt",
+  "traegt",
+  "schlaegt",
+  "waere",
+  "ergaenz",
+  "erfuellt",
+  "gefuellt",
+  "gueltig",
+  "muessen",
+  "pruef",
+  "Pruef",
+  "geprueft",
+  "einfueg",
+  "Einfueg",
+  "eingefuegt",
+  "hinzufueg",
+  "Hinzufueg",
+  "ausfuehren",
+  "durchfuehren",
+  "schluessel",
+  "Schluessel",
+  "menuezeile",
+  "Menuezeile",
+  "oberflaeche",
+  "Oberflaeche",
+  "hoechstens",
+  "groesse",
+  "Groesse",
+  "regelmaessig",
+  "Regelmaessig",
+  "schliess",
+  "Schliess",
+  "heisst",
+  "ausloest",
+  "rueckgaengig",
+  "Rueckgaengig",
+  "rueckfrage",
+  "Rueckfrage",
+];
 
 /**
  * Schluessel, die nur ueber ein Praefix zusammengesetzt werden. Sie stehen nie als
