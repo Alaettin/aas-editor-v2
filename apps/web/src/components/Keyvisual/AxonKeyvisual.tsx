@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 
 import { readCssVars } from "@/lib/readCssVars";
 import { useMediaQuery } from "@/lib/useMediaQuery";
-import { neuerLauf, PALETTEN_NAMEN, zeichneBild, type Palette } from "./draw";
-import { baueSchienen, baueStroeme, STANDBILD_ZEIT } from "./geometry";
+import { baueHalo, neuerLauf, PALETTEN_NAMEN, zeichneBild, type Palette } from "./draw";
+import { ansichtFuer, baueSchienen, baueStroeme, STANDBILD_ZEIT } from "./geometry";
 
 /**
  * Das AXON-Keyvisual als Animation.
@@ -19,9 +19,15 @@ import { baueSchienen, baueStroeme, STANDBILD_ZEIT } from "./geometry";
 interface Props {
   readonly tempo?: number;
   readonly spurenzahl?: number;
+  /**
+   * Die Anmeldekarte. Erreicht ein Datenpaket das Ende einer Schiene, schreibt das
+   * Keyvisual dort `--axon-blitz`. Bewusst eine CSS-Variable und kein Zustand: sonst
+   * renderte React im Takt der Animation.
+   */
+  readonly kartenRef?: RefObject<HTMLElement | null>;
 }
 
-export function AxonKeyvisual({ tempo = 1, spurenzahl = 15 }: Props) {
+export function AxonKeyvisual({ tempo = 1, spurenzahl = 15, kartenRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stroeme = useMemo(() => baueStroeme(spurenzahl), [spurenzahl]);
   const schienen = useMemo(() => baueSchienen(), []);
@@ -36,6 +42,7 @@ export function AxonKeyvisual({ tempo = 1, spurenzahl = 15 }: Props) {
     if (!ctx) return;
 
     const palette = readCssVars(canvas, PALETTEN_NAMEN) as Palette;
+    const halo = baueHalo(palette);
 
     /*
      * Der gesamte Laufzustand liegt in dieser Closure, nicht in Refs. Refs ueberleben den
@@ -43,32 +50,47 @@ export function AxonKeyvisual({ tempo = 1, spurenzahl = 15 }: Props) {
      */
     let aktiv = true;
     let bildId = 0;
-    let geom = { breite: 0, hoehe: 0, dpr: 1 };
+    let breite = 0;
+    let hoehe = 0;
+    let dpr = 1;
     let zeit = ruhig ? STANDBILD_ZEIT : 0;
     let letzteZeit = 0;
+    let letzterBlitz = -1;
     const lauf = neuerLauf();
 
     const zeichne = (dt: number) => {
       zeichneBild({
         ctx,
-        breite: geom.breite,
-        hoehe: geom.hoehe,
-        dpr: geom.dpr,
+        breite,
+        hoehe,
+        dpr,
+        ansicht: ansichtFuer(breite, hoehe),
         stroeme,
         schienen,
         palette,
+        halo,
         zeit,
         dt,
         lauf,
-        mitPaketen: !ruhig,
+        bewegt: !ruhig,
       });
     };
 
+    /** Den Blitz an die Karte melden, aber nur wenn sich der Wert merklich aendert. */
+    const meldeBlitz = (dt: number) => {
+      const karte = kartenRef?.current;
+      if (!karte) return;
+      lauf.blitz = Math.max(0, lauf.blitz - dt * 1.6);
+      const wert = Math.round(lauf.blitz * 100) / 100;
+      if (wert === letzterBlitz) return;
+      letzterBlitz = wert;
+      karte.style.setProperty("--axon-blitz", String(wert));
+    };
+
     const messen = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const breite = canvas.clientWidth;
-      const hoehe = canvas.clientHeight;
-      geom = { breite, hoehe, dpr };
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      breite = canvas.clientWidth;
+      hoehe = canvas.clientHeight;
 
       const pufferBreite = Math.round(breite * dpr);
       const pufferHoehe = Math.round(hoehe * dpr);
@@ -88,6 +110,7 @@ export function AxonKeyvisual({ tempo = 1, spurenzahl = 15 }: Props) {
       // alle Phasen auf einmal weiter.
       zeit += dt;
       zeichne(dt);
+      meldeBlitz(dt);
       // Nachforderung am Ende, nicht am Anfang: sonst liefe das Aufraeumen ins Leere.
       bildId = requestAnimationFrame(takt);
     };
@@ -106,8 +129,9 @@ export function AxonKeyvisual({ tempo = 1, spurenzahl = 15 }: Props) {
       cancelAnimationFrame(bildId);
       beobachter.disconnect();
       window.removeEventListener("resize", messen);
+      kartenRef?.current?.style.removeProperty("--axon-blitz");
     };
-  }, [stroeme, schienen, tempo, ruhig]);
+  }, [stroeme, schienen, tempo, ruhig, kartenRef]);
 
   return (
     <canvas

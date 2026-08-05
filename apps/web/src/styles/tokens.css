@@ -2,7 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Wortmarke und Formulartitel */
+/* Wortmarke, Formulartitel und der leichte Titel der Anmeldung */
+@import "@fontsource/raleway/latin-300.css";
 @import "@fontsource/raleway/latin-400.css";
 @import "@fontsource/raleway/latin-700.css";
 /* Oberflaeche */
@@ -242,18 +243,45 @@
   --axon-schiene-b: #1eb095;
   --axon-knoten: #ffffff;
 
-  --axon-karte: rgb(9 40 88 / 0.52);
-  --axon-karte-rand: rgb(255 255 255 / 0.14);
-  --axon-feld: rgb(255 255 255 / 0.07);
-  --axon-feld-aktiv: rgb(255 255 255 / 0.11);
-  --axon-feld-rand: rgb(255 255 255 / 0.22);
+  /*
+   * Werte, die im Canvas zusammengesetzt werden, stehen als Kanaltripel da. Nur so kann
+   * das Zeichnen die Deckkraft je Verwendung waehlen, ohne selbst eine Farbe zu kennen.
+   */
+  --axon-wolke-1: 20 110 205;
+  --axon-wolke-2: 10 58 132;
+  --axon-wolke-3: 34 124 220;
+  --axon-ring: 150 205 255;
+  --axon-halo: 200 240 255;
+  --axon-vignette: 6 24 60;
+
+  --axon-karte: rgb(6 30 72 / 0.72);
+  --axon-karte-rand: rgb(255 255 255 / 0.1);
+  --axon-feld-rand: rgb(255 255 255 / 0.24);
+  --axon-platzhalter: rgb(255 255 255 / 0.3);
   --axon-fokus: #00fdfd;
   --axon-aktion: #00a386;
   --axon-aktion-hover: #1eb095;
   --axon-schrift: #ffffff;
-  --axon-schrift-leise: rgb(255 255 255 / 0.72);
-  --axon-schrift-still: rgb(255 255 255 / 0.6);
+  --axon-schrift-leise: rgb(255 255 255 / 0.62);
+  --axon-schrift-still: rgb(255 255 255 / 0.5);
+  --axon-schrift-fein: rgb(255 255 255 / 0.4);
   --axon-fehler: #ffb08a;
+
+  /* Die Lichtkante links an der Karte: cyan oben, gruen unten, an den Enden auslaufend */
+  --axon-kante: linear-gradient(
+    to bottom,
+    rgb(0 253 253 / 0) 0%,
+    #00fdfd 28%,
+    #00a386 72%,
+    rgb(0 163 134 / 0) 100%
+  );
+
+  /*
+   * Der Blitz: erreicht ein Datenpaket das Ende einer Schiene, schreibt das Keyvisual hier
+   * einen Wert zwischen 0 und 1 hinein. Rand und Schein der Karte leiten sich daraus ab,
+   * damit React nicht sechzig Mal je Sekunde rendern muss.
+   */
+  --axon-blitz: 0;
 
   /*
    * Der globale Fokusring nimmt `--ring`. Core Blue auf Core Blue waere unsichtbar, hier
@@ -339,15 +367,15 @@
   --color-axon-grund: var(--axon-grund);
   --color-axon-karte: var(--axon-karte);
   --color-axon-karte-rand: var(--axon-karte-rand);
-  --color-axon-feld: var(--axon-feld);
-  --color-axon-feld-aktiv: var(--axon-feld-aktiv);
   --color-axon-feld-rand: var(--axon-feld-rand);
+  --color-axon-platzhalter: var(--axon-platzhalter);
   --color-axon-fokus: var(--axon-fokus);
   --color-axon-aktion: var(--axon-aktion);
   --color-axon-aktion-hover: var(--axon-aktion-hover);
   --color-axon-schrift: var(--axon-schrift);
   --color-axon-schrift-leise: var(--axon-schrift-leise);
   --color-axon-schrift-still: var(--axon-schrift-still);
+  --color-axon-schrift-fein: var(--axon-schrift-fein);
   --color-axon-fehler: var(--axon-fehler);
 }
 
@@ -374,14 +402,17 @@
   --text-lg--line-height: 1.375rem;
   --text-xl: 1.1875rem; /* 19px, Formulartitel */
   --text-xl--line-height: 1.625rem;
-  --text-2xl: 1.6875rem; /* 27px, Titel der Anmeldekarte */
+  --text-2xl: 1.6875rem; /* 27px */
   --text-2xl--line-height: 2.0625rem;
+  --text-3xl: 2.375rem; /* 38px, Titel der Anmeldekarte */
+  --text-3xl--line-height: 2.5rem;
 
   /* Sperrungen der Buehne, aus der Vorgabe */
-  --tracking-marke: 0.22em;
-  --tracking-etikett: 0.16em;
-  --tracking-aktion: 0.08em;
-  --blur-glas: 18px;
+  --tracking-marke: 0.2em;
+  --tracking-etikett: 0.24em;
+  --tracking-aktion: 0.18em;
+  --tracking-fein: 0.1em;
+  --blur-glas: 24px;
 
   --spacing: 0.25rem;
 
@@ -444,11 +475,11 @@
     --h-chat-header: 40px;
 
     /* Masse der Anmeldebuehne, aus der Vorgabe */
-    --w-anmeldekarte: 340px;
-    --x-anmeldekarte: 3.5%;
-    --h-anmeldebuehne: 640px;
-    --h-anmeldefeld: 46px;
-    --h-anmeldeknopf: 48px;
+    --w-anmeldekarte: 356px;
+    --x-anmeldekarte: 14%;
+    --h-anmeldebuehne: 520px;
+    --h-anmeldefeld: 30px;
+    --h-anmeldeknopf: 52px;
   }
 
   * {
@@ -489,6 +520,38 @@
 }
 
 @layer components {
+  /*
+   * Die zwei Bewegungen der Anmeldekarte: ein Lichtpunkt wandert die Kante hinab, der
+   * Punkt der Augenbraue atmet. Beide klemmt der prefers-reduced-motion-Block oben auf
+   * 0,01 ms, dann stehen sie still. Das ist richtig so.
+   */
+  @keyframes axon-kante {
+    0% {
+      top: -8%;
+      opacity: 0;
+    }
+    12%,
+    88% {
+      opacity: 1;
+    }
+    100% {
+      top: 104%;
+      opacity: 0;
+    }
+  }
+
+  @keyframes axon-atem {
+    0%,
+    100% {
+      opacity: 0.35;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.35);
+    }
+  }
+
   /*
    * Einrueckungsfuehrung im Baum.
    *

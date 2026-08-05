@@ -233,9 +233,10 @@
     "anmelden": "Anmelden",
     "laeuft": "Wird geprueft ...",
     "abmelden": "Abmelden",
-    "marke": "Neoception AXON",
-    "titel": "Anmelden",
-    "version": "Fassung {{version}}"
+    "marke": "AAS Editor",
+    "titel": "Zugang",
+    "version": "AXON // {{version}}",
+    "untertitel": "Asset Administration Shells bearbeiten, pruefen und ausliefern."
   },
   "projekte": {
     "titel": "Projekte",

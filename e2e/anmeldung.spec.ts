@@ -11,9 +11,11 @@ import { expect, test } from "@playwright/test";
  * Anmeldehelfer.
  */
 
-/** x-Position des Knotens im Entwurf, siehe SZENE in geometry.ts. */
-const KNOTEN_X = 540;
-const ENTWURF_BREITE = 1600;
+/** Die Szene fuellt die Hoehe, siehe `ansichtFuer` in geometry.ts. */
+const ENTWURF_HOEHE = 900;
+const MIN_BREITE = 1250;
+/** Der Knoten sitzt immer bei 37,5 Prozent der virtuellen Breite. */
+const KNOTEN_ANTEIL = 0.375;
 
 test.describe("Anmeldung", () => {
   test("zeichnet das Keyvisual, ohne Konsolenfehler", async ({ page }) => {
@@ -31,17 +33,23 @@ test.describe("Anmeldung", () => {
     await page.waitForTimeout(700);
 
     const messung = await page.evaluate(
-      ([knotenX, entwurfBreite]) => {
+      ([hoeheEntwurf, minBreite, anteil]) => {
         const c = document.querySelector("canvas");
         const ctx = c?.getContext("2d");
         if (!c || !ctx) return null;
-        const skala = (c.clientWidth / entwurfBreite) * Math.min(window.devicePixelRatio || 1, 2);
-        const x = Math.round(c.width / 2 + (knotenX - entwurfBreite / 2) * skala);
-        const y = Math.round(c.height / 2);
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        let skala = c.clientHeight / hoeheEntwurf;
+        if (c.clientWidth / skala < minBreite) skala = c.clientWidth / minBreite;
+        const breite = c.clientWidth / skala;
+        const versatzY = (c.clientHeight / skala - hoeheEntwurf) / 2;
+
+        const x = Math.round(breite * anteil * skala * dpr);
+        const y = Math.round((hoeheEntwurf / 2 + versatzY) * skala * dpr);
         const daten = ctx.getImageData(x, y, 1, 1).data;
         return { breite: c.width, hoehe: c.height, pixel: [daten[0], daten[1], daten[2]] };
       },
-      [KNOTEN_X, ENTWURF_BREITE],
+      [ENTWURF_HOEHE, MIN_BREITE, KNOTEN_ANTEIL],
     );
 
     expect(messung).not.toBeNull();
@@ -81,6 +89,27 @@ test.describe("Anmeldung", () => {
     const karte = await page.locator("form").boundingBox();
     expect(karte).not.toBeNull();
     expect(karte!.x + karte!.width / 2).toBeCloseTo(195, 0);
+  });
+
+  test("meldet ankommende Datenpakete an die Karte", async ({ page }) => {
+    await page.goto("/login");
+
+    // Ein Paket braucht seine Zeit ueber Strom und Schiene. Beobachtet wird, ob die Karte
+    // ueberhaupt jemals einen Blitz sieht, nicht wann.
+    const gesehen = await page
+      .waitForFunction(
+        () => {
+          const karte = document.querySelector("form");
+          const wert = karte?.style.getPropertyValue("--axon-blitz");
+          return wert !== undefined && wert !== "" && Number.parseFloat(wert) > 0;
+        },
+        null,
+        { timeout: 25000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+
+    expect(gesehen).toBe(true);
   });
 
   test("bleibt von der Dunkelklasse unberuehrt", async ({ page }) => {

@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router";
+import { ArrowRight } from "lucide-react";
 
 import { AxonKeyvisual } from "@/components/Keyvisual/AxonKeyvisual";
 import { useMediaQuery } from "@/lib/useMediaQuery";
@@ -15,8 +16,8 @@ import { useAuth } from "@/store/auth";
  * ueberschreiben". Die Anmeldung ist eine eigene Markenflaeche, kein Anwendungschrom, und
  * alle Werte kommen aus dem `.szene-axon`-Block in `tokens.css`.
  *
- * Unter 48rem wird der Canvas gar nicht erst gemountet: die Vorlage skaliert mit der
- * Breite, auf einem Telefon bliebe nur ein duennes Band unter der Karte.
+ * Unter 48rem wird der Canvas gar nicht erst gemountet: die Vorlage skaliert mit dem
+ * Fenster, auf einem Telefon bliebe nur ein Band unter der Karte.
  */
 export function LoginRoute() {
   const { t } = useTranslation();
@@ -27,6 +28,7 @@ export function LoginRoute() {
   const anmelden = useAuth((state) => state.anmelden);
 
   const breit = useMediaQuery("(min-width: 48rem)");
+  const karteRef = useRef<HTMLFormElement>(null);
 
   const [benutzer, setBenutzer] = useState("");
   const [passwort, setPasswort] = useState("");
@@ -47,35 +49,63 @@ export function LoginRoute() {
   };
 
   const feld =
-    "h-(--h-anmeldefeld) rounded-xs border border-axon-feld-rand bg-axon-feld px-3.5 " +
-    "text-base text-axon-schrift transition-colors duration-(--duration-quick) " +
-    "focus:border-axon-fokus focus:bg-axon-feld-aktiv";
-  const etikett = "text-2xs tracking-(--tracking-etikett) text-axon-schrift-leise uppercase";
+    "h-(--h-anmeldefeld) border-b border-axon-feld-rand bg-transparent text-md text-axon-schrift " +
+    "outline-none transition-colors duration-(--duration-calm) focus:border-axon-fokus";
+  const etikett =
+    "font-mono text-3xs tracking-(--tracking-etikett) text-axon-schrift-still uppercase";
 
   return (
     <main className="szene-axon relative flex h-screen min-h-(--h-anmeldebuehne) items-center justify-center overflow-hidden bg-axon-grund px-6 md:justify-end md:px-(--x-anmeldekarte)">
-      {breit ? <AxonKeyvisual /> : null}
+      {breit ? <AxonKeyvisual kartenRef={karteRef} /> : null}
 
       <form
+        ref={karteRef}
         onSubmit={(event) => void absenden(event)}
-        className="relative flex w-full max-w-(--w-anmeldekarte) flex-col gap-5.5 rounded-xs border border-axon-karte-rand bg-axon-karte px-9 pt-10 pb-9 backdrop-blur-(--blur-glas)"
+        /*
+         * Rand und Schein leiten sich aus `--axon-blitz` ab, das die Buehne beim Eintreffen
+         * eines Datenpakets schreibt. So bleibt React aus dem Takt der Animation.
+         */
+        style={{
+          borderColor:
+            "color-mix(in srgb, var(--axon-fokus) calc(var(--axon-blitz) * 50%), var(--axon-karte-rand))",
+          boxShadow:
+            "0 0 calc(20px + var(--axon-blitz) * 40px) rgb(0 253 253 / calc(var(--axon-blitz) * 0.16))",
+        }}
+        className="relative flex w-full max-w-(--w-anmeldekarte) flex-col gap-6.5 overflow-hidden rounded-[2px] border bg-axon-karte px-8.5 pt-8.5 pb-6.5 backdrop-blur-(--blur-glas)"
       >
-        <div className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2.5">
-            <span aria-hidden className="size-2.25 rounded-full bg-axon-schrift" />
+        {/* Die Lichtkante links, mit einem Punkt, der sie hinabwandert. */}
+        <span
+          aria-hidden
+          className="absolute inset-y-0 left-0 w-px"
+          style={{ backgroundImage: "var(--axon-kante)" }}
+        />
+        <span
+          aria-hidden
+          className="absolute -left-0.5 size-1.25 rounded-full bg-axon-schrift [animation:axon-kante_5.5s_linear_infinite]"
+          style={{ boxShadow: "0 0 12px 3px rgb(0 253 253 / 0.7)" }}
+        />
+
+        <div className="flex flex-col gap-4">
+          <div className={`flex items-center gap-2.25 ${etikett} tracking-(--tracking-marke)`}>
             <span
-              className={`text-xs tracking-(--tracking-marke) text-axon-schrift-leise uppercase`}
-            >
-              {t("anmeldung.marke")}
-            </span>
+              aria-hidden
+              className="size-1.5 rounded-full bg-axon-fokus [animation:axon-atem_2.8s_ease-in-out_infinite]"
+            />
+            <span>{t("anmeldung.marke")}</span>
           </div>
-          <h1 className="font-display text-2xl font-normal text-axon-schrift">
-            {t("anmeldung.titel")}
-          </h1>
+
+          <div className="flex flex-col gap-2">
+            <h1 className="font-display text-3xl font-light tracking-tight text-axon-schrift">
+              {t("anmeldung.titel")}
+            </h1>
+            <p className="max-w-[25ch] text-md leading-relaxed text-axon-schrift-leise">
+              {t("anmeldung.untertitel")}
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-3.5">
-          <label className="flex flex-col gap-1.75" htmlFor="benutzer">
+        <div className="flex flex-col gap-5">
+          <label className="flex flex-col gap-2.25" htmlFor="benutzer">
             <span className={etikett}>{t("anmeldung.benutzer")}</span>
             <input
               id="benutzer"
@@ -88,7 +118,7 @@ export function LoginRoute() {
             />
           </label>
 
-          <label className="flex flex-col gap-1.75" htmlFor="passwort">
+          <label className="flex flex-col gap-2.25" htmlFor="passwort">
             <span className={etikett}>{t("anmeldung.passwort")}</span>
             <input
               id="passwort"
@@ -102,7 +132,7 @@ export function LoginRoute() {
           </label>
         </div>
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {fehler ? (
             <p role="alert" className="text-sm text-axon-fehler">
               {fehler}
@@ -113,12 +143,16 @@ export function LoginRoute() {
             type="submit"
             disabled={laeuft || benutzer === ""}
             aria-busy={laeuft}
-            className="h-(--h-anmeldeknopf) rounded-xs bg-axon-aktion text-sm tracking-(--tracking-aktion) text-axon-schrift uppercase transition-colors duration-(--duration-quick) hover:bg-axon-aktion-hover disabled:pointer-events-none disabled:opacity-50"
+            className="flex h-(--h-anmeldeknopf) items-center justify-between rounded-[2px] border border-axon-aktion px-5 text-sm tracking-(--tracking-aktion) text-axon-schrift uppercase transition-colors duration-(--duration-calm) hover:border-axon-aktion-hover hover:bg-axon-aktion disabled:pointer-events-none disabled:opacity-40"
           >
-            {laeuft ? t("anmeldung.laeuft") : t("anmeldung.anmelden")}
+            <span>{laeuft ? t("anmeldung.laeuft") : t("anmeldung.anmelden")}</span>
+            <ArrowRight className="size-4" />
           </button>
 
-          <p className="text-end text-sm text-axon-schrift-still" data-numeric>
+          <p
+            className="text-end font-mono text-2xs tracking-(--tracking-fein) text-axon-schrift-fein"
+            data-numeric
+          >
             {t("anmeldung.version", { version: __APP_VERSION__ })}
           </p>
         </div>

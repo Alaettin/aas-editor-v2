@@ -4,16 +4,21 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
+  ansichtFuer,
   baueSchienen,
   baueStroeme,
+  CY,
+  HOEHE,
   huellkurve,
   MAX_STROEME,
+  MIN_BREITE,
   MIN_STROEME,
   schienenPunkt,
   stromPunkt,
   stromY,
-  SZENE,
   waehleZufaellig,
+  WELLE_MAX,
+  type Buehne,
 } from "../src/components/Keyvisual/geometry";
 
 /**
@@ -23,32 +28,75 @@ import {
  */
 
 const ZEITEN = [0, 0.7, 3.3, 12.5];
+const BUEHNE: Buehne = ansichtFuer(1600, 900).buehne;
+
+describe("Ansicht", () => {
+  it("fuellt bei ueblichen Fenstern die Hoehe", () => {
+    const ansicht = ansichtFuer(1600, 900);
+    expect(ansicht.skala).toBeCloseTo(1, 5);
+    expect(ansicht.versatzY).toBeCloseTo(0, 5);
+    expect(ansicht.buehne.breite).toBeCloseTo(1600, 5);
+  });
+
+  it("weicht auf die Breite aus, bevor die Komposition zerfaellt", () => {
+    // Sehr hohes Fenster: nach Hoehe skaliert waere die Szene schmaler als MIN_BREITE.
+    const ansicht = ansichtFuer(1000, 1400);
+    expect(ansicht.buehne.breite).toBeCloseTo(MIN_BREITE, 5);
+    // Die Szene wird dadurch kleiner als das Fenster und sitzt mittig. Oben und unten
+    // bleibt Grundfarbe stehen, das faellt nicht auf, ein zerdruecktes Bild schon.
+    expect(ansicht.versatzY).toBeGreaterThan(0);
+  });
+
+  it("setzt den Knoten immer auf 37,5 Prozent der Breite", () => {
+    for (const [w, h] of [
+      [1440, 900],
+      [2560, 1080],
+      [1280, 1024],
+    ]) {
+      const { buehne } = ansichtFuer(w!, h!);
+      expect(buehne.knotenX / buehne.breite).toBeCloseTo(0.375, 6);
+      expect(buehne.startX).toBeLessThan(0);
+    }
+  });
+
+  it("bleibt bei entarteten Groessen rechenbar", () => {
+    const ansicht = ansichtFuer(0, 0);
+    expect(Number.isFinite(ansicht.skala)).toBe(true);
+    expect(ansicht.skala).toBeGreaterThan(0);
+  });
+});
 
 describe("Schienen", () => {
   const schienen = baueSchienen();
 
-  it("sind zehn und liegen paarweise symmetrisch zur Mittellinie", () => {
-    expect(schienen).toHaveLength(10);
-
-    const summe = schienen.reduce((s, r) => s + (r.y - SZENE.CY), 0);
-    expect(summe).toBe(0);
+  it("sind acht und liegen paarweise symmetrisch zur Mittellinie", () => {
+    expect(schienen).toHaveLength(8);
+    expect(schienen.reduce((s, r) => s + (r.y - CY), 0)).toBe(0);
 
     for (const schiene of schienen) {
-      const spiegel = schienen.find((r) => r.y === 2 * SZENE.CY - schiene.y);
+      const spiegel = schienen.find((r) => r.y === 2 * CY - schiene.y);
       expect(spiegel).toBeDefined();
-      expect(spiegel?.split).toBe(schiene.split);
-      expect(spiegel?.run).toBe(schiene.run);
+      expect(spiegel?.rang).toBe(schiene.rang);
       expect(spiegel?.ton).toBe(schiene.ton);
+    }
+  });
+
+  it("liegen von oben nach unten sortiert", () => {
+    for (let i = 1; i < schienen.length; i += 1) {
+      expect(schienen[i]!.y).toBeGreaterThan(schienen[i - 1]!.y);
     }
   });
 
   it("beginnen exakt am Knoten und enden ausserhalb des Bildes", () => {
     for (const schiene of schienen) {
-      expect(schienenPunkt(schiene, 0)).toEqual({ x: SZENE.NODE, y: SZENE.CY });
+      for (const zeit of ZEITEN) {
+        expect(schienenPunkt(schiene, 0, zeit, BUEHNE)).toEqual({ x: BUEHNE.knotenX, y: CY });
 
-      const ende = schienenPunkt(schiene, 1);
-      expect(ende.x).toBeGreaterThanOrEqual(SZENE.W);
-      expect(ende.y).toBe(schiene.y);
+        const ende = schienenPunkt(schiene, 1, zeit, BUEHNE);
+        expect(ende.x).toBeGreaterThanOrEqual(BUEHNE.breite);
+        // Am Ende traegt die Schiene ihre Welle, aber sie bleibt auf ihrer Spur.
+        expect(Math.abs(ende.y - schiene.y)).toBeLessThanOrEqual(WELLE_MAX);
+      }
     }
   });
 
@@ -56,25 +104,35 @@ describe("Schienen", () => {
     for (const schiene of schienen) {
       let vorher = -Infinity;
       for (let i = 0; i <= 200; i += 1) {
-        const punkt = schienenPunkt(schiene, i / 200);
+        const punkt = schienenPunkt(schiene, i / 200, 2.5, BUEHNE);
         expect(punkt.x).toBeGreaterThan(vorher);
         vorher = punkt.x;
       }
     }
   });
 
-  it("bleiben vor dem Abzweig auf der Mittellinie und danach auf ihrer Hoehe", () => {
+  it("bleiben bis zum Abzweig exakt auf der Mittellinie", () => {
+    // Vor dem Abzweig ist die Rampe der Welle null. Das Bild soll dort ein Strang sein.
     for (const schiene of schienen) {
-      const richtung = Math.sign(schiene.y - SZENE.CY);
-      for (let i = 0; i <= 200; i += 1) {
-        const punkt = schienenPunkt(schiene, i / 200);
-        if (punkt.x < schiene.split) expect(punkt.y).toBe(SZENE.CY);
-        else if (punkt.x > schiene.split + schiene.run) expect(punkt.y).toBe(schiene.y);
-        else {
-          // Im Bogen: monoton zwischen Mittellinie und Zielhoehe, kein Ueberschwingen.
-          const abstand = (punkt.y - SZENE.CY) * richtung;
-          expect(abstand).toBeGreaterThanOrEqual(0);
-          expect(abstand).toBeLessThanOrEqual(Math.abs(schiene.y - SZENE.CY));
+      const abzweig = BUEHNE.knotenX + 60 + schiene.rang * 34;
+      for (const zeit of ZEITEN) {
+        for (let i = 0; i <= 60; i += 1) {
+          const punkt = schienenPunkt(schiene, i / 60, zeit, BUEHNE);
+          if (punkt.x < abzweig) expect(punkt.y).toBe(CY);
+        }
+      }
+    }
+  });
+
+  it("halten die Welle in Grenzen und ueberschreiten die eigene Spur nicht dauerhaft", () => {
+    for (const schiene of schienen) {
+      const richtung = Math.sign(schiene.y - CY);
+      for (const zeit of ZEITEN) {
+        for (let i = 0; i <= 200; i += 1) {
+          const punkt = schienenPunkt(schiene, i / 200, zeit, BUEHNE);
+          const abstand = (punkt.y - CY) * richtung;
+          expect(abstand).toBeGreaterThanOrEqual(-WELLE_MAX);
+          expect(abstand).toBeLessThanOrEqual(Math.abs(schiene.y - CY) + WELLE_MAX);
         }
       }
     }
@@ -106,8 +164,8 @@ describe("Stroeme", () => {
     // Die Kernaussage des Bildes. Faellt dieser Test, ist die Huellkurve zerbrochen.
     for (const strom of baueStroeme(15)) {
       for (const zeit of ZEITEN) {
-        expect(stromY(strom, 1, zeit)).toBe(SZENE.CY);
-        expect(stromPunkt(strom, 1, zeit)).toEqual({ x: SZENE.NODE, y: SZENE.CY });
+        expect(stromY(strom, 1, zeit)).toBe(CY);
+        expect(stromPunkt(strom, 1, zeit, BUEHNE)).toEqual({ x: BUEHNE.knotenX, y: CY });
       }
     }
   });
@@ -115,7 +173,7 @@ describe("Stroeme", () => {
   it("sind links wirklich ungeordnet", () => {
     const stroeme = baueStroeme(15);
     for (const zeit of ZEITEN) {
-      const groesste = Math.max(...stroeme.map((s) => Math.abs(stromY(s, 0, zeit) - SZENE.CY)));
+      const groesste = Math.max(...stroeme.map((s) => Math.abs(stromY(s, 0, zeit) - CY)));
       expect(groesste).toBeGreaterThan(100);
     }
   });
@@ -125,6 +183,7 @@ describe("Stroeme", () => {
       for (const zeit of ZEITEN) {
         for (let i = 0; i <= 40; i += 1) {
           expect(Number.isFinite(stromY(strom, i / 40, zeit))).toBe(true);
+          expect(Number.isFinite(stromPunkt(strom, i / 40, zeit, BUEHNE).y)).toBe(true);
         }
       }
     }
@@ -132,7 +191,7 @@ describe("Stroeme", () => {
 
   it("beginnen links ausserhalb des Bildes", () => {
     const strom = baueStroeme(15)[0]!;
-    expect(stromPunkt(strom, 0, 1).x).toBe(-SZENE.EINLAUF);
+    expect(stromPunkt(strom, 0, 1, BUEHNE).x).toBe(BUEHNE.startX);
   });
 });
 
@@ -171,12 +230,18 @@ describe("Hausregel", () => {
       const inhalt = readFileSync(join(ordner, name), "utf8");
       for (const zeile of inhalt.split(/\r?\n/)) {
         if (zeile.trimStart().startsWith("*") || zeile.trimStart().startsWith("//")) continue;
-        if (/#[0-9a-fA-F]{3,8}\b/.test(zeile) || /\brgba?\(/.test(zeile)) {
+        // Verboten sind feste Werte. `rgb(${tripel} / ...)` ist erlaubt: das ist genau der
+        // Weg, auf dem ein Kanaltripel aus den Tokens eine Deckkraft bekommt.
+        if (/#[0-9a-fA-F]{3,8}\b/.test(zeile) || /\brgba?\(\s*[\d.]/.test(zeile)) {
           treffer.push(`${name}: ${zeile.trim()}`);
         }
       }
     }
 
     expect(treffer).toEqual([]);
+  });
+
+  it("kennt die Entwurfshoehe an genau einer Stelle", () => {
+    expect(HOEHE).toBe(900);
   });
 });
