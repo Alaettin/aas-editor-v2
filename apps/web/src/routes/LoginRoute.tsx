@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router";
 import { ArrowRight } from "lucide-react";
 
+import logo from "@/assets/neoception-weiss.png";
 import { AxonKeyvisual } from "@/components/Keyvisual/AxonKeyvisual";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useAuth } from "@/store/auth";
@@ -58,6 +59,17 @@ export function LoginRoute() {
     <main className="szene-axon relative flex h-screen min-h-(--h-anmeldebuehne) items-center justify-center overflow-hidden bg-axon-grund px-6 md:justify-end md:px-(--x-anmeldekarte)">
       {breit ? <AxonKeyvisual kartenRef={karteRef} /> : null}
 
+      {/*
+        Die Wortmarke liegt ueber der Buehne, oben links, wie in der Vorgabe. Die weisse
+        Fassung entsteht aus der schwarzen ueber `scripts/make-logo-weiss.mjs`; auf Blau
+        waere die Vorlage zur Haelfte unsichtbar.
+      */}
+      <img
+        src={logo}
+        alt={t("anmeldung.marke")}
+        className="absolute top-8 left-9 z-10 w-(--w-anmeldelogo)"
+      />
+
       <form
         ref={karteRef}
         onSubmit={(event) => void absenden(event)}
@@ -85,24 +97,18 @@ export function LoginRoute() {
           style={{ boxShadow: "0 0 12px 3px rgb(var(--axon-fokus-kanaele) / 0.7)" }}
         />
 
-        <div className="flex flex-col gap-4">
-          <div className={`flex items-center gap-2.25 ${etikett} tracking-(--tracking-marke)`}>
-            <span
-              aria-hidden
-              className="size-1.5 rounded-full bg-axon-fokus [animation:axon-atem_2.8s_ease-in-out_infinite]"
-            />
-            <span>{t("anmeldung.marke")}</span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <h1 className="font-display text-3xl font-light tracking-tight text-axon-schrift">
-              {t("anmeldung.titel")}
-            </h1>
-            <p className="max-w-[25ch] text-md leading-relaxed text-axon-schrift-leise">
-              {t("anmeldung.untertitel")}
-            </p>
-          </div>
-        </div>
+        {/*
+          Der atmende Punkt sass frueher an einer Augenbraue ueber dem Titel. Die
+          Augenbraue sagte dasselbe wie der Titel jetzt, also ist sie weg und der Punkt
+          steht direkt daneben.
+        */}
+        <h1 className="flex items-center gap-3 font-display text-3xl font-light tracking-tight text-axon-schrift">
+          <span
+            aria-hidden
+            className="size-2 shrink-0 rounded-full bg-axon-fokus [animation:axon-atem_2.8s_ease-in-out_infinite]"
+          />
+          {t("anmeldung.titel")}
+        </h1>
 
         <div className="flex flex-col gap-5">
           <label className="flex flex-col gap-2.25" htmlFor="benutzer">
@@ -149,12 +155,32 @@ export function LoginRoute() {
             <ArrowRight className="size-4" />
           </button>
 
-          <p
-            className="text-end font-mono text-2xs tracking-(--tracking-fein) text-axon-schrift-fein"
-            data-numeric
-          >
-            {t("anmeldung.version", { version: __APP_VERSION__ })}
-          </p>
+          <div className="flex items-center justify-between font-mono text-2xs tracking-(--tracking-fein) text-axon-schrift-fein">
+            {/*
+              Die Sprachwahl steht, die Uebersetzung nicht: Englisch ist deshalb
+              ausdruecklich deaktiviert und sagt im Titel warum. Ein Knopf, der still
+              nichts tut, waere die schlechtere Auskunft.
+            */}
+            <div role="group" aria-label={t("anmeldung.sprache")} className="flex items-center">
+              <button type="button" aria-pressed className="px-1 text-axon-schrift-still">
+                DE
+              </button>
+              <span aria-hidden className="text-axon-schrift-fein">
+                /
+              </span>
+              <button
+                type="button"
+                aria-pressed={false}
+                disabled
+                title={t("anmeldung.spracheNurDeutsch")}
+                className="px-1 disabled:cursor-not-allowed"
+              >
+                EN
+              </button>
+            </div>
+
+            <span data-numeric>{__APP_VERSION__}</span>
+          </div>
         </div>
       </form>
     </main>

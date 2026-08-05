@@ -5,13 +5,7 @@ import globals from "globals";
 
 export default tseslint.config(
   {
-    ignores: [
-      "**/dist/**",
-      "**/node_modules/**",
-      "**/coverage/**",
-      "test-data/**",
-      "**/*.d.ts",
-    ],
+    ignores: ["**/dist/**", "**/node_modules/**", "**/coverage/**", "test-data/**", "**/*.d.ts"],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -88,6 +82,12 @@ export default tseslint.config(
   {
     files: ["apps/server/**/*.{ts,mjs}", "scripts/**/*.mjs", "*.config.{js,ts,mjs}"],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // `make-logo-weiss.mjs` laeuft unter Node, rechnet aber im Browser: der Rumpf von
+    // `page.evaluate` wird dort ausgefuehrt und kennt `document` und `Image`.
+    files: ["scripts/make-logo-weiss.mjs"],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   prettier,
 );

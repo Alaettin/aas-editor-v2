@@ -237,10 +237,10 @@
     "anmelden": "Anmelden",
     "laeuft": "Wird geprueft ...",
     "abmelden": "Abmelden",
-    "marke": "AAS Editor",
-    "titel": "Zugang",
-    "version": "AXON // {{version}}",
-    "untertitel": "Asset Administration Shells bearbeiten, pruefen und ausliefern."
+    "titel": "AAS Editor",
+    "sprache": "Sprache",
+    "spracheNurDeutsch": "Englisch ist noch nicht uebersetzt.",
+    "marke": "Neoception, Pepperl+Fuchs"
   },
   "projekte": {
     "titel": "Projekte",

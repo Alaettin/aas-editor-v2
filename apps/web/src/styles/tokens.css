@@ -409,7 +409,6 @@
   --text-3xl--line-height: 2.5rem;
 
   /* Sperrungen der Buehne, aus der Vorgabe */
-  --tracking-marke: 0.2em;
   --tracking-etikett: 0.24em;
   --tracking-aktion: 0.18em;
   --tracking-fein: 0.1em;
@@ -476,6 +475,7 @@
     --h-chat-header: 40px;
 
     /* Masse der Anmeldebuehne, aus der Vorgabe */
+    --w-anmeldelogo: 200px;
     --w-anmeldekarte: 356px;
     --x-anmeldekarte: 14%;
     --h-anmeldebuehne: 520px;
