@@ -53,11 +53,20 @@ pnpm dev:server   # Backend auf http://localhost:3200
 
 ```bash
 pnpm lint && pnpm typecheck && pnpm test && pnpm build
-pnpm budget       # initiales JavaScript gegen das 250-KB-gzip-Budget
-pnpm e2e          # Browserabnahme der Oberflaeche, braucht laufende Entwicklungsserver
+pnpm budget       # initiales JavaScript und Stylesheet gegen ihre Budgets
+pnpm e2e          # Browserabnahme: Oberflaeche, Barrierefreiheit, gemessene Zeiten
 ```
 
 Beim ersten `pnpm e2e` einmal `pnpm exec playwright install chromium` ausfuehren.
+
+Fuer die Leistungsmessung braucht es ein grosses Testmodell. Es wird nicht eingecheckt:
+
+```bash
+pnpm modell       # erzeugt test-data/gross/modell-10000.json, einmalig
+pnpm leistung     # misst Baum, Aenderungsweg, Umwandlung und Validierung
+```
+
+Die gemessenen Zahlen und was offen bleibt: [docs/leistung.md](docs/leistung.md).
 
 ## Betrieb
 
