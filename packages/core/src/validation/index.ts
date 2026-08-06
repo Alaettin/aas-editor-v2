@@ -2,9 +2,8 @@ import type { Werte } from "../fehler.js";
 import { toAasCore } from "../model/aasCore.js";
 import { buildPathIndex, resolvePath } from "../model/paths.js";
 import type { EditorModel, NodeId } from "../model/store.js";
-import { findMissingAttachments } from "../io/attachments.js";
+import { findMissingAttachments, type Anhangspfade } from "../io/attachments.js";
 import { collectCollisionWarnings } from "../io/collisions.js";
-import type { AttachmentMap } from "../io/types.js";
 import { explain } from "./messages.js";
 
 /**
@@ -38,9 +37,14 @@ export interface ValidationIssue {
   readonly field: string;
 }
 
+/**
+ * `attachments` ist nur eine Auskunft darueber, welche Paketpfade es gibt: der Worker
+ * reicht seine `AttachmentMap` durch, der Server ein `Set` aus der Datenbank. Wer hier
+ * nichts uebergibt, bekommt jedes File-Element als fehlenden Anhang gemeldet.
+ */
 export async function validate(
   model: EditorModel,
-  attachments: AttachmentMap = new Map(),
+  attachments: Anhangspfade = new Set<string>(),
 ): Promise<ValidationIssue[]> {
   const verification = await import("@aas-core-works/aas-core3.1-typescript/verification");
 

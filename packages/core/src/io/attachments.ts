@@ -61,13 +61,25 @@ export function collectFileReferences(model: EditorModel): FileReference[] {
 }
 
 /**
+ * Alles, was diese Pruefung von den Anhaengen wissen muss: ob es einen Pfad gibt.
+ *
+ * Bewusst ein Strukturtyp und keine `AttachmentMap`. Eine `AttachmentMap` erfuellt ihn
+ * weiterhin, aber auch ein blosses `Set<string>` — und genau das hat der Server: er kennt
+ * die Pfade seiner Anhaenge aus der Datenbank, ihre Bytes liegen aber auf der Platte und
+ * werden hier nie gebraucht. Die Alternative waere eine Map mit erfundenen leeren Bytes.
+ */
+export interface Anhangspfade {
+  has(pfad: string): boolean;
+}
+
+/**
  * File-Elemente, deren Pfad auf keinen vorhandenen Anhang zeigt.
  * Das ist keine Metamodell-Verletzung, sondern ein Datenfehler, und wird laut
  * Plan Abschnitt 5 klar als Warnung gefuehrt.
  */
 export function findMissingAttachments(
   model: EditorModel,
-  attachments: AttachmentMap,
+  attachments: Anhangspfade,
 ): ImportWarning[] {
   return collectFileReferences(model)
     .filter((reference) => !attachments.has(reference.path))
