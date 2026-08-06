@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "react-i18next";
-import { canContain, childSlotsOf, isAncestor, SUBMODEL_ELEMENT_KINDS } from "@aas-editor/core";
+import { SUBMODEL_ELEMENT_KINDS } from "@aas-editor/core";
 
 import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 
@@ -13,7 +13,9 @@ import { useAuth } from "@/store/auth";
 import { buildCensus } from "@/store/census";
 import { useEditor } from "@/store/editor";
 import { buildIssueCounts } from "@/store/issueCounts";
+import { dropTarget, type DropWhere } from "@/store/ablage";
 import { buildRows, indexRows, pathTo, type TreeRow } from "@/store/rows";
+import type { NodeId } from "@aas-editor/core";
 import { TreeRowView } from "./TreeRow";
 import { TreeContextMenu } from "./TreeContextMenu";
 import { TreeFilter } from "./TreeFilter";
@@ -47,6 +49,7 @@ export function Tree() {
   const setExpanded = useEditor((state) => state.setExpanded);
   const duplicateElement = useEditor((state) => state.duplicateElement);
   const moveElement = useEditor((state) => state.moveElement);
+  const moveSubmodelUnderShell = useEditor((state) => state.moveSubmodelUnderShell);
   const addElement = useEditor((state) => state.addElement);
   const copyNode = useEditor((state) => state.copyNode);
   const cutNode = useEditor((state) => state.cutNode);
@@ -235,6 +238,15 @@ export function Tree() {
 
   // --- Drag and drop, nativ ---------------------------------------------------------
 
+  /** Die Zeile zu einer Kennung. Der Zug braucht sie, um Herkunft und Ziel zu vergleichen. */
+  const zeileVon = useCallback(
+    (nodeId: string) => {
+      const stelle = rowIndex.get(nodeId as NodeId);
+      return stelle === undefined ? undefined : rows[stelle];
+    },
+    [rowIndex, rows],
+  );
+
   const onDragStart = useCallback((nodeId: string, event: React.DragEvent) => {
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("application/x-aas-node", nodeId);
@@ -244,7 +256,7 @@ export function Tree() {
   const onDragOver = useCallback(
     (row: TreeRow, event: React.DragEvent) => {
       if (!drag || !model) return;
-      const target = dropTarget(model, drag.nodeId, row, event);
+      const target = dropTarget(model, drag.nodeId, row, event, zeileVon(drag.nodeId));
       if (!target) return;
 
       event.preventDefault();
@@ -255,19 +267,23 @@ export function Tree() {
           : current,
       );
     },
-    [drag, model],
+    [drag, model, zeileVon],
   );
 
   const onDrop = useCallback(
     (row: TreeRow, event: React.DragEvent) => {
       if (!drag || !model) return;
-      const target = dropTarget(model, drag.nodeId, row, event);
+      const target = dropTarget(model, drag.nodeId, row, event, zeileVon(drag.nodeId));
       setDrag(null);
       if (!target) return;
       event.preventDefault();
-      moveElement(drag.nodeId, target.parentId, target.slot, target.index);
+      if (target.verweis) {
+        moveSubmodelUnderShell(target.parentId, drag.nodeId, target.index ?? 0);
+      } else {
+        moveElement(drag.nodeId, target.parentId, target.slot, target.index);
+      }
     },
-    [drag, model, moveElement],
+    [drag, model, moveElement, moveSubmodelUnderShell, zeileVon],
   );
 
   const onDragEnd = useCallback(() => setDrag(null), []);
@@ -455,71 +471,6 @@ export function Tree() {
       </div>
     </div>
   );
-}
-
-// --- Ablageziel bestimmen -------------------------------------------------------------
-
-type DropWhere = "into" | "before" | "after";
-
-interface DropTarget {
-  readonly parentId: string;
-  readonly slot: string;
-  readonly index: number | undefined;
-  readonly where: DropWhere;
-}
-
-/**
- * Wohin faellt der gezogene Knoten? Das obere und untere Viertel der Zeile bedeuten
- * "davor" beziehungsweise "danach" unter demselben Elternteil, die Mitte "hinein".
- * Abgelegt wird nur, wo `canContain` es erlaubt.
- */
-function dropTarget(
-  model: NonNullable<ReturnType<typeof useEditor.getState>["model"]>,
-  draggedId: string,
-  row: TreeRow,
-  event: React.DragEvent,
-): DropTarget | null {
-  const dragged = model.nodes[draggedId];
-  if (!dragged || draggedId === row.nodeId) return null;
-  if (isAncestor(model, draggedId, row.nodeId)) return null;
-
-  const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-  const ratio = (event.clientY - bounds.top) / bounds.height;
-
-  // Eine Ordnerzeile **ist** ein Slot des Environments. Abgelegt wird dort hinein, nicht
-  // daneben: der Ordner selbst hat kein Geschwister, neben das etwas passte.
-  if (row.ordner && row.slot) {
-    const wurzel = model.nodes[model.rootId];
-    if (!wurzel || !canContain(wurzel.kind, row.slot, dragged.kind, wurzel.data)) return null;
-    return { parentId: model.rootId, slot: row.slot, index: undefined, where: "into" };
-  }
-
-  const target = model.nodes[row.nodeId];
-  if (!target) return null;
-
-  // Mitte: hinein, in den ersten passenden Slot.
-  if (ratio > 0.25 && ratio < 0.75) {
-    const slot = childSlotsOf(target.kind)
-      .map((entry) => entry.name)
-      .find((name) => canContain(target.kind, name, dragged.kind, target.data));
-    if (slot) return { parentId: row.nodeId, slot, index: undefined, where: "into" };
-  }
-
-  // Rand: als Geschwister davor oder danach.
-  if (row.parentId && row.slot) {
-    const parent = model.nodes[row.parentId];
-    if (parent && canContain(parent.kind, row.slot, dragged.kind, parent.data)) {
-      const after = ratio >= 0.5;
-      return {
-        parentId: row.parentId,
-        slot: row.slot,
-        index: row.index + (after ? 1 : 0),
-        where: after ? "after" : "before",
-      };
-    }
-  }
-
-  return null;
 }
 
 export { SUBMODEL_ELEMENT_KINDS };

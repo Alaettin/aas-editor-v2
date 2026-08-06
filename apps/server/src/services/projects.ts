@@ -41,11 +41,12 @@ export interface ProjectSummary {
 }
 
 /** Wonach der Einstieg sortieren darf. Nichts anderes kommt aus der Abfrage durch. */
+// "revision" stand hier, seit die Projektliste eine Spalte "Fassung" hatte. Die Spalte ist
+// am 06.08.2026 entfallen, das Sortierfeld war seither nicht mehr erreichbar.
 export const SORT_FELDER = [
   "name",
   "nodeCount",
   "submodelCount",
-  "revision",
   "updatedAt",
   "createdAt",
 ] as const;
@@ -121,7 +122,6 @@ const SORT_SPALTE = {
   name: projects.name,
   nodeCount: projects.nodeCount,
   submodelCount: SUBMODEL_COUNT,
-  revision: projects.revision,
   updatedAt: projects.updatedAt,
   createdAt: projects.createdAt,
 } as const satisfies Record<SortFeld, unknown>;
@@ -131,8 +131,8 @@ const SORT_SPALTE = {
  *
  * Der Einstieg zeigt Seitenzahlen und "1 bis 8 von 24", und beides gibt es ohne Gesamtzahl
  * nicht. Ausserdem darf hier nach jeder Spalte sortiert werden, ein Keyset-Cursor muesste
- * dafuer je Sortierung anders aussehen. Versionen und Teilmodelle blaettern unveraendert
- * ueber `services/pagination.ts`.
+ * dafuer je Sortierung anders aussehen. Teilmodelle blaettern unveraendert ueber
+ * `services/pagination.ts`.
  */
 export function listProjects(db: Db, query: ProjectQuery): ProjectPage {
   const where = bedingungen(query);

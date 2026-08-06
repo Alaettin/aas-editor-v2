@@ -9,6 +9,7 @@ import {
   getNode,
   insertNode,
   moveNode,
+  moveSubmodelReference,
   normalize,
   pasteSubtree,
   removeNode,
@@ -136,6 +137,11 @@ interface EditorState {
   deleteElement: (nodeId: NodeId) => void;
   duplicateElement: (nodeId: NodeId) => void;
   moveElement: (nodeId: NodeId, targetParentId: NodeId, slot: string, index?: number) => void;
+  /**
+   * Ein Submodel unter seiner Shell umsortieren. Eigene Aktion, weil dabei kein Knoten
+   * umhaengt: geaendert wird die Verweisliste der Shell.
+   */
+  moveSubmodelUnderShell: (shellId: NodeId, submodelId: NodeId, zielIndex: number) => void;
 
   undo: () => void;
   redo: () => void;
@@ -631,6 +637,12 @@ export const useEditor = create<EditorState>()((set, get) => {
     moveElement: (nodeId, targetParentId, slot, index) => {
       change("Element verschoben", (draft) => moveNode(draft, nodeId, targetParentId, slot, index));
       get().setExpanded(targetParentId, true);
+    },
+
+    moveSubmodelUnderShell: (shellId, submodelId, zielIndex) => {
+      change("Reihenfolge geaendert", (draft) =>
+        moveSubmodelReference(draft, shellId, submodelId, zielIndex),
+      );
     },
 
     undo: () => {

@@ -10,10 +10,12 @@ import {
   insertNode,
   isAncestor,
   moveNode,
+  moveSubmodelReference,
   removeNode,
   setField,
   slotsFor,
 } from "../src/model/operations.js";
+import { submodelsJeShell } from "../src/model/referenzen.js";
 import { getNode, walk, type EditorModel } from "../src/model/store.js";
 import { wirftSchluessel } from "./schluessel.js";
 
@@ -321,5 +323,93 @@ describe("Felder setzen", () => {
     });
     expect("value" in getNode(geleert.model, property.nodeId).data).toBe(false);
     expect(JSON.stringify(denormalize(geleert.model))).not.toContain('"value"');
+  });
+});
+
+describe("Submodels unter einer Shell umsortieren", () => {
+  /** Eine Shell, die auf drei Submodels verweist, dazu ein viertes ohne Verweis. */
+  function mitShell(): EditorModel {
+    const verweis = (nummer: number) => ({
+      type: "ModelReference",
+      keys: [{ type: "Submodel", value: `https://example.com/sm/${String(nummer)}` }],
+    });
+    return normalize({
+      assetAdministrationShells: [
+        {
+          id: "https://example.com/aas/1",
+          idShort: "Shell",
+          modelType: "AssetAdministrationShell",
+          assetInformation: { assetKind: "Instance" },
+          submodels: [verweis(1), verweis(2), verweis(3)],
+        },
+      ],
+      submodels: [1, 2, 3, 4].map((n) => ({
+        id: `https://example.com/sm/${String(n)}`,
+        idShort: `SM${String(n)}`,
+        modelType: "Submodel",
+      })),
+    });
+  }
+
+  it("schiebt einen Verweis nach hinten", () => {
+    const start = mitShell();
+    const shellId = [...walk(start)].find((n) => n.kind === "AssetAdministrationShell")!.nodeId;
+    const erstes = submodelsJeShell(start).jeShell.get(shellId)![0]!;
+
+    const step = applyChange(start, emptyHistory, "umsortiert", (draft) => {
+      moveSubmodelReference(draft, shellId, erstes, 2);
+    });
+
+    const namen = submodelsJeShell(step.model)
+      .jeShell.get(shellId)!
+      .map((id) => getNode(step.model, id).data["idShort"]);
+    expect(namen).toEqual(["SM2", "SM1", "SM3"]);
+    // Der Rundlauf haengt daran: die Verweisliste muss gueltig bleiben.
+    expect(() => toAasCore(step.model)).not.toThrow();
+  });
+
+  it("schiebt einen Verweis nach vorn", () => {
+    const start = mitShell();
+    const shellId = [...walk(start)].find((n) => n.kind === "AssetAdministrationShell")!.nodeId;
+    const letztes = submodelsJeShell(start).jeShell.get(shellId)![2]!;
+
+    const step = applyChange(start, emptyHistory, "umsortiert", (draft) => {
+      moveSubmodelReference(draft, shellId, letztes, 0);
+    });
+
+    const namen = submodelsJeShell(step.model)
+      .jeShell.get(shellId)!
+      .map((id) => getNode(step.model, id).data["idShort"]);
+    expect(namen).toEqual(["SM3", "SM1", "SM2"]);
+  });
+
+  it("laesst sich zurueckdrehen", () => {
+    const start = mitShell();
+    const shellId = [...walk(start)].find((n) => n.kind === "AssetAdministrationShell")!.nodeId;
+    const erstes = submodelsJeShell(start).jeShell.get(shellId)![0]!;
+
+    const step = applyChange(start, emptyHistory, "umsortiert", (draft) => {
+      moveSubmodelReference(draft, shellId, erstes, 2);
+    });
+    const zurueck = undo(step.model, step.history)!;
+
+    const namen = submodelsJeShell(zurueck.model)
+      .jeShell.get(shellId)!
+      .map((id) => getNode(zurueck.model, id).data["idShort"]);
+    expect(namen).toEqual(["SM1", "SM2", "SM3"]);
+  });
+
+  it("weist ein Submodel zurueck, auf das die Shell nicht zeigt", () => {
+    const start = mitShell();
+    const shellId = [...walk(start)].find((n) => n.kind === "AssetAdministrationShell")!.nodeId;
+    const ohneVerweis = [...walk(start)].find(
+      (n) => n.kind === "Submodel" && n.data["idShort"] === "SM4",
+    )!.nodeId;
+
+    wirftSchluessel(() => {
+      applyChange(start, emptyHistory, "umsortiert", (draft) => {
+        moveSubmodelReference(draft, shellId, ohneVerweis, 0);
+      });
+    }, "modell.verweisFehlt");
   });
 });

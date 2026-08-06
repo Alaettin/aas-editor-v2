@@ -18,8 +18,7 @@ export interface Page<T> {
 }
 
 /** Wonach der Einstieg sortieren darf. Der Server laesst nichts anderes durch. */
-export type SortFeld =
-  "name" | "nodeCount" | "submodelCount" | "revision" | "updatedAt" | "createdAt";
+export type SortFeld = "name" | "nodeCount" | "submodelCount" | "updatedAt" | "createdAt";
 
 export interface ProjectQuery {
   readonly limit: number;

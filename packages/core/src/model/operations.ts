@@ -1,5 +1,6 @@
 import { childSlotsOf, isIdentifiableKind, isSubmodelElementKind } from "./kinds.js";
 import type { JsonObject, JsonValue } from "./json.js";
+import { baueAufloeser } from "./referenzen.js";
 import { getNode, walk, type EditorModel, type EditorNode, type NodeId } from "./store.js";
 import { KernFehler } from "../fehler.js";
 
@@ -370,4 +371,76 @@ export function setField(
     return;
   }
   node.data[key] = value;
+}
+
+/**
+ * Die Reihenfolge der Submodels **unter einer Shell** aendern.
+ *
+ * `AssetAdministrationShell.submodels` ist eine Verweisliste, kein Kind-Slot: `moveNode`
+ * greift hier nicht, denn es gibt nichts einzuhaengen. Umgeordnet wird die Liste der
+ * Verweise, denn ihr folgt die Anzeige.
+ *
+ * Die Indizes zaehlen in der **aufgeloesten** Liste, also so, wie der Baum sie zeigt. Das
+ * ist nicht dasselbe wie die Position im Rohfeld: ein Verweis, der ins Leere zeigt oder
+ * doppelt vorkommt, erscheint nicht als Zeile. Die Abbildung passiert hier, damit kein
+ * Aufrufer sie nachbauen muss.
+ */
+export function moveSubmodelReference(
+  draft: EditorModel,
+  shellId: NodeId,
+  submodelId: NodeId,
+  zielIndex: number,
+): void {
+  const shell = getNode(draft, shellId);
+  if (shell.kind !== "AssetAdministrationShell") {
+    throw new KernFehler("modell.keineShell", "Only an AssetAdministrationShell holds submodels.");
+  }
+
+  const verweise = shell.data["submodels"];
+  if (!Array.isArray(verweise)) {
+    throw new KernFehler("modell.keineVerweise", "The shell has no submodel references.");
+  }
+
+  // Welche Rohpositionen gehoeren zu sichtbaren Zeilen, und in welcher Reihenfolge?
+  const { ziel } = baueAufloeser(draft);
+  const gesehen = new Set<NodeId>();
+  const rohpositionen: number[] = [];
+  let vonZeile = -1;
+  for (let i = 0; i < verweise.length; i += 1) {
+    const treffer = ziel(verweise[i] as JsonValue);
+    if (!treffer) continue;
+    if (draft.nodes[treffer]?.kind !== "Submodel") continue;
+    if (gesehen.has(treffer)) continue;
+    gesehen.add(treffer);
+    rohpositionen.push(i);
+    if (treffer === submodelId) vonZeile = rohpositionen.length - 1;
+  }
+
+  if (vonZeile < 0) {
+    throw new KernFehler("modell.verweisFehlt", "This submodel is not referenced by that shell.", {
+      shell: shellId,
+      submodel: submodelId,
+    });
+  }
+
+  /*
+   * Umgeordnet wird auf der Ebene der Zeilen, nicht der Rohpositionen: die unsichtbaren
+   * Eintraege (ins Leere zeigende oder doppelte Verweise) bleiben, wo sie sind. Erst die
+   * sichtbaren herausnehmen, dort verschieben, dann an dieselben Stellen zurueckschreiben.
+   * Positionsarithmetik auf dem Rohfeld waere hier gleich zweimal fehleranfaellig.
+   */
+  const sichtbar = rohpositionen.map((roh) => verweise[roh] as JsonValue);
+  // `zielIndex` zaehlt vor der Entnahme: schiebt man nach hinten, ruecken alle spaeteren
+  // Zeilen um eins vor.
+  const nachZeile = Math.max(
+    0,
+    Math.min(sichtbar.length - 1, zielIndex > vonZeile ? zielIndex - 1 : zielIndex),
+  );
+  if (nachZeile === vonZeile) return;
+
+  const [eintrag] = sichtbar.splice(vonZeile, 1);
+  sichtbar.splice(nachZeile, 0, eintrag as JsonValue);
+  for (let k = 0; k < rohpositionen.length; k += 1) {
+    verweise[rohpositionen[k] as number] = sichtbar[k] as JsonValue;
+  }
 }
