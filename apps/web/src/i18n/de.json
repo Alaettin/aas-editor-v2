@@ -191,7 +191,14 @@
     "xmlText": "Nur das Environment. Anhänge gehen verloren."
   },
   "fehler": {
+    "seite": {
+      "titel": "Diese Seite ließ sich nicht laden",
+      "text": "Meist hilft ein Neuladen: nach einer neuen Fassung sucht der Browser noch nach Dateien, die es nicht mehr gibt.",
+      "neuLaden": "Neu laden",
+      "zurListe": "Zur Projektliste"
+    },
     "titel": "Das hat nicht geklappt",
+    "worker": "Die Rechenhilfe im Hintergrund ist ausgefallen. Der nächste Schritt startet sie neu.",
     "importFehlgeschlagen": "Die Datei ließ sich nicht lesen.",
     "speichern": "Speichern fehlgeschlagen",
     "export": "Export fehlgeschlagen",

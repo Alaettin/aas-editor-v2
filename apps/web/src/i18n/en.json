@@ -191,7 +191,14 @@
     "xmlText": "Environment only. Attachments are lost."
   },
   "fehler": {
+    "seite": {
+      "titel": "This page could not be loaded",
+      "text": "Reloading usually helps: after a new release the browser still looks for files that no longer exist.",
+      "neuLaden": "Reload",
+      "zurListe": "To the project list"
+    },
     "titel": "That did not work",
+    "worker": "The background worker crashed. The next step will restart it.",
     "importFehlgeschlagen": "The file could not be read.",
     "speichern": "Saving failed",
     "export": "Export failed",

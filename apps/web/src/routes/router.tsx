@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate } from "react-router";
 
 import { LoginRoute } from "./LoginRoute";
+import { RouteFehler } from "./RouteFehler";
 import { RequireAuth } from "./RequireAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -37,14 +38,23 @@ function EditorLaedt() {
   );
 }
 
+/*
+ * `errorElement` steht an **jeder** Route, nicht nur an der Wurzel: react-router sucht die
+ * naechstgelegene Auffangstelle nach oben, und eine allein an der Wurzel wuerde zwar auch
+ * greifen, aber die Route mit sich reissen, deren Nachladen gerade scheiterte. Wichtiger
+ * noch: die Auffangstelle liegt **neben** dem Suspense, nicht darin. Sie muss auch dann
+ * greifen, wenn genau das Nachladen der Fehler ist.
+ */
 export const router = createBrowserRouter([
-  { path: "/login", element: <LoginRoute /> },
+  { path: "/login", element: <LoginRoute />, errorElement: <RouteFehler /> },
   {
     element: <RequireAuth />,
+    errorElement: <RouteFehler />,
     children: [
       { path: "/", element: <Navigate to="/projekte" replace /> },
       {
         path: "/projekte",
+        errorElement: <RouteFehler />,
         element: (
           <Suspense fallback={<EditorLaedt />}>
             <ProjectsRoute />
@@ -53,6 +63,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "/editor/:id",
+        errorElement: <RouteFehler />,
         element: (
           <Suspense fallback={<EditorLaedt />}>
             <EditorRoute />
@@ -63,6 +74,7 @@ export const router = createBrowserRouter([
         // Der dateibasierte Betrieb bleibt erreichbar: oeffnen, ansehen, exportieren,
         // ohne dass etwas auf dem Server liegt.
         path: "/editor",
+        errorElement: <RouteFehler />,
         element: (
           <Suspense fallback={<EditorLaedt />}>
             <EditorRoute />
