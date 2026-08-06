@@ -32,9 +32,24 @@
     "text": "JSON, XML oder AASX hier ablegen. Metamodell 3.0 und 3.1 werden gelesen, exportiert wird immer 3.1.",
     "knopf": "Datei wählen"
   },
+  "slot": {
+    "assetAdministrationShells": "Verwaltungsschalen",
+    "submodels": "Teilmodelle",
+    "conceptDescriptions": "ConceptDescriptions",
+    "submodelElements": "Elemente",
+    "value": "Elemente",
+    "statements": "Elemente",
+    "annotations": "Elemente",
+    "inputVariables": "Eingangsvariablen",
+    "outputVariables": "Ausgangsvariablen",
+    "inoutputVariables": "Ein- und Ausgangsvariablen"
+  },
   "baum": {
+    "neu": "Neu",
+    "neuSubmodel": "Teilmodell anlegen",
+    "teilbaumAufklappen": "Teilbaum aufklappen",
+    "teilbaumZuklappen": "Teilbaum zuklappen",
     "titel": "Struktur",
-    "neuIn": "In {{slot}} anlegen",
     "duplizieren": "Duplizieren",
     "loeschen": "Löschen",
     "aufklappen": "Aufklappen",

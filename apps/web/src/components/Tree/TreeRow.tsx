@@ -142,7 +142,11 @@ export const TreeRowView = memo(function TreeRowView({
             row.matched && "font-medium text-primary",
           )}
         >
-          {row.label}
+          {/*
+            Eine Ordnerzeile traegt den rohen Slotnamen; die Uebersetzung sitzt hier, an
+            derselben Stelle wie die Ueberschrift im Kontextmenue.
+          */}
+          {row.ordner ? t(`slot.${row.label}`) : row.label}
         </span>
 
         {row.disambiguator ? (

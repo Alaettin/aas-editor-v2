@@ -444,3 +444,39 @@ export function moveSubmodelReference(
     verweise[rohpositionen[k] as number] = sichtbar[k] as JsonValue;
   }
 }
+
+/**
+ * Ein Teilmodell **unter einer Shell** anlegen.
+ *
+ * Im Metamodell ist ein Submodel ein Geschwister der Shell unter `Environment`; im Baum
+ * steht es unter ihr, weil sie darauf verweist. Der Rechtsklick auf eine Shell soll dem
+ * Baum folgen, nicht dem Metamodell, also entstehen hier beide Haelften: der Knoten und
+ * der Verweis.
+ *
+ * Bewusst eine Operation und nicht zwei Aufrufe im Klienten: sonst braeuchte eine Geste
+ * zwei Schritte im Rueckgaengig-Verlauf, und dazwischen laege ein Zustand mit einem
+ * Teilmodell, das niemand angefordert hat.
+ */
+export function insertSubmodelForShell(draft: EditorModel, shellId: NodeId): NodeId {
+  const shell = getNode(draft, shellId);
+  if (shell.kind !== "AssetAdministrationShell") {
+    throw new KernFehler("modell.keineShell", "Only an AssetAdministrationShell holds submodels.");
+  }
+
+  const nodeId = insertNode(draft, draft.rootId, "submodels", "Submodel");
+  const id = getNode(draft, nodeId).data["id"];
+  if (typeof id !== "string") {
+    // Kann nur passieren, wenn `newNodeData` die Identifiable-Regel verliert.
+    throw new Error("Das neue Submodel hat keine id.");
+  }
+
+  const verweise = shell.data["submodels"];
+  const eintrag: JsonValue = {
+    type: "ModelReference",
+    keys: [{ type: "Submodel", value: id }],
+  };
+  if (Array.isArray(verweise)) verweise.push(eintrag);
+  else shell.data["submodels"] = [eintrag];
+
+  return nodeId;
+}

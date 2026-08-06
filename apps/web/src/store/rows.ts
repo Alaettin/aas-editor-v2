@@ -40,11 +40,10 @@ export function istOrdner(nodeId: NodeId | null): boolean {
   return nodeId !== null && nodeId.startsWith(ORDNER);
 }
 
-/** Beschriftung einer Ordnerzeile. AAS-Begriffe bleiben unuebersetzt (Entscheidung 28.07.). */
-const ORDNER_LABEL: Record<string, string> = {
-  submodels: "Submodels",
-  conceptDescriptions: "ConceptDescriptions",
-};
+/** Der Slotname hinter einer Ordnerkennung, oder null bei einem echten Knoten. */
+export function slotVonOrdner(nodeId: NodeId | null): string | null {
+  return istOrdner(nodeId) ? (nodeId as string).slice(ORDNER.length) : null;
+}
 
 export interface TreeRow {
   readonly nodeId: NodeId;
@@ -214,7 +213,9 @@ export function buildRows(
       nodeId,
       depth: 1,
       kind: slot,
-      label: ORDNER_LABEL[slot] ?? slot,
+      // Der rohe Slotname. Uebersetzt wird in der Oberflaeche (`TreeRow.tsx`), wie bei
+      // jedem anderen Satz auch: dieses Modul rechnet, es formuliert nicht.
+      label: slot,
       id: null,
       disambiguator: null,
       matched: false,
@@ -375,6 +376,12 @@ export function pathTo(model: EditorModel, nodeId: NodeId): NodeId[] {
   let current: NodeId | null = nodeId;
   while (current !== null) {
     path.unshift(current);
+    // Eine Ordnerzeile ist kein Knoten und hat deshalb keinen `parent`; im Baum steht sie
+    // aber unter der Wurzel. Ohne diesen Zweig bestuende der Pfad nur aus ihr selbst.
+    if (istOrdner(current)) {
+      current = current === model.rootId ? null : model.rootId;
+      continue;
+    }
     const shell = shellVon.get(current);
     current = shell ?? model.nodes[current]?.parent ?? null;
   }

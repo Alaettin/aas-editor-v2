@@ -205,7 +205,7 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
                 in welche Liste er ginge.
               */}
               {typenJeSlot.length > 1 ? (
-                <DropdownMenuLabel>{t("baum.neuIn", { slot })}</DropdownMenuLabel>
+                <DropdownMenuLabel>{t(`slot.${slot}`)}</DropdownMenuLabel>
               ) : null}
               {typen.map((kind) => (
                 <DropdownMenuItem

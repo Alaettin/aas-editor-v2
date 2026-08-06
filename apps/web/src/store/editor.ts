@@ -8,6 +8,7 @@ import {
   emptyHistory,
   getNode,
   insertNode,
+  insertSubmodelForShell,
   moveNode,
   moveSubmodelReference,
   normalize,
@@ -33,6 +34,7 @@ import { meldeErfolg, meldeFehler, meldeHinweis } from "@/lib/melden";
 import { aasWorker, type AttachmentInfo, type OpenResult } from "@/worker/bridge";
 import { clearDraft, createAutosave, loadDraft, type Draft } from "./autosave";
 import { ordnerId } from "./rows";
+import { submodelsJeShell } from "@aas-editor/core";
 
 /**
  * Der Zustand des Hauptthreads.
@@ -131,9 +133,16 @@ interface EditorState {
   setExpanded: (nodeId: NodeId, open: boolean) => void;
   expandTo: (nodeId: NodeId) => void;
   expandAll: (open: boolean) => void;
+  /** Alles unterhalb eines Knotens auf- oder zuklappen, der Anzeige folgend. */
+  expandSubtree: (nodeId: NodeId, open: boolean) => void;
 
   updateField: (nodeId: NodeId, key: string, value: JsonValue | undefined) => void;
   addElement: (parentId: NodeId, slot: string, kind: string, index?: number) => void;
+  /**
+   * Ein Teilmodell unter einer Shell anlegen: Knoten und Verweis in einem Schritt, damit
+   * eine Geste auch einen Schritt im Rueckgaengig-Verlauf kostet.
+   */
+  addSubmodelToShell: (shellId: NodeId) => void;
   deleteElement: (nodeId: NodeId) => void;
   duplicateElement: (nodeId: NodeId) => void;
   moveElement: (nodeId: NodeId, targetParentId: NodeId, slot: string, index?: number) => void;
@@ -596,6 +605,32 @@ export const useEditor = create<EditorState>()((set, get) => {
         return { expanded: next };
       }),
 
+    expandSubtree: (nodeId, open) =>
+      set((state) => {
+        if (!state.model) return state;
+        const { jeShell } = submodelsJeShell(state.model);
+        const next = { ...state.expanded };
+
+        /*
+         * Der Anzeige folgen, nicht dem Modell: unter einer Shell haengen ihre Submodels
+         * ueber Verweise, nicht ueber `children`. Ohne diesen Zweig bliebe beim
+         * Aufklappen genau dort alles zu. Denselben Fehler hatte `expandAll` schon einmal.
+         */
+        const gehe = (id: NodeId) => {
+          if (open) next[id] = true;
+          else delete next[id];
+          const knoten = state.model?.nodes[id];
+          if (!knoten) return;
+          const kinder =
+            knoten.kind === "AssetAdministrationShell"
+              ? (jeShell.get(id) ?? [])
+              : Object.values(knoten.children).flat();
+          for (const kind of kinder) gehe(kind);
+        };
+        gehe(nodeId);
+        return { expanded: next };
+      }),
+
     updateField: (nodeId, key, value) =>
       change(`${key} geaendert`, (draft) => setField(draft, nodeId, key, value)),
 
@@ -611,6 +646,21 @@ export const useEditor = create<EditorState>()((set, get) => {
       if (get().model?.nodes[neu]) {
         get().expandTo(neu);
         get().setExpanded(parentId, true);
+        set({ selection: neu });
+      }
+    },
+
+    addSubmodelToShell: (shellId) => {
+      const { model } = get();
+      if (!model) return;
+      const before = model.nextNodeId;
+      change("Submodel angelegt", (draft) => {
+        insertSubmodelForShell(draft, shellId);
+      });
+      const neu = `n${before}`;
+      if (get().model?.nodes[neu]) {
+        get().setExpanded(shellId, true);
+        get().expandTo(neu);
         set({ selection: neu });
       }
     },

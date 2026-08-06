@@ -140,7 +140,8 @@ describe("Hierarchie des Baums", () => {
     });
     const ordner = zeilen.find((zeile) => zeile.ordner && zeile.slot === "conceptDescriptions");
 
-    expect(ordner?.label).toBe("ConceptDescriptions");
+    // Der rohe Slotname: uebersetzt wird in der Oberflaeche, nicht in dieser Rechnung.
+    expect(ordner?.label).toBe("conceptDescriptions");
     expect(ordner?.childCount).toBe(1);
     expect(zeilen.find((zeile) => zeile.label === "Begriff")?.parentId).toBe(ordner?.nodeId);
   });

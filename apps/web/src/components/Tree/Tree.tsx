@@ -14,7 +14,7 @@ import { buildCensus } from "@/store/census";
 import { useEditor } from "@/store/editor";
 import { buildIssueCounts } from "@/store/issueCounts";
 import { dropTarget, type DropWhere } from "@/store/ablage";
-import { buildRows, indexRows, pathTo, type TreeRow } from "@/store/rows";
+import { buildRows, indexRows, pathTo, slotVonOrdner, type TreeRow } from "@/store/rows";
 import type { NodeId } from "@aas-editor/core";
 import { TreeRowView } from "./TreeRow";
 import { TreeContextMenu } from "./TreeContextMenu";
@@ -51,10 +51,12 @@ export function Tree() {
   const moveElement = useEditor((state) => state.moveElement);
   const moveSubmodelUnderShell = useEditor((state) => state.moveSubmodelUnderShell);
   const addElement = useEditor((state) => state.addElement);
+  const addSubmodelToShell = useEditor((state) => state.addSubmodelToShell);
   const copyNode = useEditor((state) => state.copyNode);
   const cutNode = useEditor((state) => state.cutNode);
 
   const expandAll = useEditor((state) => state.expandAll);
+  const expandSubtree = useEditor((state) => state.expandSubtree);
   const requestDelete = useEditor((state) => state.requestDelete);
   const requestPaste = useEditor((state) => state.requestPaste);
 
@@ -94,12 +96,16 @@ export function Tree() {
     return pathTo(model, selection).map((id) => {
       const knoten = model.nodes[id];
       const idShort = knoten?.data["idShort"];
+      // Ordnerzeilen tragen ihren Slotnamen als Kennung; ohne diese Zeile stuende in der
+      // Brotkrume "slot:conceptDescriptions".
+      const slot = slotVonOrdner(id);
+      if (slot !== null) return { nodeId: id, label: t(`slot.${slot}`) };
       return {
         nodeId: id,
         label: typeof idShort === "string" && idShort ? idShort : (knoten?.kind ?? id),
       };
     });
-  }, [model, selection]);
+  }, [model, selection, t]);
 
   // Die Zeilenhoehe steht in tokens.css und haengt an der Dichte. Sie hier zu wiederholen
   // hiesse, sie bei jedem Dichtewechsel aus dem Takt laufen zu lassen.
@@ -361,11 +367,13 @@ export function Tree() {
       <TreeContextMenu
         row={menuRow}
         onAdd={(parentId, slot, kind) => addElement(parentId, slot, kind)}
+        onAddSubmodelToShell={(shellId) => addSubmodelToShell(shellId)}
         onDuplicate={(nodeId) => duplicateElement(nodeId)}
         onDelete={(row) => requestDelete([row.nodeId])}
         onCopy={(nodeId) => copyNode(nodeId)}
         onCut={(nodeId) => cutNode(nodeId)}
         onPaste={(nodeId) => requestPaste(nodeId)}
+        onExpandSubtree={(nodeId, open) => expandSubtree(nodeId, open)}
         canPaste={clipboard !== null}
       >
         <div

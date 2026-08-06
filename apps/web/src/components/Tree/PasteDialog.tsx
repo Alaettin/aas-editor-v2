@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { zielVon } from "@/store/ablage";
 import { useEditor } from "@/store/editor";
 
 /**
@@ -33,13 +34,24 @@ export function PasteDialog() {
   /** In welchen Slot des Ziels passt das Fragment ueberhaupt? */
   const ziel = useMemo(() => {
     if (!model || !targetId || !clipboard) return null;
-    const node = model.nodes[targetId];
+
+    // Eine Ordnerzeile ist kein Knoten, sondern ein Slot des Environments. Ohne diese
+    // Umrechnung fand die Suche nichts, und Einfuegen blieb dort wirkungslos.
+    const ort = zielVon(model, targetId);
+    if (!ort) return null;
+    const node = model.nodes[ort.parentId];
     if (!node) return null;
+
+    if (ort.festerSlot !== null) {
+      return canContain(node.kind, ort.festerSlot, clipboard.kind, node.data)
+        ? { parentId: ort.parentId, slot: ort.festerSlot }
+        : null;
+    }
 
     const slot = childSlotsOf(node.kind)
       .map((entry) => entry.name)
       .find((name) => canContain(node.kind, name, clipboard.kind, node.data));
-    if (slot) return { parentId: targetId, slot };
+    if (slot) return { parentId: ort.parentId, slot };
 
     // Passt es nicht hinein, dann vielleicht daneben, als Geschwister.
     if (node.parent && node.slot) {

@@ -32,9 +32,24 @@
     "text": "Drop a JSON, XML or AASX file here. Metamodel 3.0 and 3.1 are read, export is always 3.1.",
     "knopf": "Choose file"
   },
+  "slot": {
+    "assetAdministrationShells": "Asset administration shells",
+    "submodels": "Submodels",
+    "conceptDescriptions": "Concept descriptions",
+    "submodelElements": "Elements",
+    "value": "Elements",
+    "statements": "Elements",
+    "annotations": "Elements",
+    "inputVariables": "Input variables",
+    "outputVariables": "Output variables",
+    "inoutputVariables": "In/out variables"
+  },
   "baum": {
+    "neu": "New",
+    "neuSubmodel": "Add submodel",
+    "teilbaumAufklappen": "Expand subtree",
+    "teilbaumZuklappen": "Collapse subtree",
     "titel": "Structure",
-    "neuIn": "Add to {{slot}}",
     "duplizieren": "Duplicate",
     "loeschen": "Delete",
     "aufklappen": "Expand",

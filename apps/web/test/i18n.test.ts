@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import { CHILD_SLOTS } from "@aas-editor/core";
 import { ALLE_BEFUND_SCHLUESSEL } from "@aas-editor/core/validation";
 
 import de from "../src/i18n/de.json" with { type: "json" };
@@ -89,6 +90,15 @@ describe("Uebersetzungen", () => {
     }
 
     expect(unbenutzt.sort()).toEqual([]);
+  });
+
+  it("kennt jeden Slot des Metamodells", () => {
+    // Die Ueberschriften im Kontextmenue und die Ordnerzeilen im Baum werden ueber
+    // `slot.${name}` zusammengesetzt. Fehlt einer, stuende dort der rohe Feldname aus
+    // dem JSON, also genau das, was am 06.08.2026 abgeschafft wurde.
+    const slots = new Set(Object.values(CHILD_SLOTS).flatMap((liste) => liste.map((s) => s.name)));
+    const fehlend = [...slots].filter((name) => !vorhanden(`slot.${name}`));
+    expect(fehlend.sort()).toEqual([]);
   });
 
   it("kennt jeden Befundschluessel, den der Kern liefern kann", () => {
@@ -280,6 +290,9 @@ const BAUSTEINE = [
   "palette.stichwort.",
   // Die Beschriftung des Speichern-Knopfes folgt dem Serverzustand, siehe Toolbar.
   "speichern.",
+  // Slotnamen: Baum, Kontextmenue und Werkzeugleiste setzen sie ueber `slot.${name}`
+  // zusammen. Dass es zu jedem Slot einen Satz gibt, prueft die Runde darunter.
+  "slot.",
 ];
 
 /** Alle Blattschluessel in Punktschreibweise. Pluralformen zaehlen als ihr Grundschluessel. */

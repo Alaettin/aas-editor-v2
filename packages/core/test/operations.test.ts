@@ -8,6 +8,7 @@ import {
   canContain,
   duplicateNode,
   insertNode,
+  insertSubmodelForShell,
   isAncestor,
   moveNode,
   moveSubmodelReference,
@@ -411,5 +412,86 @@ describe("Submodels unter einer Shell umsortieren", () => {
         moveSubmodelReference(draft, shellId, ohneVerweis, 0);
       });
     }, "modell.verweisFehlt");
+  });
+});
+
+describe("Teilmodell unter einer Shell anlegen", () => {
+  function mitShell(): EditorModel {
+    return normalize({
+      assetAdministrationShells: [
+        {
+          id: "https://example.com/aas/1",
+          idShort: "Shell",
+          modelType: "AssetAdministrationShell",
+          assetInformation: { assetKind: "Instance" },
+        },
+      ],
+    });
+  }
+
+  it("haengt es unter Environment und laesst die Shell darauf verweisen", () => {
+    const start = mitShell();
+    const shellId = [...walk(start)].find((n) => n.kind === "AssetAdministrationShell")!.nodeId;
+
+    const step = applyChange(start, emptyHistory, "Submodel angelegt", (draft) => {
+      insertSubmodelForShell(draft, shellId);
+    });
+
+    // Im Modell ist es ein Geschwister der Shell, nicht ihr Kind.
+    const wurzel = getNode(step.model, step.model.rootId);
+    expect(wurzel.children["submodels"]).toHaveLength(1);
+
+    // Im Baum steht es trotzdem unter ihr, weil der Verweis gesetzt ist.
+    const unterShell = submodelsJeShell(step.model).jeShell.get(shellId)!;
+    expect(unterShell).toHaveLength(1);
+    expect(getNode(step.model, unterShell[0]!).kind).toBe("Submodel");
+
+    // Und der Rundlauf haelt: eine Shell ohne gueltige Verweise waere nicht exportierbar.
+    expect(() => toAasCore(step.model)).not.toThrow();
+  });
+
+  it("nimmt Knoten und Verweis in einem Schritt zurueck", () => {
+    const start = mitShell();
+    const shellId = [...walk(start)].find((n) => n.kind === "AssetAdministrationShell")!.nodeId;
+
+    const step = applyChange(start, emptyHistory, "Submodel angelegt", (draft) => {
+      insertSubmodelForShell(draft, shellId);
+    });
+    const zurueck = undo(step.model, step.history)!;
+
+    expect(getNode(zurueck.model, zurueck.model.rootId).children["submodels"] ?? []).toHaveLength(
+      0,
+    );
+    expect(getNode(zurueck.model, shellId).data["submodels"] ?? []).toHaveLength(0);
+  });
+
+  it("legt ein zweites daneben, ohne das erste zu verlieren", () => {
+    const start = mitShell();
+    const shellId = [...walk(start)].find((n) => n.kind === "AssetAdministrationShell")!.nodeId;
+
+    const step = applyChange(start, emptyHistory, "zwei Submodels", (draft) => {
+      insertSubmodelForShell(draft, shellId);
+      insertSubmodelForShell(draft, shellId);
+    });
+
+    const unterShell = submodelsJeShell(step.model).jeShell.get(shellId)!;
+    expect(unterShell).toHaveLength(2);
+    // Die vorlaeufigen ids muessen sich unterscheiden, sonst zeigte der zweite Verweis
+    // auf dasselbe Teilmodell und eine Zeile verschwaende.
+    const ids = unterShell.map((id) => getNode(step.model, id).data["id"]);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("weist einen Knoten zurueck, der keine Shell ist", () => {
+    const start = normalize({
+      submodels: [{ id: "https://example.com/sm/1", idShort: "SM", modelType: "Submodel" }],
+    });
+    const submodel = [...walk(start)].find((n) => n.kind === "Submodel")!.nodeId;
+
+    wirftSchluessel(() => {
+      applyChange(start, emptyHistory, "Submodel angelegt", (draft) => {
+        insertSubmodelForShell(draft, submodel);
+      });
+    }, "modell.keineShell");
   });
 });

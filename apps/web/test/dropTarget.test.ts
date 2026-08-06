@@ -1,8 +1,8 @@
 import { normalize, type JsonObject } from "@aas-editor/core";
 import { describe, expect, it } from "vitest";
 
-import { dropTarget } from "../src/store/ablage";
-import { buildRows, type TreeRow } from "../src/store/rows";
+import { dropTarget, zielVon } from "../src/store/ablage";
+import { buildRows, ordnerId, type TreeRow } from "../src/store/rows";
 
 /**
  * Wohin faellt ein gezogener Knoten?
@@ -119,5 +119,26 @@ describe("Ablageziel im Baum", () => {
     expect(ziel!.verweis, "ein Property haengt wirklich um").toBeUndefined();
     expect(ziel!.slot).toBe("submodelElements");
     expect(ziel!.parentId).toBe(zweites.nodeId);
+  });
+});
+
+describe("Ziel einer Zeile", () => {
+  it("loest eine Ordnerzeile auf die Wurzel und ihren Slot auf", () => {
+    const model = normalize(UMGEBUNG);
+    const ziel = zielVon(model, ordnerId("conceptDescriptions"));
+
+    expect(ziel).toEqual({ parentId: model.rootId, festerSlot: "conceptDescriptions" });
+  });
+
+  it("laesst einen echten Knoten seinen eigenen Ort sein", () => {
+    const model = normalize(UMGEBUNG);
+    const ziel = zielVon(model, model.rootId);
+
+    expect(ziel).toEqual({ parentId: model.rootId, festerSlot: null });
+  });
+
+  it("kennt keinen Ort fuer eine unbekannte Kennung", () => {
+    const model = normalize(UMGEBUNG);
+    expect(zielVon(model, "n999")).toBeNull();
   });
 });

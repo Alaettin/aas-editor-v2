@@ -1,6 +1,6 @@
 import { canContain, childSlotsOf, isAncestor, type EditorModel } from "@aas-editor/core";
 
-import type { TreeRow } from "./rows";
+import { slotVonOrdner, type TreeRow } from "./rows";
 
 /**
  * Wohin faellt ein gezogener Knoten?
@@ -101,4 +101,29 @@ export function dropTarget(
   }
 
   return null;
+}
+
+export interface Einfuegeziel {
+  /** Der Knoten, unter dem etwas entsteht. Bei einer Ordnerzeile die Wurzel. */
+  readonly parentId: string;
+  /**
+   * Der Slot, wenn die Zeile ihn vorgibt. Eine Ordnerzeile **ist** ein Slot des
+   * Environments, dort gibt es keine Wahl. Sonst null, dann entscheidet der Typ.
+   */
+  readonly festerSlot: string | null;
+}
+
+/**
+ * Worauf zeigt eine Baumzeile, wenn man dort etwas anlegen oder einfuegen will?
+ *
+ * Ordnerzeilen sind keine Modellknoten: sie tragen die Kennung `slot:<name>`, und ein
+ * Nachschlagen in `model.nodes` liefert nichts. Bis zum 06.08.2026 fiel damit das ganze
+ * Kontextmenue leer aus, und ausgerechnet auf "ConceptDescriptions" liess sich keine
+ * ConceptDescription anlegen. Dieselbe Umrechnung macht `dropTarget` fuer die Ablage;
+ * sie steht deshalb hier, damit beide Wege dasselbe Ziel meinen.
+ */
+export function zielVon(model: EditorModel, nodeId: string): Einfuegeziel | null {
+  const slot = slotVonOrdner(nodeId);
+  if (slot !== null) return { parentId: model.rootId, festerSlot: slot };
+  return model.nodes[nodeId] ? { parentId: nodeId, festerSlot: null } : null;
 }
