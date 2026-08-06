@@ -39,7 +39,13 @@ export const notFound = (code: string, message: string) => new AppError(404, cod
 export const conflict = (code: string, message: string, details?: Record<string, unknown>) =>
   new AppError(409, code, message, details);
 
-export function registerErrorHandler(app: FastifyInstance): void {
+/**
+ * @param spaFallback Liefert ein unbekannter GET-Pfad die Anwendung aus? Nur wahr, wenn ein
+ * gebautes Frontend vorliegt. Der 404-Handler bleibt trotzdem hier und nicht in
+ * `routes/statisch.ts`: Fastify erlaubt genau einen je Instanz, und zwei Stellen, die ihn
+ * setzen wollen, enden in "Not found handler already set".
+ */
+export function registerErrorHandler(app: FastifyInstance, spaFallback = false): void {
   app.setErrorHandler((error: FastifyError, request, reply) => {
     if (error instanceof AppError) {
       request.log.info({ code: error.code, statusCode: error.statusCode }, error.message);
@@ -62,7 +68,22 @@ export function registerErrorHandler(app: FastifyInstance): void {
     void reply.code(500).send({ code: "serverfehler", message: "Unexpected server error." });
   });
 
-  app.setNotFoundHandler((_request, reply) => {
+  app.setNotFoundHandler((request, reply) => {
+    /*
+     * Die API antwortet **niemals** mit HTML, auch nicht auf einen Tippfehler im Pfad:
+     * ein Klient scheitert sonst an einem "<" statt an einer lesbaren Meldung. Deshalb
+     * greift der Fallback nur bei einem GET ausserhalb von /api/, das HTML will.
+     */
+    const gehoertZurAnwendung =
+      spaFallback &&
+      request.method === "GET" &&
+      !request.url.startsWith("/api/") &&
+      (request.headers.accept ?? "").includes("text/html");
+
+    if (gehoertZurAnwendung) {
+      void reply.header("cache-control", "no-cache").sendFile("index.html");
+      return;
+    }
     void reply.code(404).send({ code: "route-unbekannt", message: "Unknown route." });
   });
 }

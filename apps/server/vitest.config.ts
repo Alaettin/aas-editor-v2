@@ -1,6 +1,14 @@
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
 
+const { version } = JSON.parse(readFileSync(new URL("package.json", import.meta.url), "utf8")) as {
+  version: string;
+};
+
 export default defineConfig({
+  // Dieselbe Ersetzung wie in `build.mjs`: ohne sie kennt der Testlauf `__APP_VERSION__`
+  // nicht, und der Health-Endpunkt faellt mit einem ReferenceError um.
+  define: { __APP_VERSION__: JSON.stringify(version) },
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],

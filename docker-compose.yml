@@ -14,12 +14,21 @@ services:
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-720}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-50}
     volumes:
-      # SQLite-Datei und Anhaenge, Backup ist ein Kopiervorgang dieses Volumes
+      # SQLite-Datei und Anhaenge. Zum Sichern **nicht** einfach kopieren: bei WAL steht
+      # der juengste Stand teils in der -wal-Datei. Erst
+      #   docker compose exec app node apps/server/scripts/backup.mjs
+      # laufen lassen, dann /data/backups/<zeitstempel> herausholen.
       - aas-data:/data
     expose:
       - "3200"
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3200/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3200/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 30s
       timeout: 5s
       retries: 3

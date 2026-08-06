@@ -73,12 +73,26 @@ Die gemessenen Zahlen und was offen bleibt: [docs/leistung.md](docs/leistung.md)
 
 ```bash
 docker compose up -d --build
-curl http://localhost:8080/api/health
+docker compose ps                       # der Healthcheck muss "healthy" zeigen
+curl -k https://localhost:8443/api/health
 ```
 
-`AAS_EDITOR_DOMAIN` in der `.env` auf die echte Domain setzen, dann besorgt Caddy das
-HTTPS-Zertifikat selbst. Die SQLite-Datei und die Anhaenge liegen im Volume `aas-data`,
-ein Backup ist ein Kopiervorgang dieses Volumes.
+Der Server liefert das gebaute Frontend selbst aus, es gibt also **einen** Dienst plus
+Caddy davor. `AAS_EDITOR_DOMAIN` in der `.env` auf die echte Domain setzen, dann besorgt
+Caddy das HTTPS-Zertifikat selbst; lokal steht dort `localhost`, und Caddy stellt sich ein
+eigenes aus (daher das `-k` oben und die Warnung im Browser).
+
+**HTTPS ist im Container nicht optional.** Compose setzt `NODE_ENV=production`, damit
+traegt das Sitzungscookie `secure`, und ueber `http://` verwirft der Browser es
+kommentarlos: die Anmeldung liefe dann in eine Schleife.
+
+Die SQLite-Datei und die Anhaenge liegen im Volume `aas-data`. Zum Sichern **nicht**
+einfach kopieren: bei WAL steht der juengste Stand teils in der `-wal`-Datei.
+
+```bash
+docker compose exec app node apps/server/scripts/backup.mjs
+docker compose cp app:/data/backups ./sicherung
+```
 
 ## Aufbau
 

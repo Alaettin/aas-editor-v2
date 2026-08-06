@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { fileRoutes } from "./routes/files.js";
 import { projectRoutes } from "./routes/projects.js";
+import { frontendVorhanden, statischeDateien } from "./routes/statisch.js";
 import { submodelRoutes } from "./routes/submodels.js";
 
 export interface BuiltServer {
@@ -21,7 +22,11 @@ export interface BuiltServer {
  * Baut die Instanz, ohne zu lauschen. Das Lauschen liegt allein in index.ts, damit Tests
  * ueber app.inject() ohne Port und ohne Netzwerk laufen koennen.
  */
-export async function buildServer(env: ServerEnv, migrationsFolder: string): Promise<BuiltServer> {
+export async function buildServer(
+  env: ServerEnv,
+  migrationsFolder: string,
+  frontendFolder?: string,
+): Promise<BuiltServer> {
   const { db, sqlite } = openDatabase(env.dbPath);
   runMigrations(db, migrationsFolder);
 
@@ -36,7 +41,9 @@ export async function buildServer(env: ServerEnv, migrationsFolder: string): Pro
     bodyLimit: 64 * 1024 * 1024,
   });
 
-  registerErrorHandler(app);
+  // Der SPA-Fallback haengt am 404-Handler, und den gibt es nur einmal je Instanz.
+  const hatFrontend = frontendFolder !== undefined && frontendVorhanden(frontendFolder);
+  registerErrorHandler(app, hatFrontend);
   await installAuth(app, env);
   await app.register(multipart, { limits: { fileSize: env.maxUploadBytes, files: 1 } });
 
@@ -45,6 +52,10 @@ export async function buildServer(env: ServerEnv, migrationsFolder: string): Pro
   projectRoutes(app, db);
   fileRoutes(app, db, env);
   submodelRoutes(app, db);
+
+  // Zuletzt, damit keine API-Route verdeckt wird.
+  if (hatFrontend) await statischeDateien(app, frontendFolder as string);
+  else app.log.info("kein gebautes Frontend gefunden, Server laeuft als reine API");
 
   return {
     app,

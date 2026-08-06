@@ -1,8 +1,10 @@
 # syntax=docker/dockerfile:1
 
-# bookworm-slim statt alpine: better-sqlite3 liefert glibc-Prebuilds. Unter musl gaebe es
-# keine, das Modul wuerde uebersetzt, und dafuer fehlen python3, make und g++ in beiden
-# Stufen. Eine Zeile Basisimage spart den ganzen Compiler-Aufbau.
+# bookworm-slim statt alpine: glibc statt musl. Der urspruengliche Grund ("better-sqlite3
+# liefert glibc-Prebuilds") hat sich beim ersten echten Bau am 06.08.2026 als falsch
+# erwiesen: 13.0.3 ruft ohne Umweg `node-gyp rebuild` auf, es wird also **immer**
+# uebersetzt. Die Werkzeuge dafuer kommen deshalb je Stufe dazu, in der Laufzeitstufe in
+# derselben Schicht wieder weg.
 FROM node:22-bookworm-slim AS base
 RUN corepack enable
 WORKDIR /app
@@ -11,6 +13,8 @@ WORKDIR /app
 # Installieren und Bauen liegen bewusst in einer Stufe: pnpm verlinkt node_modules
 # symbolisch in einen virtuellen Store, das ueberlebt ein Kopieren zwischen Stufen nicht.
 FROM base AS build
+# Wird mit der Stufe verworfen, deshalb ohne Aufraeumen.
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++
 COPY . .
 RUN pnpm install --frozen-lockfile \
   && pnpm --filter @aas-editor/web build \
@@ -25,14 +29,25 @@ COPY packages/core/package.json packages/core/
 COPY apps/server/package.json apps/server/
 # Der Server ist gebuendelt, er braucht zur Laufzeit nur die externen Pakete. Dazu gehoert
 # better-sqlite3: ein natives Modul laesst sich nicht buendeln.
-RUN pnpm install --frozen-lockfile --prod --filter @aas-editor/server
+# Uebersetzen und Aufraeumen in **einer** Schicht: waere das Entfernen eine eigene Zeile,
+# steckten die rund 200 MB Werkzeuge weiterhin in der darunterliegenden.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && pnpm install --frozen-lockfile --prod --filter @aas-editor/server \
+  && apt-get purge -y python3 make g++ \
+  && apt-get autoremove -y \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /app/apps/server/dist ./apps/server/dist
 # Die Migrationen werden beim Start angewendet. drizzle-kit ist devDependency und liegt
 # hier nicht vor, der generierte Ordner muss deshalb mit ins Image.
 COPY --from=build /app/apps/server/drizzle ./apps/server/drizzle
-# Das Frontend wird in Phase 9 vom Server ausgeliefert. Bis dahin laeuft es ueber Vite.
+# Das Frontend liefert der Server selbst aus, siehe apps/server/src/routes/statisch.ts.
+# Der Pfad ist Teil der Zusage: index.ts sucht es genau eine Ebene ueber apps/server.
 COPY --from=build /app/apps/web/dist ./apps/web/dist
+# Das Sicherungsskript. Ohne diese Zeile gibt es im Container keinen Weg, die Daten
+# konsistent herauszuholen: eine blanke Kopie der SQLite-Datei ist bei WAL nicht sicher.
+COPY --from=build /app/apps/server/scripts ./apps/server/scripts
 
 # Das benannte Volume erbt Eigentuemer und Rechte dieses Pfads, wenn es leer angelegt wird.
 # Ohne diesen Schritt scheitert der erste Schreibzugriff als Benutzer node mit
