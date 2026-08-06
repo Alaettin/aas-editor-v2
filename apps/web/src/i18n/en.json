@@ -1,6 +1,6 @@
 {
   "app": {
-    "titel": "AAS Editor",
+    "titel": "AXON Studio",
     "oeffnen": "Open",
     "exportieren": "Export",
     "rueckgaengig": "Undo",
@@ -314,14 +314,14 @@
     "anmelden": "Sign in",
     "laeuft": "Checking ...",
     "abmelden": "Sign out",
-    "titel": "AAS Editor",
+    "titel": "AXON Studio",
     "sprache": "Language",
     "marke": "Neoception, Pepperl+Fuchs"
   },
   "projekte": {
     "titel": "Projects",
     "arbeitsbereich": "Workspace",
-    "marke": "AAS Editor",
+    "marke": "AXON Studio",
     "navProjekte": "Projects",
     "navRepository": "Repository",
     "suche": "Search projects",

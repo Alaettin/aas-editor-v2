@@ -1,13 +1,14 @@
-# AAS Editor
+# AXON Studio
 
 Web-basierter Editor fuer Asset Administration Shells (AAS) auf Basis der TypeScript-SDKs von
 aas-core-works. Import aus JSON, XML und AASX in Metamodell 3.0 und 3.1, Export immer in 3.1,
 Validierung gegen die aas-core-Constraints, alles clientseitig im Web Worker.
 
-Stand: Phase 0 bis 8. Oberflaeche in der AXON-Farbwelt mit Menuezeile,
-Explorer, Formular, Tabelle und Graph, Live-Validierung, dazu Anmeldung und Projekte auf dem
-Server samt Versionen und Anhaengen. Der KI-Assistent ist als Oberflaeche vorhanden, aber
-**noch nicht angebunden** und sagt das an jeder Stelle.
+Stand: Phase 0 bis 8. Oberflaeche in der AXON-Farbwelt mit Werkzeugleiste, Explorer und
+Formular, Live-Validierung, dazu Anmeldung und Projekte auf dem Server samt Anhaengen. Die
+Graphsicht ist abgeschaltet und wird ueberarbeitet, die Tabellensicht ist entfallen. Der
+KI-Assistent ist als Oberflaeche vorhanden, aber **noch nicht angebunden** und sagt das an
+jeder Stelle.
 
 ## Anmeldung und Projekte
 
@@ -17,9 +18,9 @@ dem `AuthProvider`-Interface in `apps/server/src/auth/provider.ts` und wird spae
 ohne dass eine Route sich aendert.
 
 Nach der Anmeldung fuehrt `/projekte` die gespeicherten Staende. Ein Projekt entsteht leer oder
-aus einer vorhandenen Datei. Gespeichert wird ueber die Kopfleiste; laeuft dabei ein zweiter Tab
-mit, meldet der Server einen Konflikt statt zu ueberschreiben. Der Versionsverlauf legt
-komprimierte Schnappschuesse an und holt sie zurueck.
+aus einer vorhandenen Datei. Gespeichert wird ueber die Werkzeugleiste, und zwar
+ueberschreibend: laeuft ein zweiter Tab mit, gewinnt der letzte Schreibvorgang. Eine
+Versionierung gibt es bewusst nicht.
 
 Identifiables liegen einzeln in der Datenbank, adressierbar ueber ihre base64url-kodierte `id`:
 

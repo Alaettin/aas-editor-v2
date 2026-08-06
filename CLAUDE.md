@@ -1,8 +1,8 @@
-# AAS Editor: Projektkonventionen
+# AXON Studio: Projektkonventionen
 
 Web-basierter Editor fuer Asset Administration Shells auf Basis der TypeScript-SDKs von
 aas-core-works. Die vollstaendige Umsetzungsvorgabe (Ziel, Architektur, Phasen 0 bis 9, Abnahmen)
-liegt in Obsidian unter `01 Projekte/03 AAS Editor/Plan.md` und ist maszgeblich. Dieses Dokument
+liegt in Obsidian unter `01 Projekte/02 Arbeit/01 AAS Editor/Plan.md` und ist maszgeblich. Dieses Dokument
 haelt nur fest, was beim Schreiben von Code taeglich greift.
 
 ## Aufbau

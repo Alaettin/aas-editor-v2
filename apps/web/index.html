@@ -3,24 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AAS Editor</title>
+    <title>AXON Studio</title>
     <script>
       /*
-        Erscheinung, Dichte und Sprache vor dem ersten Bild setzen.
+        Dichte und Sprache vor dem ersten Bild setzen.
 
-        Ohne diese Zeilen laeuft erst React an, setzt die Klasse, und der Nutzer sieht bei
-        jedem Laden kurz die helle Fassung aufblitzen. Der Schluessel und die Vorgaben
-        stehen ebenso in `store/ansicht.ts`; das ist die eine bewusste Wiederholung, denn
-        hier darf noch kein Modul geladen sein.
+        Ohne diese Zeilen laeuft erst React an, und der Nutzer sieht die Dichte bei jedem
+        Laden kurz springen. Der Schluessel und die Vorgaben stehen ebenso in
+        `store/ansicht.ts`; das ist die eine bewusste Wiederholung, denn hier darf noch
+        kein Modul geladen sein.
+
+        Die Klasse `dark` steht bedingungslos: es gibt nur eine Erscheinung. Sie bleibt
+        allein wegen der `dark:`-Utilities im shadcn-Fremdcode, siehe tokens.css.
       */
+      document.documentElement.classList.add("dark");
       (function () {
         try {
           var roh = localStorage.getItem("aas-editor-ansicht");
           var wert = roh ? JSON.parse(roh) : null;
-          var dunkel = wert
-            ? wert.theme === "dark"
-            : window.matchMedia("(prefers-color-scheme: dark)").matches;
-          if (dunkel) document.documentElement.classList.add("dark");
           document.documentElement.dataset.density =
             wert && wert.density === "compact" ? "compact" : "cozy";
           var sprache =
