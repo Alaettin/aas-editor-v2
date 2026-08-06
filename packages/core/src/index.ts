@@ -20,6 +20,7 @@ export * from "./model/kinds.js";
 export * from "./model/store.js";
 export * from "./model/normalize.js";
 export * from "./model/paths.js";
+export * from "./model/referenzen.js";
 export * from "./model/history.js";
 export * from "./model/operations.js";
 export * from "./model/clipboard.js";

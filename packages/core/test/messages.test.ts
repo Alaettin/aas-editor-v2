@@ -9,25 +9,78 @@ import { ALLE_BEFUND_SCHLUESSEL, CONSTRAINT_IDS, explain } from "../src/validati
 /**
  * Drift-Wache fuer die Uebersetzungen, gleiche Machart wie der Enum-Test.
  *
- * Statt eine Liste zu pflegen, wird der generierte Quelltext der SDK gelesen und jede
- * darin vorkommende Constraint-Kennung eingesammelt. Kommt mit einer neuen SDK ein
- * Constraint hinzu, faellt dieser Test, nicht die Oberflaeche.
+ * Statt eine Liste zu pflegen, wird der generierte Quelltext der SDK gelesen. Zwei Runden:
+ * die Constraint-Kennungen, und **jede Meldungsvorlage ueberhaupt**.
  *
- * Geprueft wird hier **SDK gegen Kern**, also ob es zu jeder Kennung einen Schluessel
+ * Die zweite Runde ist am 06.08.2026 dazugekommen, und sie war ueberfaellig. Bis dahin
+ * pruefte hier nichts, ob die Musterregeln reichen: von 103 Vorlagen der SDK bekamen 21
+ * keinen Schluessel und erschienen woertlich englisch, ohne Kennzeichnung. Aufgefallen ist
+ * es nicht im Test, sondern dem Nutzer.
+ *
+ * Geprueft wird hier **SDK gegen Kern**, also ob es zu jeder Meldung einen Schluessel
  * gibt. Ob hinter dem Schluessel auch ein Satz steht, prueft `apps/web/test/i18n.test.ts`
  * fuer jede Sprache einzeln. Der Kern kennt keine Sprache und soll auch keine kennen.
  */
 
-function constraintIdsOfSdk(): string[] {
+function sdkQuelltext(): string {
   const require = createRequire(import.meta.url);
-  const entry = require.resolve("@aas-core-works/aas-core3.1-typescript/verification");
-  const source = readFileSync(entry, "utf8");
+  return readFileSync(
+    require.resolve("@aas-core-works/aas-core3.1-typescript/verification"),
+    "utf8",
+  );
+}
 
+function constraintIdsOfSdk(): string[] {
   const ids = new Set<string>();
   const pattern = /Constraint (AAS[dc]-[0-9A-Za-z-]+)/g;
   let match: RegExpExecArray | null;
+  const source = sdkQuelltext();
   while ((match = pattern.exec(source)) !== null) ids.add(match[1] as string);
   return [...ids].sort();
+}
+
+/**
+ * Jede Meldungsvorlage, die `verification.verify()` erzeugen kann.
+ *
+ * Die SDK bricht ihre Saetze ueber mehrere Zeilen um und setzt sie mit `+` zusammen,
+ * teils mit `${...}`-Einsetzungen. Gesammelt wird deshalb der ganze Ausdruck innerhalb
+ * von `new VerificationError(...)`, aus ihm alle Zeichenkettenliterale aneinandergehaengt
+ * und jede Einsetzung durch ein Platzhalterzeichen ersetzt. Wer nur nach einzelnen
+ * Literalen suchte, zaehlte Bruchstuecke.
+ */
+function meldungsvorlagen(): string[] {
+  const source = sdkQuelltext();
+  const vorlagen = new Set<string>();
+  const anfang = /new VerificationError\(/g;
+  let treffer: RegExpExecArray | null;
+
+  while ((treffer = anfang.exec(source)) !== null) {
+    let i = treffer.index + treffer[0].length;
+    let tiefe = 1;
+    let roh = "";
+    while (i < source.length && tiefe > 0) {
+      const zeichen = source[i] as string;
+      if (zeichen === "(") tiefe += 1;
+      else if (zeichen === ")") {
+        tiefe -= 1;
+        if (tiefe === 0) break;
+      }
+      roh += zeichen;
+      i += 1;
+    }
+
+    let text = "";
+    const literal = /`([^`]*)`|"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'/g;
+    let stueck: RegExpExecArray | null;
+    while ((stueck = literal.exec(roh)) !== null) {
+      text += (stueck[1] ?? stueck[2] ?? stueck[3] ?? "").replace(/\$\{[^}]*\}/g, "X");
+    }
+    // Im Quelltext steht die Zeilenschaltung als zwei Zeichen, Rueckstrich und n.
+    text = text.replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
+    if (text) vorlagen.add(text);
+  }
+
+  return [...vorlagen].sort();
 }
 
 describe("Uebersetzung der Validierungsmeldungen", () => {
@@ -54,7 +107,24 @@ describe("Uebersetzung der Validierungsmeldungen", () => {
     for (const id of CONSTRAINT_IDS) {
       expect(ALLE_BEFUND_SCHLUESSEL).toContain(`befund.regel.${id}`);
     }
-    expect(ALLE_BEFUND_SCHLUESSEL.length).toBe(CONSTRAINT_IDS.length + 8);
+    expect(ALLE_BEFUND_SCHLUESSEL.length).toBeGreaterThan(CONSTRAINT_IDS.length);
+  });
+
+  it("gibt jeder Meldung der SDK einen Schluessel", () => {
+    const vorlagen = meldungsvorlagen();
+    // Die Zahl ist kein Selbstzweck: faellt sie stark, hat sich das Format der SDK
+    // geaendert und der Scan sammelt Bruchstuecke statt Saetzen.
+    expect(vorlagen.length).toBeGreaterThan(90);
+
+    const ohneSchluessel = vorlagen.filter((text) => explain(text).schluessel === null);
+    expect(ohneSchluessel, "erscheinen englisch in der Oberflaeche").toEqual([]);
+  });
+
+  it("nennt jeden gelieferten Schluessel in der Liste", () => {
+    for (const text of meldungsvorlagen()) {
+      const schluessel = explain(text).schluessel;
+      if (schluessel) expect(ALLE_BEFUND_SCHLUESSEL, text).toContain(schluessel);
+    }
   });
 
   it("uebersetzt eine echte Meldung der SDK", () => {

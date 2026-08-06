@@ -52,6 +52,12 @@ export interface FieldSpec {
   readonly hint?: string;
   /** Pflichtfeld laut Metamodell */
   readonly required?: boolean;
+  /**
+   * Im Metamodell als veraltet gekennzeichnet. Der Deskriptor behaelt das Feld: der
+   * Rundlauf und `schema.test.ts` haengen daran. Nur die Oberflaeche blendet es aus,
+   * solange nichts drinsteht.
+   */
+  readonly deprecated?: boolean;
   /** Nur fuer `kind: "enum"` */
   readonly enum?: EnumName;
   /**

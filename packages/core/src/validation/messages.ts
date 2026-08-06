@@ -119,11 +119,6 @@ const MUSTER: ReadonlyArray<{
     werte: (m) => ({ feld: m[1] ?? "", laenge: m[2] ?? "" }),
   },
   {
-    name: "idShortFehlt",
-    test: /^ID-shorts need to be defined for all the items of (.+?)\.?$/,
-    werte: (m) => ({ feld: m[1] ?? "" }),
-  },
-  {
     name: "idShortsUneindeutig",
     test: /^ID-shorts of the value must be unique\.?$/,
   },
@@ -134,6 +129,67 @@ const MUSTER: ReadonlyArray<{
   {
     name: "derivedFromModelReference",
     test: /^Derived-from must be a model reference to an asset administration shell\.?$/,
+  },
+
+  // --- Ab hier die Regeln vom 06.08.2026 ------------------------------------------
+  // Sie schliessen die einundzwanzig Vorlagen, die bis dahin englisch durchfielen. Es
+  // waren ausgerechnet die alltaeglichen: falscher Wertetyp, leerer Wert, Datumsformat.
+  {
+    name: "wertPasstNichtZumTyp",
+    test: /^The value must match the value type\.?$/,
+  },
+  {
+    // Dieselbe Aussage, aber die SDK nennt das Feld: Value, Min und Max der Range. Zwei
+    // Regeln statt einer mit optionaler Gruppe, sonst stuende im Satz eine leere Luecke.
+    name: "feldPasstNichtZumTyp",
+    test: /^(.+) must be consistent with the value type\.?$/,
+    werte: (m) => ({ feld: m[1] ?? "" }),
+  },
+  {
+    name: "wertLeer",
+    test: /^The value must not be empty\.?$/,
+  },
+  {
+    // Die Schwester von `leereListe`: dort heisst es "must be either not set or have",
+    // hier "must contain" oder "must have". Der Unterschied ist, dass diese Listen
+    // ueberhaupt nicht leer sein duerfen.
+    name: "listeBrauchtEintrag",
+    test: /^(.+) must (?:contain|have) at least one item\.?$/,
+    werte: (m) => ({ feld: m[1] ?? "" }),
+  },
+  {
+    name: "modelReferenceNoetig",
+    test: /^(.+) must be a model reference to (?:a referable|an Event element)\.?$/,
+    werte: (m) => ({ feld: m[1] ?? "" }),
+  },
+  {
+    name: "datumMuster",
+    test: /^The value must (?:match the pattern of|represent a valid) xs:dateTime with the time zone fixed to UTC\.?$/,
+  },
+  {
+    name: "dauerMuster",
+    test: /^The value must match the pattern of xs:duration\.?$/,
+  },
+  {
+    name: "fassungMuster",
+    test: /^(Revision|Version) type shall match the \w+ pattern\.?$/,
+    werte: (m) => ({ feld: m[1] ?? "" }),
+  },
+  {
+    name: "uriNoetig",
+    test: /^String with max \d+ and min \d+ characters conformant to a URI as per RFC 2396\.?$/,
+  },
+  {
+    name: "mimeNoetig",
+    test: /^The value must represent a valid content MIME type according to RFC 2046\.?$/,
+  },
+  {
+    name: "sprachmarkeNoetig",
+    test: /^The value must represent a value language tag conformant to BCP 47\.?$/,
+  },
+  {
+    name: "intervallBeiEingang",
+    test: /^Max\. interval is not applicable for input direction\.?$/,
   },
 ];
 
@@ -154,28 +210,30 @@ const OHNE_WERTE: Werte = {};
  */
 export function explain(message: string): Explanation {
   const constraintId = CONSTRAINT_PATTERN.exec(message)?.[1] ?? null;
-
-  if (constraintId) {
-    return {
-      schluessel: BEKANNTE_IDS.has(constraintId) ? `befund.regel.${constraintId}` : null,
-      werte: OHNE_WERTE,
-      constraintId,
-      raw: message,
-    };
-  }
-
   const normalized = message.replace(/\s+/g, " ").trim();
+
+  /*
+   * Die Musterregeln laufen **immer**, auch wenn eine Kennung gefunden wurde. Bis zum
+   * 06.08.2026 kehrte der Kennungszweig sofort zurueck und setzte `werte` fest auf leer.
+   * Das fiel nur deshalb nicht auf, weil kein `befund.regel.*`-Satz einen Platzhalter
+   * benutzt; der erste, der es tut, haette eine leere Luecke im Satz.
+   */
+  let werte: Werte = OHNE_WERTE;
+  let musterSchluessel: string | null = null;
   for (const regel of MUSTER) {
     const treffer = regel.test.exec(normalized);
     if (treffer) {
-      return {
-        schluessel: `befund.muster.${regel.name}`,
-        werte: regel.werte?.(treffer) ?? OHNE_WERTE,
-        constraintId: null,
-        raw: message,
-      };
+      musterSchluessel = `befund.muster.${regel.name}`;
+      werte = regel.werte?.(treffer) ?? OHNE_WERTE;
+      break;
     }
   }
 
-  return { schluessel: null, werte: OHNE_WERTE, constraintId: null, raw: message };
+  // Die Kennung ist die genauere Aussage und geht vor: sie benennt die Regel, das Muster
+  // nur die Form des Satzes.
+  if (constraintId && BEKANNTE_IDS.has(constraintId)) {
+    return { schluessel: `befund.regel.${constraintId}`, werte, constraintId, raw: message };
+  }
+
+  return { schluessel: musterSchluessel, werte, constraintId, raw: message };
 }

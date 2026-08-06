@@ -19,7 +19,7 @@ const REFERABLE: readonly FieldSpec[] = [
   { key: "idShort", kind: "text", hint: "feld.idShort" },
   { key: "displayName", kind: "langStrings" },
   { key: "description", kind: "langStrings" },
-  { key: "category", kind: "text", hint: "feld.category" },
+  { key: "category", kind: "text", hint: "feld.category", deprecated: true },
 ];
 
 const IDENTIFIABLE: readonly FieldSpec[] = [

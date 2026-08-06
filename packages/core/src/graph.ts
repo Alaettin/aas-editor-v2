@@ -1,7 +1,7 @@
 import { isIdentifiableKind } from "./model/kinds.js";
-import { isJsonArray, isJsonObject, type JsonValue } from "./model/json.js";
+import { isJsonArray } from "./model/json.js";
+import { baueAufloeser } from "./model/referenzen.js";
 import { walk, type EditorModel, type EditorNode, type NodeId } from "./model/store.js";
-import { referenceTarget } from "./semantics.js";
 
 /**
  * Die Beziehungskarte als Datenmodell (Plan Abschnitt 8 und 11, Phase 6).
@@ -77,8 +77,8 @@ function childCountOf(node: EditorNode): number {
 
 export function buildGraph(model: EditorModel): Graph {
   const nodes: GraphNode[] = [];
-  /** fachliche id auf nodeId, damit Referenzen aufloesbar werden */
-  const byAasId = new Map<string, NodeId>();
+  // Dieselbe Aufloesung wie im Explorer, siehe model/referenzen.ts.
+  const { ziel } = baueAufloeser(model);
   /** nodeId eines beliebigen Knotens auf den tragenden Identifiable darueber */
   const traeger = new Map<NodeId, NodeId>();
 
@@ -93,7 +93,6 @@ export function buildGraph(model: EditorModel): Graph {
         aasId: typeof id === "string" ? id : null,
         childCount: childCountOf(node),
       });
-      if (typeof id === "string") byAasId.set(id, node.nodeId);
       traeger.set(node.nodeId, node.nodeId);
     } else if (node.parent) {
       // Ein Element gehoert zu dem Identifiable, unter dem es haengt.
@@ -103,7 +102,10 @@ export function buildGraph(model: EditorModel): Graph {
   }
 
   /** Kanten werden ueber Quelle, Ziel und Art zusammengefasst und gezaehlt. */
-  const gezaehlt = new Map<string, { source: NodeId; target: NodeId; kind: GraphEdgeKind; count: number }>();
+  const gezaehlt = new Map<
+    string,
+    { source: NodeId; target: NodeId; kind: GraphEdgeKind; count: number }
+  >();
 
   const kante = (source: NodeId, target: NodeId, kind: GraphEdgeKind): void => {
     if (source === target && kind === "semanticId") return;
@@ -111,30 +113,6 @@ export function buildGraph(model: EditorModel): Graph {
     const vorhanden = gezaehlt.get(schluessel);
     if (vorhanden) vorhanden.count += 1;
     else gezaehlt.set(schluessel, { source, target, kind, count: 1 });
-  };
-
-  /** Loest eine Reference auf einen Graph-Knoten auf, sofern er in der Umgebung liegt. */
-  const ziel = (reference: JsonValue | undefined): NodeId | null => {
-    const target = referenceTarget(reference);
-    if (target) {
-      const direkt = byAasId.get(target);
-      if (direkt) return direkt;
-    }
-    // Eine ModelReference kann ueber mehrere Keys gehen. Der erste, der auf ein
-    // Identifiable in dieser Umgebung zeigt, gewinnt.
-    if (isJsonObject(reference)) {
-      const keys = reference["keys"];
-      if (isJsonArray(keys)) {
-        for (const key of keys) {
-          if (!isJsonObject(key)) continue;
-          const wert = key["value"];
-          if (typeof wert !== "string") continue;
-          const treffer = byAasId.get(wert);
-          if (treffer) return treffer;
-        }
-      }
-    }
-    return null;
   };
 
   for (const node of walk(model)) {
