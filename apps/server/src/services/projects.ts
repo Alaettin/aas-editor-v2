@@ -385,15 +385,14 @@ function mitNamensschutz<T>(name: string | undefined, lauf: () => T): T {
 }
 
 /**
- * Speichert einen neuen Stand. Optimistisches Sperren ueber den Revisionszaehler:
- * das UPDATE greift nur, wenn die erwartete Revision noch die aktuelle ist.
+ * Speichert einen neuen Stand. **Ueberschreibt immer.**
+ *
+ * Bis zum 06.08.2026 stand hier ein optimistisches Sperren: das UPDATE griff nur, wenn die
+ * erwartete Revision noch die aktuelle war, sonst gab es 409 und einen Dialog mit drei
+ * Wegen. Das ist auf Wunsch entfallen. Der Zaehler bleibt, weil die gemerkte Befundzahl
+ * (`issue_revision`) darueber ungueltig wird.
  */
-export function saveProject(
-  db: Db,
-  id: string,
-  expectedRevision: number,
-  input: SaveInput,
-): ProjectSummary {
+export function saveProject(db: Db, id: string, input: SaveInput): ProjectSummary {
   const now = Date.now();
   const split = splitEnvironment(input.environment);
   assertUniqueIds(split);
@@ -404,8 +403,7 @@ export function saveProject(
       const current = tx.select().from(projects).where(eq(projects.id, id)).get();
       if (current === undefined) throw notFound("projekt-nicht-gefunden", "Project not found.");
 
-      const updated = tx
-        .update(projects)
+      tx.update(projects)
         .set({
           revision: current.revision + 1,
           updatedAt: now,
@@ -417,16 +415,8 @@ export function saveProject(
             : { metamodelVersion: input.metamodelVersion }),
           ...(input.nodeCount === undefined ? {} : { nodeCount: input.nodeCount }),
         })
-        .where(and(eq(projects.id, id), eq(projects.revision, expectedRevision)))
+        .where(eq(projects.id, id))
         .run();
-
-      if (updated.changes === 0) {
-        throw conflict(
-          "revision-konflikt",
-          "The server revision is newer than the expected one. Nothing was overwritten.",
-          { aktuelleRevision: current.revision, aktualisiertAm: current.updatedAt },
-        );
-      }
 
       // Vollersatz statt Differenzabgleich: das ist eine einzige Transaktion, und
       // Geisterzeilen aus einem halb abgeglichenen Stand sind damit ausgeschlossen.

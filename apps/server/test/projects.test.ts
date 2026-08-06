@@ -48,7 +48,7 @@ describe("Projekte", () => {
       method: "PUT",
       url: `/api/projects/${projekt.id}`,
       headers: { cookie: server.cookie },
-      payload: { revision: 1, environment, nodeCount: 12 },
+      payload: { environment, nodeCount: 12 },
     });
     expect(response.statusCode).toBe(200);
     expect(response.json<{ projekt: { revision: number } }>().projekt.revision).toBe(2);
@@ -64,25 +64,26 @@ describe("Projekte", () => {
     expect(environmentZurueck["submodels"]![0]!.idShort).toBe("TypenschildNeu");
   });
 
-  it("antwortet auf eine veraltete Revision mit 409 und ueberschreibt nichts", async () => {
+  it("ueberschreibt auch einen neueren Serverstand", async () => {
+    // Umgekehrte Zusage seit dem 06.08.2026. Bis dahin antwortete ein zweiter Tab mit 409
+    // und einem Dialog mit drei Wegen; das optimistische Sperren ist auf Wunsch entfallen.
     const projekt = await anlegen();
     await server.app.inject({
       method: "PUT",
       url: `/api/projects/${projekt.id}`,
       headers: { cookie: server.cookie },
-      payload: { revision: 1, environment: beispielEnvironment() },
+      payload: { environment: beispielEnvironment() },
     });
 
     const zweiterTab = await server.app.inject({
       method: "PUT",
       url: `/api/projects/${projekt.id}`,
       headers: { cookie: server.cookie },
-      payload: { revision: 1, environment: { submodels: [] } },
+      payload: { environment: { submodels: [] } },
     });
-    expect(zweiterTab.statusCode).toBe(409);
-    const fehler = zweiterTab.json<{ code: string; aktuelleRevision: number }>();
-    expect(fehler.code).toBe("revision-konflikt");
-    expect(fehler.aktuelleRevision).toBe(2);
+    expect(zweiterTab.statusCode).toBe(200);
+    // Der Zaehler laeuft weiter: die gemerkte Befundzahl haengt daran.
+    expect(zweiterTab.json<{ projekt: { revision: number } }>().projekt.revision).toBe(3);
 
     const gelesen = await server.app.inject({
       method: "GET",
@@ -90,7 +91,7 @@ describe("Projekte", () => {
       headers: { cookie: server.cookie },
     });
     const environment = gelesen.json<{ environment: Record<string, unknown[]> }>().environment;
-    expect(environment["submodels"]).toHaveLength(2);
+    expect(environment).not.toHaveProperty("submodels");
   });
 
   it("erlaubt zwei Submodels mit gleichem idShort, aber nicht mit gleicher id", async () => {
@@ -105,7 +106,7 @@ describe("Projekte", () => {
       method: "PUT",
       url: `/api/projects/${projekt.id}`,
       headers: { cookie: server.cookie },
-      payload: { revision: 1, environment },
+      payload: { environment },
     });
     expect(response.statusCode).toBe(409);
     expect(response.json<{ code: string }>().code).toBe("doppelte-id");

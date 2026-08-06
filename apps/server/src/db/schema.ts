@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
 import {
-  blob,
   index,
   integer,
   sqliteTable,
@@ -15,7 +14,7 @@ import {
  * Der entscheidende Zuschnitt: Identifiables liegen einzeln, adressierbar ueber ihre
  * fachliche `id`, nicht gemeinsam in einem Blob. Nur so kann der Editor spaeter ein
  * einzelnes Submodel unter seiner id ausliefern (IDTA-01002), ohne die Persistenz neu
- * zu schreiben. Der einzige Ort, an dem ein Blob richtig ist, sind die Versionen.
+ * zu schreiben.
  *
  * Keine `users`-Tabelle: die Anmeldung kommt aus der .env (Plan Abschnitt 9).
  * Zeitstempel durchgaengig als Millisekunden, damit DB und JSON dieselbe Zahl fuehren.
@@ -34,7 +33,11 @@ export const projects = sqliteTable(
      * Wurzel ein Feld gibt.
      */
     environmentData: text("environment_data").notNull().default("{}"),
-    /** Optimistisches Sperren: PUT schickt die erwartete Revision mit. */
+    /**
+     * Zaehler der Schreibvorgaenge. Seit dem 06.08.2026 **kein** optimistisches Sperren
+     * mehr: Speichern ueberschreibt. Die Zahl bleibt, weil die gemerkte Befundzahl
+     * darueber ungueltig wird.
+     */
     revision: integer("revision").notNull().default(1),
     nodeCount: integer("node_count").notNull().default(0),
     /**
@@ -92,28 +95,6 @@ export const shells = identifiableTable("shells");
 export const submodels = identifiableTable("submodels");
 export const conceptDescriptions = identifiableTable("concept_descriptions");
 
-export const projectVersions = sqliteTable(
-  "project_versions",
-  {
-    id: text("id").primaryKey(),
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
-    /** Stand des Projekts zum Zeitpunkt des Schnappschusses */
-    revision: integer("revision").notNull(),
-    label: text("label"),
-    /** manuell | vor-ueberschreiben */
-    reason: text("reason").notNull().default("manuell"),
-    /** gzip des Environment-JSON, der eine Ort, an dem ein Blob richtig ist */
-    snapshot: blob("snapshot", { mode: "buffer" }).notNull(),
-    snapshotBytes: integer("snapshot_bytes").notNull(),
-    nodeCount: integer("node_count").notNull(),
-    metamodelVersion: text("metamodel_version").notNull(),
-    createdAt: integer("created_at").notNull(),
-  },
-  (t) => [index("idx_versions_project").on(t.projectId, t.createdAt, t.id)],
-);
-
 export const files = sqliteTable(
   "files",
   {
@@ -132,8 +113,8 @@ export const files = sqliteTable(
     role: text("role").notNull().default("anhang"),
     /**
      * Ob ein File-Element im zuletzt gespeicherten Stand auf diesen Pfad zeigt.
-     * Nicht referenzierte Anhaenge werden nicht geloescht, sonst verlieren aeltere
-     * Versionen ihre Bytes.
+     * Nicht referenzierte Anhaenge werden nicht sofort geloescht: ein Element kann im
+     * naechsten Schritt wieder darauf zeigen.
      */
     referenced: integer("referenced", { mode: "boolean" }).notNull().default(true),
     createdAt: integer("created_at").notNull(),
@@ -146,5 +127,4 @@ export const files = sqliteTable(
 
 export type ProjectRow = typeof projects.$inferSelect;
 export type IdentifiableRow = typeof submodels.$inferSelect;
-export type VersionRow = typeof projectVersions.$inferSelect;
 export type FileRow = typeof files.$inferSelect;

@@ -10,7 +10,6 @@ import { healthRoutes } from "./routes/health.js";
 import { fileRoutes } from "./routes/files.js";
 import { projectRoutes } from "./routes/projects.js";
 import { submodelRoutes } from "./routes/submodels.js";
-import { versionRoutes } from "./routes/versions.js";
 
 export interface BuiltServer {
   readonly app: FastifyInstance;
@@ -44,7 +43,6 @@ export async function buildServer(env: ServerEnv, migrationsFolder: string): Pro
   healthRoutes(app, db);
   await authRoutes(app, env);
   projectRoutes(app, db);
-  versionRoutes(app, db);
   fileRoutes(app, db, env);
   submodelRoutes(app, db);
 

@@ -14,10 +14,6 @@ import {
   type SaveInput,
 } from "../services/projects.js";
 
-interface SaveBody extends SaveInput {
-  revision?: unknown;
-}
-
 export function projectRoutes(app: FastifyInstance, db: Db): void {
   // Alle Projektrouten haengen am requireAuth-Hook. Kein Handler prueft selbst.
   app.register((scope, _opts, done) => {
@@ -28,7 +24,7 @@ export function projectRoutes(app: FastifyInstance, db: Db): void {
     });
 
     scope.post("/api/projects", (req, reply) => {
-      const body = (req.body ?? {}) as SaveBody & { name?: unknown };
+      const body = (req.body ?? {}) as SaveInput & { name?: unknown };
       if (typeof body.name !== "string" || body.name.trim() === "") {
         throw badRequest("projektname-fehlt", "A project name is required.");
       }
@@ -55,14 +51,12 @@ export function projectRoutes(app: FastifyInstance, db: Db): void {
 
     scope.put("/api/projects/:id", (req) => {
       const { id } = req.params as { id: string };
-      const body = (req.body ?? {}) as SaveBody;
-      if (typeof body.revision !== "number" || !Number.isInteger(body.revision)) {
-        throw badRequest("revision-fehlt", "The expected revision is required.");
-      }
+      // Kein `revision` mehr im Rumpf: gespeichert wird ueberschreibend.
+      const body = (req.body ?? {}) as SaveInput;
       if (body.environment === undefined) {
         throw badRequest("environment-fehlt", "The environment is required.");
       }
-      return { projekt: saveProject(db, id, body.revision, body) };
+      return { projekt: saveProject(db, id, body) };
     });
 
     scope.delete("/api/projects/:id", (req, reply) => {
