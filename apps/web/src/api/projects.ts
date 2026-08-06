@@ -77,18 +77,7 @@ export interface FileInfo {
   readonly referenced: boolean;
 }
 
-export interface VersionSummary {
-  readonly id: string;
-  readonly revision: number;
-  readonly label: string | null;
-  readonly reason: string;
-  readonly snapshotBytes: number;
-  readonly nodeCount: number;
-  readonly createdAt: number;
-}
-
 export interface SaveBody {
-  readonly revision: number;
   readonly environment: unknown;
   readonly name?: string;
   readonly sourceFormat?: string;
@@ -146,20 +135,4 @@ export const filesApi = {
 
   download: (projektId: string, fileId: string) =>
     apiBytes(`/api/projects/${projektId}/files/${fileId}`),
-};
-
-export const versionsApi = {
-  create: (projektId: string, label: string | null) =>
-    api<{ version: VersionSummary }>(`/api/projects/${projektId}/versions`, {
-      method: "POST",
-      body: { label },
-    }),
-
-  list: (projektId: string) =>
-    api<Page<VersionSummary>>(`/api/projects/${projektId}/versions?limit=50`),
-
-  get: (projektId: string, versionId: string) =>
-    api<{ version: VersionSummary; environment: Record<string, unknown> }>(
-      `/api/projects/${projektId}/versions/${versionId}`,
-    ),
 };

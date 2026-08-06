@@ -44,10 +44,13 @@ export const AasNode = memo(function AasNode({ data }: NodeProps) {
       title={aasId ?? label}
       style={{ width: masse.width, height: masse.height }}
       className={cn(
-        "flex flex-col justify-center overflow-hidden border border-l-4 bg-card shadow-(--shadow-raised)",
-        klein ? "rounded-2xl px-2.5 py-2" : "rounded-3xl px-3 py-2.5",
+        // Glas statt Vollton: die Karte liegt auf der Buehne, und der Verlauf soll
+        // durchscheinen. Kantig ist sie ueber die Radienleiter in tokens.css.
+        "flex flex-col justify-center overflow-hidden border border-l-[3px] bg-card shadow-(--shadow-raised) backdrop-blur-(--blur-knoten)",
+        klein ? "px-2.5 py-2" : "px-3 py-2.5",
         KANTE[kind],
-        selected && "border-2 border-l-4 border-type-sm ring-4 ring-type-sm/15",
+        // Der gewaehlte Knoten atmet leise, statt einen dicken Ring zu tragen.
+        selected && "border-ring [animation:axon-knoten_4.2s_ease-in-out_infinite]",
       )}
     >
       <Handle type="target" position={Position.Left} isConnectable={false} className="opacity-0" />

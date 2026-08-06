@@ -8,9 +8,6 @@
     "dichte": "Dichte",
     "dichteKompakt": "Kompakt",
     "dichteKomfortabel": "Komfortabel",
-    "erscheinung": "Darstellung",
-    "hell": "Hell",
-    "dunkel": "Dunkel",
     "palette": "Kommando-Palette ({{tasten}})",
     "zumInhalt": "Zum Inhalt springen",
     "sprache": "Sprache",
@@ -18,17 +15,14 @@
     "englisch": "English"
   },
   "status": {
-    "knoten": "{{count}} Elemente",
     "anhaenge": "{{count}} Anhänge",
+    "fassung": "Version {{nummer}}",
     "keineDatei": "Keine Datei geöffnet",
-    "versionUnbekannt": "ohne Versionsmarker",
-    "wirdGelesen": "Wird gelesen ...",
     "constraints": "{{count}} Constraints",
     "warnungen": "{{count}} Warnungen",
     "keineBefunde": "Keine Befunde",
     "anhaengeLaden": "Anhänge werden geladen ...",
     "zoom": "Zoom {{prozent}} %",
-    "metamodell": "Metamodell",
     "gespeichert": "gespeichert",
     "ungespeichert": "ungespeichert",
     "prueft": "Prüft ..."
@@ -40,7 +34,6 @@
   },
   "baum": {
     "titel": "Struktur",
-    "neu": "Neu",
     "neuIn": "In {{slot}} anlegen",
     "duplizieren": "Duplizieren",
     "loeschen": "Löschen",
@@ -160,11 +153,23 @@
       "leereListe": "{{feld}} ist gesetzt, aber leer. Entweder mindestens ein Eintrag oder ganz weg.",
       "spracheMehrfach": "{{feld}} enthält dieselbe Sprache mehrfach. Je Sprache ist ein Eintrag erlaubt.",
       "zuLang": "{{feld}} ist zu lang, erlaubt sind höchstens {{laenge}} Zeichen.",
-      "idShortFehlt": "Alle Einträge von {{feld}} brauchen einen idShort.",
       "idShortsUneindeutig": "Die idShorts innerhalb des Werts müssen eindeutig sein.",
       "submodelsModelReference": "Jeder Verweis unter submodels muss eine ModelReference auf ein Submodel sein.",
-      "derivedFromModelReference": "derivedFrom muss eine ModelReference auf eine AssetAdministrationShell sein."
-    }
+      "derivedFromModelReference": "derivedFrom muss eine ModelReference auf eine AssetAdministrationShell sein.",
+      "wertPasstNichtZumTyp": "Der Wert passt nicht zum angegebenen Wertetyp.",
+      "feldPasstNichtZumTyp": "{{feld}} passt nicht zum angegebenen Wertetyp.",
+      "wertLeer": "Der Wert darf nicht leer sein.",
+      "listeBrauchtEintrag": "{{feld}} braucht mindestens einen Eintrag.",
+      "modelReferenceNoetig": "{{feld}} muss eine ModelReference auf ein Element dieser Umgebung sein.",
+      "datumMuster": "Der Wert muss ein xs:dateTime in UTC sein, etwa 2026-08-06T12:00:00Z.",
+      "dauerMuster": "Der Wert muss eine xs:duration sein, etwa P1Y2M3DT4H5M6S.",
+      "fassungMuster": "{{feld}} entspricht nicht dem vorgeschriebenen Muster.",
+      "uriNoetig": "Der Wert muss ein URI nach RFC 2396 sein, höchstens 2048 Zeichen lang.",
+      "mimeNoetig": "Der Wert muss ein gültiger MIME-Typ nach RFC 2046 sein, etwa application/pdf.",
+      "sprachmarkeNoetig": "Der Wert muss eine Sprachmarke nach BCP 47 sein, etwa de oder en-US.",
+      "intervallBeiEingang": "Ein maximales Intervall ist bei Eingaberichtung nicht zulässig."
+    },
+    "unuebersetzt": "nicht übersetzt"
   },
   "export": {
     "json": "Als JSON",
@@ -178,7 +183,12 @@
     "warnungWarnungen_one": "Eine Datenwarnung ist offen, etwa eine doppelte id oder ein fehlender Anhang.",
     "warnungWarnungen_other": "{{count}} Datenwarnungen sind offen, etwa doppelte ids oder fehlende Anhänge.",
     "warnungHinweis": "Der Export lässt sich trotzdem durchführen.",
-    "trotzdem": "Trotzdem exportieren"
+    "trotzdem": "Trotzdem exportieren",
+    "formatTitel": "Modell exportieren",
+    "formatText": "In welches Format?",
+    "aasxText": "Vollständiges Paket, einschließlich aller Anhänge.",
+    "jsonText": "Nur das Environment. Anhänge gehen verloren.",
+    "xmlText": "Nur das Environment. Anhänge gehen verloren."
   },
   "fehler": {
     "titel": "Das hat nicht geklappt",
@@ -187,9 +197,6 @@
     "export": "Export fehlgeschlagen",
     "loeschen": "Löschen fehlgeschlagen",
     "anlegen": "Anlegen fehlgeschlagen",
-    "version": "Die Version ließ sich nicht anlegen",
-    "versionen": "Die Versionen ließen sich nicht laden",
-    "versionLaden": "Die Version ließ sich nicht laden",
     "aenderung": "Die Änderung ließ sich nicht ausführen",
     "pruefung": "Die Prüfung ist fehlgeschlagen",
     "serverNichtErreichbar": "Der Server ist nicht erreichbar.",
@@ -202,12 +209,10 @@
       "route-unbekannt": "Diese Adresse kennt der Server nicht.",
       "projekt-nicht-gefunden": "Projekt nicht gefunden.",
       "projektname-fehlt": "Ein Projektname wird erwartet.",
-      "revision-fehlt": "Die erwartete Revision fehlt in der Anfrage.",
       "environment-fehlt": "Das Environment fehlt in der Anfrage.",
       "environment-kein-objekt": "Das Environment muss ein Objekt sein.",
       "slot-keine-liste": "{{slot}} muss eine Liste sein.",
       "slot-eintrag-kein-objekt": "{{slot}} enthält einen Eintrag, der kein Objekt ist.",
-      "revision-konflikt": "Der Serverstand ist neuer als der eigene. Es wurde nichts überschrieben.",
       "doppelte-id": "Die id \"{{id}}\" kommt mehrfach vor.",
       "datei-fehlt": "Es fehlt eine Datei.",
       "pfad-fehlt": "Der Paketpfad fehlt.",
@@ -240,19 +245,16 @@
     "panelZu": "Befunde ausblenden",
     "sichten": "Sichten",
     "zuFormular": "Zum Formular wechseln",
-    "zuTabelle": "Zur Tabelle wechseln",
     "zuGraph": "Zum Graphen wechseln",
     "stichwort": {
       "sicht": "Sicht Ansicht",
       "formular": "Formular Eigenschaften Felder",
-      "tabelle": "Tabelle Liste",
       "graph": "Graph Beziehungen Karte",
       "oeffnen": "Datei öffnen laden importieren",
       "export": "Export exportieren speichern als",
       "rueckgaengig": "rückgängig zurück",
       "wiederholen": "wiederholen vorwärts",
       "befunde": "Befunde Panel Fehler Warnungen",
-      "darstellung": "Darstellung hell dunkel Thema",
       "dichte": "Dichte kompakt komfortabel",
       "sprache": "Sprache Deutsch Englisch"
     }
@@ -284,32 +286,10 @@
     "verwerfen": "Verwerfen"
   },
   "sicht": {
+    "abgeschaltet": "Der Graph wird überarbeitet.",
     "formular": "Formular",
-    "tabelle": "Tabelle",
     "graph": "Graph",
     "titel": "Sicht"
-  },
-  "tabelle": {
-    "keinBehaelter": "Kein Behälter gewählt",
-    "keinBehaelterText": "Wähle links ein Submodel, eine SubmodelElementCollection oder eine SubmodelElementList. Die Tabelle zeigt deren Einträge.",
-    "leer": "Dieser Behälter ist noch leer.",
-    "eintraege_one": "1 Eintrag",
-    "eintraege_other": "{{count}} Einträge",
-    "markiert_one": "1 markiert",
-    "markiert_other": "{{count}} markiert",
-    "markieren": "Zeile markieren",
-    "imFormular": "im Formular",
-    "spalten": "Spalten",
-    "mitBefund": "{{count}} mit Befund",
-    "enterOeffnet": "Enter öffnet das Formular",
-    "zeileVon": "Zeile {{zeile}} von {{gesamt}}",
-    "spalte": {
-      "idShort": "idShort",
-      "modelType": "Typ",
-      "valueType": "valueType",
-      "value": "value",
-      "semanticId": "semanticId"
-    }
   },
   "graph": {
     "leerTitel": "Nichts zu zeigen",
@@ -410,54 +390,17 @@
     "gespeichert": "Gespeichert",
     "geaendert": "Speichern",
     "speichert": "Speichert ...",
-    "konflikt": "Konflikt",
     "fehler": "Erneut speichern"
   },
-  "versionen": {
-    "knopf": "Versionen",
-    "titel": "Versionen",
-    "text": "Ein Schnappschuss hält den ganzen Stand fest. Das Laden ersetzt den aktuellen Stand, gespeichert wird er erst danach.",
-    "labelPlatzhalter": "Beschreibung, freiwillig",
-    "anlegen": "Schnappschuss",
-    "leer": "Noch keine Version",
-    "ohneLabel": "Ohne Beschreibung",
-    "zeile": "{{datum}}, Fassung {{revision}}, {{knoten}} Elemente",
-    "laden": "Laden",
-    "schliessen": "Schließen"
-  },
-  "konflikt": {
-    "titel": "Der Serverstand ist neuer",
-    "text": "Der eigene Stand baut auf Fassung {{eigene}} auf, auf dem Server steht Fassung {{server}}. Es wurde nichts überschrieben.",
-    "alsNeues": "Als neues Projekt speichern",
-    "ueberschreiben": "Serverstand überschreiben (mit Schnappschuss)",
-    "serverstand": "Serverstand laden, eigene Änderungen verwerfen",
-    "versionLabel": "vor dem Überschreiben",
-    "kopieName": "{{name}} (Kopie)",
-    "ohneName": "Projekt"
-  },
   "menu": {
-    "datei": "Datei",
-    "bearbeiten": "Bearbeiten",
-    "ansicht": "Ansicht",
-    "werkzeuge": "Werkzeuge",
-    "hilfe": "Hilfe",
-    "speichern": "Speichern",
-    "alsNeuesProjekt": "Als neues Projekt speichern",
     "zurListe": "Zur Projektliste",
-    "ausschneiden": "Ausschneiden",
-    "kopieren": "Kopieren",
-    "einfuegen": "Einfügen",
     "neu": "Neu",
     "duplizieren": "Duplizieren",
     "loeschen": "Löschen",
-    "filterFokussieren": "Filter fokussieren",
-    "befunde": "Befunde anzeigen",
     "allesAufklappen": "Alles aufklappen",
-    "allesZuklappen": "Alles zuklappen",
-    "palette": "Kommando-Palette"
+    "allesZuklappen": "Alles zuklappen"
   },
   "werkzeug": {
-    "validieren": "Validieren",
     "einstellungen": "Einstellungen"
   },
   "explorer": {
@@ -467,14 +410,6 @@
     "text": "Erscheinung und Dichte. Alles Weitere steht in der Menüzeile."
   },
   "hilfe": {
-    "tastaturwege": "Tastaturwege",
-    "tastaturwegeText": "Was sich ohne Maus erreichen lässt.",
-    "ueber": "Über den Editor",
-    "ueberText": "Editor für Asset Administration Shells auf Basis der TypeScript-SDKs von aas-core-works.",
-    "metamodell": "Metamodell",
-    "farbwelt": "Farbwelt",
-    "gruppeAllgemein": "Allgemein",
-    "gruppeBaum": "Im Baum",
     "palette": "Kommando-Palette öffnen",
     "assistent": "Assistent ein- und ausblenden",
     "speichern": "Projekt speichern",
@@ -487,11 +422,7 @@
     "loeschen": "Löschen, mit Rückfrage",
     "duplizieren": "Duplizieren",
     "idShort": "idShort im Formular fokussieren",
-    "gruppeTabelle": "Tabelle",
-    "gruppeFormular": "Formular",
     "filterLeeren": "Filter leeren",
-    "zeileWechseln": "Zeile wechseln",
-    "zumFormular": "Zum Formular springen",
     "feldUebernehmen": "Eingabe übernehmen",
     "feldVerwerfen": "Eingabe verwerfen",
     "kopieren": "Kopieren",
@@ -536,8 +467,6 @@
     "gespeichert": "Projekt gespeichert.",
     "exportiert": "Datei exportiert: {{name}}",
     "importiert": "Datei gelesen: {{name}}",
-    "versionAngelegt": "Version angelegt.",
-    "versionGeladen": "Version geladen. Der Stand ist noch nicht gespeichert.",
     "projektAngelegt": "Projekt angelegt.",
     "projektGeloescht": "Projekt gelöscht.",
     "eingefuegt": "Eingefügt.",

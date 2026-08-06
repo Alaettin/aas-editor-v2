@@ -1,18 +1,15 @@
 import { useTranslation } from "react-i18next";
 import { Search, X } from "lucide-react";
 
-import { PALETTE_EVENT } from "@/components/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { KbdHint } from "@/components/ui/kbd";
 import { useEditor } from "@/store/editor";
-import { ersteTasteFuer } from "@/lib/shortcuts";
 
 /**
  * Filterfeld ueber dem Baum.
  *
- * Zum Stoebern und Eingrenzen. Fuer das gezielte Springen gibt es die Kommando-Palette,
- * und der Tastenhinweis rechts im Feld sagt das auch. Treffer bleiben mit ihrer
+ * Zum Stoebern und Eingrenzen. Fuer das gezielte Springen gibt es die Kommando-Palette
+ * unter Strg+K. Treffer bleiben mit ihrer
  * Elternkette sichtbar, siehe `buildRows`.
  */
 export function TreeFilter({ visibleCount }: { readonly visibleCount: number }) {
@@ -59,17 +56,7 @@ export function TreeFilter({ visibleCount }: { readonly visibleCount: number }) 
               <X />
             </Button>
           </>
-        ) : (
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-label={t("menu.palette")}
-            onClick={() => window.dispatchEvent(new Event(PALETTE_EVENT))}
-            className="ml-auto shrink-0"
-          >
-            <KbdHint>{ersteTasteFuer("hilfe.palette")}</KbdHint>
-          </button>
-        )}
+        ) : null}
       </div>
     </div>
   );

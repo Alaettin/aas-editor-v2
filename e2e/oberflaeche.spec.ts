@@ -4,9 +4,9 @@ import { expect, test, type Page } from "@playwright/test";
 /**
  * Die Oberflaeche im Browser, Phase 8.
  *
- * Gepruefte Zusagen: der Rahmen haelt seine Hoehen, jede Sicht laesst sich ohne
- * Konsolenfehler oeffnen, beide Erscheinungen tragen, die Einrueckung im Baum entspricht
- * der Tiefe, und der Assistent sagt ohne Anbindung, dass er nichts kann.
+ * Gepruefte Zusagen: der Rahmen haelt seine Hoehen, beide Sichten lassen sich ohne
+ * Konsolenfehler oeffnen, die Einrueckung im Baum entspricht der Tiefe, und der Assistent
+ * sagt ohne Anbindung, dass er nichts kann.
  */
 
 const PROBE = fileURLToPath(new URL("./probe.json", import.meta.url));
@@ -34,7 +34,6 @@ async function anmeldenUndOeffnen(page: Page, name: string): Promise<void> {
 
 interface AnsichtStore {
   getState: () => {
-    setTheme: (theme: string) => void;
     setLanguage: (language: string) => void;
   };
 }
@@ -56,7 +55,7 @@ test.describe("Oberflaeche", () => {
       (await page.locator(auswahl).first().boundingBox())?.height ?? 0;
 
     expect(await hoehe("header, div:has(> .font-display)")).toBeGreaterThan(0);
-    expect(await hoehe("footer")).toBeCloseTo(28, 0);
+    expect(await hoehe("footer")).toBeCloseTo(32, 0);
 
     const ueberlauf = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
@@ -64,7 +63,7 @@ test.describe("Oberflaeche", () => {
     expect(ueberlauf).toBe(false);
   });
 
-  test("jede Sicht oeffnet ohne Konsolenfehler, hell und dunkel", async ({ page }) => {
+  test("jede Sicht oeffnet ohne Konsolenfehler", async ({ page }) => {
     const fehler: string[] = [];
     page.on("pageerror", (e) => fehler.push(e.message));
     page.on("console", (m) => {
@@ -75,25 +74,9 @@ test.describe("Oberflaeche", () => {
 
     await anmeldenUndOeffnen(page, `Sichten ${String(Date.now())}`);
 
-    for (const thema of ["light", "dark"]) {
-      await page.evaluate(
-        (wert) =>
-          (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
-            .getState()
-            .setTheme(wert),
-        thema,
-      );
-      for (const sicht of ["formular", "tabelle", "graph"]) {
-        await page.evaluate(
-          (wert) =>
-            (window as never as { __aasEditorStore: KnownStore }).__aasEditorStore
-              .getState()
-              .setView(wert),
-          sicht,
-        );
-        await expect(page.locator(`[data-view="${sicht}"][aria-selected="true"]`)).toBeVisible();
-      }
-    }
+    // Der Graph ist seit dem 06.08.2026 abgeschaltet, er wird ueberarbeitet.
+    await expect(page.locator('[data-view="graph"]')).toBeDisabled();
+    await expect(page.locator('[data-view="formular"][aria-selected="true"]')).toBeVisible();
 
     expect(fehler).toEqual([]);
   });
@@ -134,38 +117,6 @@ test.describe("Oberflaeche", () => {
     expect(nachher).toBeLessThan(vorher);
   });
 
-  test("traegt den Dunkelmodus auch ausserhalb des Editors", async ({ page }) => {
-    // Bis Phase 9 setzte allein `AppShell` die Klasse an der Wurzel. Wer direkt auf
-    // /projekte einstieg, sah die Liste immer hell, egal was eingestellt war.
-    //
-    // Der Einstieg selbst ist inzwischen Markenflaeche und folgt der Erscheinung bewusst
-    // nicht mehr. Geprueft wird hier trotzdem an ihm, denn der Gegenstand ist die Klasse
-    // an der Wurzel und das Vorabskript, nicht die Farbe der Liste.
-    await page.goto("/projekte");
-    await page.evaluate(() =>
-      (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
-        .getState()
-        .setTheme("dark"),
-    );
-    await expect(page.locator("html")).toHaveClass(/dark/);
-
-    // Neu laden: das Vorabskript in index.html muss die Klasse **vor** dem ersten Bild
-    // setzen, sonst blitzt bei jedem Laden kurz die helle Fassung auf.
-    await page.goto("/projekte");
-    const vorReact = await page.evaluate(() => ({
-      klasse: document.documentElement.classList.contains("dark"),
-      // Steht die Klasse schon, bevor React ueberhaupt gemountet hat?
-      leer: document.getElementById("root")?.childElementCount === 0,
-    }));
-    expect(vorReact.klasse).toBe(true);
-
-    await page.evaluate(() =>
-      (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
-        .getState()
-        .setTheme("light"),
-    );
-  });
-
   test("spricht auf Englisch wirklich Englisch", async ({ page }) => {
     // Der eigentliche Pruefstein ist nicht die Anmeldung, sondern der Editor: dort kommen
     // die Saetze aus drei Quellen zusammen, aus de.json, aus dem Kern und vom Server.
@@ -178,19 +129,19 @@ test.describe("Oberflaeche", () => {
     );
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
-    // Drei Quellen auf einmal: die Menuezeile aus de/en.json, die Beschriftung des Baums
-    // ueber `aria-label`, und die Sicht-Umschaltung.
-    await expect(page.getByText("File", { exact: true }).first()).toBeVisible();
+    // Drei Quellen auf einmal: die Werkzeugleiste aus de/en.json, die Beschriftung des
+    // Baums ueber `aria-label`, und die Sicht-Umschaltung.
+    await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
     await expect(page.getByRole("tree", { name: "Structure" })).toBeVisible();
     await expect(page.getByText("Form", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Datei", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Exportieren" })).toHaveCount(0);
     await expect(page.getByText("Formular", { exact: true })).toHaveCount(0);
 
     // Kein roher Schluessel im Bild. Genau so faellt ein vergessener Eintrag auf: als
     // "menu.datei" mitten in der Menuezeile.
     const text = await page.locator("body").innerText();
     expect(text, "roher i18n-Schluessel sichtbar").not.toMatch(
-      /\b(app|menu|baum|status|befund|tabelle|graph|inspektor)\.[a-zA-Z]/,
+      /\b(app|menu|baum|status|befund|graph|inspektor)\.[a-zA-Z]/,
     );
 
     await page.evaluate(() =>

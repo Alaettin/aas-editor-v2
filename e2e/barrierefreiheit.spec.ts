@@ -10,15 +10,11 @@ import { expect, test, type Page } from "@playwright/test";
  * falschen Kind, ein Kontrast unter der Grenze. Gepruefte Stufen sind "serious" und
  * "critical"; alles darunter waere Geschmacksfrage und wuerde den Lauf zur Klingel machen.
  *
- * Geprueft wird in **beiden** Erscheinungen. Der Kontrast ist die eine Zusage, die sich
- * zwischen hell und dunkel unterscheidet, und genau die faellt sonst niemandem auf.
+ * Seit dem 06.08.2026 gibt es nur noch eine Erscheinung, dafuer ist die ganze Flaeche neu
+ * eingefaerbt. Kontrast ist genau die Sorte Fehler, die beim Ansehen nicht auffaellt.
  */
 
 const PROBE = fileURLToPath(new URL("./probe.json", import.meta.url));
-
-interface AnsichtStore {
-  getState: () => { setTheme: (theme: string) => void };
-}
 
 interface KnownStore {
   getState: () => {
@@ -80,35 +76,18 @@ test.describe("Barrierefreiheit", () => {
     expect(await verstoesse(page)).toEqual([]);
   });
 
-  test("Editor in allen drei Sichten, hell und dunkel", async ({ page }) => {
+  test("Editor im Formular", async ({ page }) => {
     await anmeldenUndOeffnen(page, `Barrierefrei ${String(Date.now())}`);
 
-    for (const thema of ["light", "dark"]) {
-      await page.evaluate(
-        (wert) =>
-          (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore
-            .getState()
-            .setTheme(wert),
-        thema,
-      );
+    // Nur das Formular: der Graph ist abgeschaltet und wird ueberarbeitet.
+    for (const sicht of ["formular"]) {
+      await expect(page.locator(`[data-view="${sicht}"][aria-selected="true"]`)).toBeVisible();
+      // Die Farbuebergaenge ausklingen lassen. Sonst misst axe eine Zwischenfarbe und
+      // meldet einen Kontrast, den es in keinem Ruhezustand gibt.
       await page.waitForTimeout(500);
 
-      for (const sicht of ["formular", "tabelle", "graph"]) {
-        await page.evaluate(
-          (wert) =>
-            (window as never as { __aasEditorStore: KnownStore }).__aasEditorStore
-              .getState()
-              .setView(wert),
-          sicht,
-        );
-        await expect(page.locator(`[data-view="${sicht}"][aria-selected="true"]`)).toBeVisible();
-        // Die Farbuebergaenge ausklingen lassen. Sonst misst axe eine Zwischenfarbe und
-        // meldet einen Kontrast, den es in keinem Ruhezustand gibt.
-        await page.waitForTimeout(500);
-
-        const gefunden = await verstoesse(page);
-        expect(gefunden, `${sicht}, ${thema}`).toEqual([]);
-      }
+      const gefunden = await verstoesse(page);
+      expect(gefunden, sicht).toEqual([]);
     }
   });
 });

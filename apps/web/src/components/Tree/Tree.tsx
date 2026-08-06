@@ -3,15 +3,17 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "react-i18next";
 import { canContain, childSlotsOf, isAncestor, SUBMODEL_ELEMENT_KINDS } from "@aas-editor/core";
 
-import { ChevronsDownUp } from "lucide-react";
+import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { useCssPx } from "@/lib/useCssPx";
+import { useAnsicht } from "@/store/ansicht";
+import { useAuth } from "@/store/auth";
 import { buildCensus } from "@/store/census";
 import { useEditor } from "@/store/editor";
 import { buildIssueCounts } from "@/store/issueCounts";
-import { buildRows, indexRows, type TreeRow } from "@/store/rows";
+import { buildRows, indexRows, pathTo, type TreeRow } from "@/store/rows";
 import { TreeRowView } from "./TreeRow";
 import { TreeContextMenu } from "./TreeContextMenu";
 import { TreeFilter } from "./TreeFilter";
@@ -71,6 +73,30 @@ export function Tree() {
   const counts = useMemo(() => buildIssueCounts(model, issues), [issues, model]);
 
   const zensus = useMemo(() => buildCensus(model), [model]);
+
+  /** Steht schon jede Zeile mit Kindern offen? Danach richtet sich der Umschalter oben. */
+  const allesOffen = rows.every((row) => !row.hasChildren || row.expanded);
+
+  const benutzer = useAuth((state) => state.benutzer);
+  const abmelden = useAuth((state) => state.abmelden);
+  const language = useAnsicht((state) => state.language);
+  const setLanguage = useAnsicht((state) => state.setLanguage);
+
+  /**
+   * Der Pfad zur Auswahl, in derselben Rechnung wie im Formular. Er steht ueber dem Baum
+   * und nicht nur im Formular, weil man im Graphen sonst nicht weiss, wo man ist.
+   */
+  const pfad = useMemo(() => {
+    if (!model || !selection) return [];
+    return pathTo(model, selection).map((id) => {
+      const knoten = model.nodes[id];
+      const idShort = knoten?.data["idShort"];
+      return {
+        nodeId: id,
+        label: typeof idShort === "string" && idShort ? idShort : (knoten?.kind ?? id),
+      };
+    });
+  }, [model, selection]);
 
   // Die Zeilenhoehe steht in tokens.css und haengt an der Dichte. Sie hier zu wiederholen
   // hiesse, sie bei jedem Dichtewechsel aus dem Takt laufen zu lassen.
@@ -153,27 +179,27 @@ export function Tree() {
           break;
         case "Delete":
           event.preventDefault();
-          if (row.parentId) requestDelete([row.nodeId]);
+          if (row.parentId && !row.ordner) requestDelete([row.nodeId]);
           break;
         case "d":
         case "D":
           if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
-            if (row.parentId) duplicateElement(row.nodeId);
+            if (row.parentId && !row.ordner) duplicateElement(row.nodeId);
           }
           break;
         case "c":
         case "C":
           if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
-            if (row.parentId) copyNode(row.nodeId);
+            if (row.parentId && !row.ordner) copyNode(row.nodeId);
           }
           break;
         case "x":
         case "X":
           if (event.ctrlKey || event.metaKey) {
             event.preventDefault();
-            if (row.parentId) cutNode(row.nodeId);
+            if (row.parentId && !row.ordner) cutNode(row.nodeId);
           }
           break;
         case "v":
@@ -264,18 +290,57 @@ export function Tree() {
     <div className="flex h-full flex-col">
       <div className="flex h-(--h-panel-header) shrink-0 items-center px-3">
         <SectionLabel>{t("explorer.titel")}</SectionLabel>
+        {/*
+          Ein Umschalter, kein Einbahnknopf: bis zum 06.08.2026 gab es nur "Alles
+          zuklappen", und das Gegenstueck stand in einem Menue, das es nicht mehr gibt.
+        */}
         <Button
           variant="ghost"
           size="icon-xs"
           className="ml-auto"
-          aria-label={t("menu.allesZuklappen")}
-          onClick={() => expandAll(false)}
+          aria-label={allesOffen ? t("menu.allesZuklappen") : t("menu.allesAufklappen")}
+          onClick={() => expandAll(!allesOffen)}
         >
-          <ChevronsDownUp />
+          {allesOffen ? <ChevronsDownUp /> : <ChevronsUpDown />}
         </Button>
       </div>
 
+      {/* Typzensus: die erste Frage an eine fremde Datei, ohne Scrollen beantwortet. */}
+      <div className="flex shrink-0 items-center gap-3.5 px-3 pb-3 font-mono text-2xs">
+        <span className="text-type-aas-text" data-numeric>
+          {zensus.AssetAdministrationShell} AAS
+        </span>
+        <span className="text-type-sm-text" data-numeric>
+          {zensus.Submodel} SM
+        </span>
+        <span className="text-muted-foreground" data-numeric>
+          {zensus.SubmodelElement} SME
+        </span>
+        <span className="text-type-cd-text" data-numeric>
+          {zensus.ConceptDescription} CD
+        </span>
+      </div>
+
       <TreeFilter visibleCount={rows.length} />
+
+      {/* Wo stehe ich? Im Graphen sagt das sonst nichts. */}
+      {pfad.length > 0 ? (
+        <nav
+          aria-label={t("baum.pfad")}
+          className="flex shrink-0 flex-wrap items-center gap-1 px-3 pb-3 font-mono text-3xs text-muted-foreground"
+        >
+          {pfad.map((eintrag, index) => (
+            <span key={eintrag.nodeId} className="flex items-center gap-1">
+              {index > 0 ? <span className="text-border">/</span> : null}
+              <span
+                className={index === pfad.length - 1 ? "truncate text-type-aas-text" : "truncate"}
+              >
+                {eintrag.label}
+              </span>
+            </span>
+          ))}
+        </nav>
+      ) : null}
 
       <TreeContextMenu
         row={menuRow}
@@ -339,17 +404,54 @@ export function Tree() {
         </div>
       </TreeContextMenu>
 
-      {/* Typzensus: die erste Frage an eine fremde Datei, ohne Scrollen beantwortet. */}
-      <div className="flex h-(--h-panel-header) shrink-0 items-center gap-2.5 border-t border-border-subtle px-3 font-mono text-2xs">
-        <span className="text-type-aas-text" data-numeric>
-          {zensus.AssetAdministrationShell} AAS
+      {/*
+        Fussbereich wie im Einstieg. Der Editor hatte bis zum 06.08.2026 gar keinen
+        Abmeldeweg; wer im Editor sass, musste erst zurueck zur Projektliste.
+      */}
+      <div className="flex shrink-0 items-center gap-2.5 border-t border-border-subtle px-3 py-2.5">
+        <span
+          aria-hidden
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-type-sm-border bg-type-sm-surface text-2xs"
+        >
+          {(benutzer?.name ?? "").slice(0, 2).toUpperCase()}
         </span>
-        <span className="text-type-sm-text" data-numeric>
-          {zensus.Submodel} SM
-        </span>
-        <span className="text-type-cd-text" data-numeric>
-          {zensus.ConceptDescription} CD
-        </span>
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-2xs">{benutzer?.name}</span>
+          <button
+            type="button"
+            onClick={() => void abmelden()}
+            className="text-left font-mono text-3xs tracking-(--tracking-fein) text-muted-foreground hover:text-foreground"
+          >
+            {t("anmeldung.abmelden")}
+          </button>
+        </div>
+
+        <div
+          role="group"
+          aria-label={t("anmeldung.sprache")}
+          className="ml-auto flex items-center font-mono text-2xs text-muted-foreground"
+        >
+          {(["de", "en"] as const).map((wert, i) => (
+            <span key={wert} className="flex items-center">
+              {i > 0 ? (
+                <span aria-hidden className="text-border">
+                  /
+                </span>
+              ) : null}
+              <button
+                type="button"
+                aria-pressed={language === wert}
+                onClick={() => setLanguage(wert)}
+                className={
+                  "px-1 transition-colors duration-(--duration-calm) " +
+                  (language === wert ? "text-foreground" : "hover:text-foreground")
+                }
+              >
+                {wert.toUpperCase()}
+              </button>
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -383,6 +485,15 @@ function dropTarget(
 
   const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
   const ratio = (event.clientY - bounds.top) / bounds.height;
+
+  // Eine Ordnerzeile **ist** ein Slot des Environments. Abgelegt wird dort hinein, nicht
+  // daneben: der Ordner selbst hat kein Geschwister, neben das etwas passte.
+  if (row.ordner && row.slot) {
+    const wurzel = model.nodes[model.rootId];
+    if (!wurzel || !canContain(wurzel.kind, row.slot, dragged.kind, wurzel.data)) return null;
+    return { parentId: model.rootId, slot: row.slot, index: undefined, where: "into" };
+  }
+
   const target = model.nodes[row.nodeId];
   if (!target) return null;
 

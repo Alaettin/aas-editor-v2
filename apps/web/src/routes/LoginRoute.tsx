@@ -195,7 +195,7 @@ export function LoginRoute() {
               ))}
             </div>
 
-            <span data-numeric>{__APP_VERSION__}</span>
+            <span data-numeric>{t("status.fassung", { nummer: __APP_VERSION__ })}</span>
           </div>
         </div>
       </form>

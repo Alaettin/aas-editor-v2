@@ -155,7 +155,7 @@ export function Seitenleiste({ onEinstellungen }: { readonly onEinstellungen: ()
 
       <div className="flex flex-col gap-3.5">
         <div className="px-2 font-mono text-2xs tracking-(--tracking-fein) text-axon-schrift-still">
-          <span data-numeric>{__APP_VERSION__}</span>
+          <span data-numeric>{t("status.fassung", { nummer: __APP_VERSION__ })}</span>
         </div>
 
         <div className="flex items-center gap-3.5 border-t border-axon-linie px-2 pt-3.5 font-mono text-2xs tracking-(--tracking-fein) text-axon-schrift-still">

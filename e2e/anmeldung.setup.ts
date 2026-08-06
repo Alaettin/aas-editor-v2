@@ -34,10 +34,7 @@ const ENV = Object.fromEntries(
 setup("anmelden", async ({ page }) => {
   await page.goto("/login");
   await page.evaluate(() =>
-    localStorage.setItem(
-      "aas-editor-ansicht",
-      JSON.stringify({ theme: "light", density: "cozy", language: "de" }),
-    ),
+    localStorage.setItem("aas-editor-ansicht", JSON.stringify({ density: "cozy", language: "de" })),
   );
   await page.reload();
   await page.fill("#benutzer", ENV["AUTH_USERNAME"] ?? "");

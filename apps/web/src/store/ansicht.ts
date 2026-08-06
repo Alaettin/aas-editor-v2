@@ -1,12 +1,16 @@
 import { create } from "zustand";
 
 /**
- * Erscheinung, Dichte und Sprache, getrennt vom Editor.
+ * Dichte und Sprache, getrennt vom Editor.
  *
- * Bis Phase 9 lagen Erscheinung und Dichte in `store/editor.ts`, und nur `AppShell`
- * schrieb sie an das Wurzelelement. Wer direkt auf `/projekte` einstieg, sah die Liste
- * deshalb **immer hell**, egal was eingestellt war: die Liste importiert bewusst nichts
- * aus dem Editor-Speicher, damit der Editor nicht im Startbundle landet.
+ * Bis Phase 9 lagen sie in `store/editor.ts`, und nur `AppShell` schrieb sie an das
+ * Wurzelelement. Wer direkt auf `/projekte` einstieg, bekam sie deshalb nie zu sehen: die
+ * Liste importiert bewusst nichts aus dem Editor-Speicher, damit der Editor nicht im
+ * Startbundle landet.
+ *
+ * **Die Erscheinung stand bis zum 06.08.2026 hier mit drin.** Seit die Anwendung
+ * durchgaengig auf der AXON-Flaeche steht, gibt es nur noch eine, und damit nichts mehr
+ * umzuschalten.
  *
  * Dieser Speicher ist winzig, haengt an **nichts** und darf deshalb ueberall gelesen
  * werden, auch von `i18n/index.ts`. Umgekehrt importiert er i18next bewusst nicht: das
@@ -14,25 +18,22 @@ import { create } from "zustand";
  * loest deshalb das Wurzelbauteil aus, siehe `App.tsx`.
  *
  * Geschrieben wird zusaetzlich in den lokalen Speicher, und `index.html` liest ihn vor
- * dem ersten Bild. Ohne das blitzt bei jedem Laden kurz die helle Fassung auf, und die
- * Seite traege kurz die falsche Sprachauszeichnung.
+ * dem ersten Bild. Ohne das springt die Dichte bei jedem Laden kurz, und die Seite traege
+ * einen Wimpernschlag lang die falsche Sprachauszeichnung.
  */
 
 export type Density = "compact" | "cozy";
-export type Theme = "light" | "dark";
 export type Language = "de" | "en";
 
 /** Der Schluessel steht auch im Vorabskript in index.html. Aendert er sich, dort mit. */
 export const ANSICHT_SCHLUESSEL = "aas-editor-ansicht";
 
 export interface Ansicht {
-  theme: Theme;
   density: Density;
   language: Language;
 }
 
 interface AnsichtState extends Ansicht {
-  setTheme: (theme: Theme) => void;
   setDensity: (density: Density) => void;
   setLanguage: (language: Language) => void;
 }
@@ -40,14 +41,11 @@ interface AnsichtState extends Ansicht {
 function gelesen(): Ansicht {
   // Ohne Einstellung gilt, was das System sagt. Erst eine bewusste Wahl legt sich
   // darueber, und die ueberdauert das Neuladen.
-  const dunkelVorgabe =
-    typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
   const spracheVorgabe: Language =
     typeof navigator === "object" && navigator.language.toLowerCase().startsWith("en")
       ? "en"
       : "de";
   const vorgabe: Ansicht = {
-    theme: dunkelVorgabe ? "dark" : "light",
     density: "cozy",
     language: spracheVorgabe,
   };
@@ -57,7 +55,6 @@ function gelesen(): Ansicht {
     if (!roh) return vorgabe;
     const wert = JSON.parse(roh) as Partial<Ansicht>;
     return {
-      theme: wert.theme === "dark" ? "dark" : "light",
       density: wert.density === "compact" ? "compact" : "cozy",
       // Nur ein abgelegter Wert ueberschreibt die Systemsprache. Ein leeres oder
       // unbekanntes Feld heisst "nie gewaehlt", nicht "Deutsch".
@@ -74,7 +71,6 @@ function abgelegt(ansicht: Ansicht): void {
     localStorage.setItem(
       ANSICHT_SCHLUESSEL,
       JSON.stringify({
-        theme: ansicht.theme,
         density: ansicht.density,
         language: ansicht.language,
       }),
@@ -86,10 +82,6 @@ function abgelegt(ansicht: Ansicht): void {
 
 export const useAnsicht = create<AnsichtState>()((set, get) => ({
   ...gelesen(),
-  setTheme: (theme) => {
-    set({ theme });
-    abgelegt({ ...get(), theme });
-  },
   setDensity: (density) => {
     set({ density });
     abgelegt({ ...get(), density });
@@ -101,14 +93,13 @@ export const useAnsicht = create<AnsichtState>()((set, get) => ({
 }));
 
 /**
- * Schreibt Erscheinung, Dichte und Sprache an das Wurzelelement.
+ * Schreibt Dichte und Sprache an das Wurzelelement.
  * Genau eine Stelle, und sie haengt ueber dem Router.
  *
  * `documentElement.lang` ist nicht Zierrat: davon haengt ab, wie ein Bildschirmleser die
  * Seite ausspricht und welche Trennregeln der Browser anwendet.
  */
-export function anwenden({ theme, density, language }: Ansicht): void {
-  document.documentElement.classList.toggle("dark", theme === "dark");
+export function anwenden({ density, language }: Ansicht): void {
   document.documentElement.dataset["density"] = density;
   document.documentElement.lang = language;
 }

@@ -1,11 +1,9 @@
 import { memo } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { isIdentifiableKind } from "@aas-editor/core";
 
 import { Chip } from "@/components/ui/chip";
 import { CountBadge } from "@/components/ui/count-badge";
-import { TypeDot } from "@/components/ui/type-dot";
-import { toneOf } from "@/lib/typeOf";
+import { kuerzelOf, toneOf } from "@/lib/typeOf";
 import { cn } from "@/lib/utils";
 import { type TreeRow as Row } from "@/store/rows";
 import { useTranslation } from "react-i18next";
@@ -14,10 +12,20 @@ import { useTranslation } from "react-i18next";
  * Eine Baumzeile. Bewusst `memo`: beim Scrollen durch ein Modell mit tausenden
  * Elementen darf nur die tatsaechlich veraenderte Zeile neu rendern.
  *
- * Statt Typ-Badges auf jeder Zeile steht links ein Typpunkt: gefuellt und eckig fuer
- * Identifiables, umrandet und rund fuer SubmodelElements. Bei mehreren tausend Zeilen ist
- * ein Wort je Zeile Laerm, ein Punkt nicht.
+ * Vor dem Namen steht das Typkuerzel in der Typfarbe: "SM", "Prop", "SMC". Feste Breite,
+ * damit die Namen in einer Flucht stehen. Der fruehere Typpunkt entfaellt dafuer, zwei
+ * Typanzeigen nebeneinander waeren eine zu viel; der Befundzustand faerbt das Kuerzel.
  */
+
+/** Die Textfarbe je Ton. Die Toene selbst kommen aus `toneOf`, siehe `lib/typeOf.ts`. */
+const TON_KLASSE: Record<string, string> = {
+  neutral: "text-mono-foreground",
+  aas: "text-type-aas-text",
+  sm: "text-type-sm-text",
+  cd: "text-type-cd-text",
+  warn: "text-warning-text",
+  danger: "text-destructive",
+};
 
 export interface TreeRowProps {
   readonly row: Row;
@@ -76,7 +84,7 @@ export const TreeRowView = memo(function TreeRowView({
         "flex h-(--row-height) cursor-default items-stretch gap-1.5 rounded-md pr-2 text-base select-none",
         "transition-colors duration-(--duration-quick)",
         selected
-          ? "bg-selected text-selected-foreground shadow-[inset_2px_0_0_var(--primary)]"
+          ? "animate-[axon-auswahl_3.2s_ease-in-out_infinite] bg-selected text-selected-foreground shadow-[inset_2px_0_0_var(--primary)]"
           : "hover:bg-accent",
         dropHint === "into" && "ring-2 ring-ring ring-inset",
         dropHint === "before" && "border-t-2 border-t-primary",
@@ -113,11 +121,19 @@ export const TreeRowView = memo(function TreeRowView({
           <span className="size-4 shrink-0" />
         )}
 
-        {/* Gefuellt heisst Identifiable, umrandet heisst SubmodelElement. */}
-        <TypeDot
-          tone={befund ? "warn" : tone}
-          variant={isIdentifiableKind(row.kind) || row.parentId === null ? "filled" : "outline"}
-        />
+        {/* Eine Ordnerzeile ist kein Modellelement und traegt deshalb kein Kuerzel. */}
+        <span
+          aria-hidden
+          className={cn(
+            "w-9 shrink-0 text-right font-mono text-2xs tracking-tight tabular-nums",
+            row.ordner ? "text-foreground-faint" : befund ? "text-warning-text" : TON_KLASSE[tone],
+          )}
+          // Der Typ steht schon im Kontextmenue und im Formularkopf; hier waere er fuer
+          // einen Bildschirmleser eine Wiederholung vor jedem Namen.
+          title={row.ordner ? undefined : row.kind}
+        >
+          {row.ordner ? "" : kuerzelOf(row.kind)}
+        </span>
 
         <span
           className={cn(

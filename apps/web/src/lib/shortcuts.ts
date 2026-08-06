@@ -14,11 +14,13 @@ import i18n from "@/i18n";
  * den Zustand und damit genau das Problem, das hier behoben wird.
  *
  * Die Tasten stehen als **Marken**, nicht als fertiger Text: "Strg" heisst auf Englisch
- * "Ctrl", "Entf" heisst "Del", und "Hoch" heisst "Up". Ein englischer Nutzer, der im
- * Hilfe-Dialog "Strg+Entf" liest, sucht auf seiner Tastatur vergeblich.
+ * "Ctrl", "Entf" heisst "Del", und "Hoch" heisst "Up". Ein englischer Nutzer, der auf einem
+ * Knopf "Strg+Entf" liest, sucht auf seiner Tastatur vergeblich.
+ *
+ * Seit dem 06.08.2026 gibt es den Hilfe-Dialog nicht mehr. Uebrig bleiben die Hinweise an
+ * den Knoepfen, also `ersteTasteFuer`; die Gruppierung nach Bereichen ist mit dem Dialog
+ * gefallen.
  */
-
-export type Bereich = "allgemein" | "baum" | "tabelle" | "formular";
 
 /**
  * Eine Tastenfolge als Marken, etwa `["strg", "shift", "z"]`.
@@ -33,40 +35,35 @@ export interface Tastenweg {
   readonly folgen: readonly Folge[];
   /** Schluessel der Beschreibung in den Sprachdateien */
   readonly wirkung: string;
-  readonly bereich: Bereich;
 }
 
 export const TASTENWEGE: readonly Tastenweg[] = [
-  { folgen: [["strg", "K"]], wirkung: "hilfe.palette", bereich: "allgemein" },
-  { folgen: [["strg", "J"]], wirkung: "hilfe.assistent", bereich: "allgemein" },
-  { folgen: [["strg", "S"]], wirkung: "hilfe.speichern", bereich: "allgemein" },
-  { folgen: [["strg", "Z"]], wirkung: "hilfe.rueckgaengig", bereich: "allgemein" },
+  { folgen: [["strg", "K"]], wirkung: "hilfe.palette" },
+  { folgen: [["strg", "J"]], wirkung: "hilfe.assistent" },
+  { folgen: [["strg", "S"]], wirkung: "hilfe.speichern" },
+  { folgen: [["strg", "Z"]], wirkung: "hilfe.rueckgaengig" },
   {
     folgen: [
       ["strg", "Y"],
       ["strg", "shift", "Z"],
     ],
     wirkung: "hilfe.wiederholen",
-    bereich: "allgemein",
   },
 
-  { folgen: [["hoch"], ["runter"]], wirkung: "hilfe.bewegen", bereich: "baum" },
-  { folgen: [["rechts"]], wirkung: "hilfe.aufklappen", bereich: "baum" },
-  { folgen: [["links"]], wirkung: "hilfe.zuklappen", bereich: "baum" },
-  { folgen: [["pos1"], ["ende"]], wirkung: "hilfe.anfangEnde", bereich: "baum" },
-  { folgen: [["entf"]], wirkung: "hilfe.loeschen", bereich: "baum" },
-  { folgen: [["strg", "D"]], wirkung: "hilfe.duplizieren", bereich: "baum" },
-  { folgen: [["strg", "C"]], wirkung: "hilfe.kopieren", bereich: "baum" },
-  { folgen: [["strg", "X"]], wirkung: "hilfe.ausschneiden", bereich: "baum" },
-  { folgen: [["strg", "V"]], wirkung: "hilfe.einfuegen", bereich: "baum" },
-  { folgen: [["f2"], ["enter"]], wirkung: "hilfe.idShort", bereich: "baum" },
-  { folgen: [["esc"]], wirkung: "hilfe.filterLeeren", bereich: "baum" },
+  { folgen: [["hoch"], ["runter"]], wirkung: "hilfe.bewegen" },
+  { folgen: [["rechts"]], wirkung: "hilfe.aufklappen" },
+  { folgen: [["links"]], wirkung: "hilfe.zuklappen" },
+  { folgen: [["pos1"], ["ende"]], wirkung: "hilfe.anfangEnde" },
+  { folgen: [["entf"]], wirkung: "hilfe.loeschen" },
+  { folgen: [["strg", "D"]], wirkung: "hilfe.duplizieren" },
+  { folgen: [["strg", "C"]], wirkung: "hilfe.kopieren" },
+  { folgen: [["strg", "X"]], wirkung: "hilfe.ausschneiden" },
+  { folgen: [["strg", "V"]], wirkung: "hilfe.einfuegen" },
+  { folgen: [["f2"], ["enter"]], wirkung: "hilfe.idShort" },
+  { folgen: [["esc"]], wirkung: "hilfe.filterLeeren" },
 
-  { folgen: [["hoch"], ["runter"]], wirkung: "hilfe.zeileWechseln", bereich: "tabelle" },
-  { folgen: [["enter"]], wirkung: "hilfe.zumFormular", bereich: "tabelle" },
-
-  { folgen: [["enter"]], wirkung: "hilfe.feldUebernehmen", bereich: "formular" },
-  { folgen: [["esc"]], wirkung: "hilfe.feldVerwerfen", bereich: "formular" },
+  { folgen: [["enter"]], wirkung: "hilfe.feldUebernehmen" },
+  { folgen: [["esc"]], wirkung: "hilfe.feldVerwerfen" },
 ];
 
 /** Eine einzelne Marke in Worten. Buchstaben und Ziffern bleiben unveraendert. */
@@ -76,32 +73,16 @@ function marke(name: string): string {
 }
 
 /** Eine Folge als Text, etwa "Strg+Shift+Z" oder "Ctrl+Shift+Z". */
-export function folgeAlsText(folge: Folge): string {
+function folgeAlsText(folge: Folge): string {
   return folge.map(marke).join("+");
 }
 
-/** Alle Wege zu einer Wirkung, durch Komma getrennt. Fuer den Hilfe-Dialog. */
-export function tastenFuer(wirkung: string): string {
-  const weg = TASTENWEGE.find((eintrag) => eintrag.wirkung === wirkung);
-  return weg ? weg.folgen.map(folgeAlsText).join(", ") : "";
-}
-
-/**
- * Der **erste** Weg zu einer Wirkung. Menues und Knopfhinweise haben nur Platz fuer einen;
- * im Hilfe-Dialog stehen alle.
- */
+/** Der **erste** Weg zu einer Wirkung. Ein Knopfhinweis hat nur Platz fuer einen. */
 export function ersteTasteFuer(wirkung: string): string {
   const weg = TASTENWEGE.find((eintrag) => eintrag.wirkung === wirkung);
   const erste = weg?.folgen[0];
   return erste ? folgeAlsText(erste) : "";
 }
-
-export const BEREICHE: readonly { bereich: Bereich; titel: string }[] = [
-  { bereich: "allgemein", titel: "hilfe.gruppeAllgemein" },
-  { bereich: "baum", titel: "hilfe.gruppeBaum" },
-  { bereich: "tabelle", titel: "hilfe.gruppeTabelle" },
-  { bereich: "formular", titel: "hilfe.gruppeFormular" },
-];
 
 /**
  * Ob ein Tastendruck in einem Eingabefeld passiert.

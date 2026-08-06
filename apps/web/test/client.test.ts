@@ -31,18 +31,18 @@ describe("api-Klient", () => {
       "fetch",
       vi.fn().mockResolvedValue(
         antwort(409, {
-          code: "revision-konflikt",
-          message: "Der Serverstand ist neuer.",
-          aktuelleRevision: 7,
+          code: "doppelte-id",
+          message: "Zwei Elemente tragen dieselbe id.",
+          id: "https://beispiel.de/sm/1",
         }),
       ),
     );
 
     const fehler = await api("/api/test").catch((error: unknown) => error);
     expect(fehler).toBeInstanceOf(ApiError);
-    expect((fehler as ApiError).code).toBe("revision-konflikt");
+    expect((fehler as ApiError).code).toBe("doppelte-id");
     expect((fehler as ApiError).status).toBe(409);
-    expect((fehler as ApiError).details["aktuelleRevision"]).toBe(7);
+    expect((fehler as ApiError).details["id"]).toBe("https://beispiel.de/sm/1");
   });
 
   it("meldet eine verlorene Sitzung genau einmal", async () => {

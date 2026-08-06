@@ -10,33 +10,30 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { Datenband } from "@/components/Keyvisual/Datenband";
 import { Tree } from "@/components/Tree/Tree";
 import { Inspector } from "@/components/Inspector/Inspector";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IssuePanel } from "@/components/Issues/IssuePanel";
 import { ExportDialog, needsExportWarning } from "@/components/ExportDialog";
-import { CommandPalette, PALETTE_EVENT } from "@/components/CommandPalette";
+import { ExportFormatDialog } from "@/components/ExportFormatDialog";
+import { CommandPalette } from "@/components/CommandPalette";
 import { RestoreDialog } from "@/components/RestoreDialog";
-import { ConflictDialog } from "@/components/ConflictDialog";
 import { DeleteDialog } from "@/components/Tree/DeleteDialog";
 import { PasteDialog } from "@/components/Tree/PasteDialog";
-import { VersionDialog } from "@/components/Versions/VersionDialog";
-import { AboutDialog } from "@/components/Shell/AboutDialog";
-import { MenuBar } from "@/components/Shell/MenuBar";
 import { SettingsDialog } from "@/components/Shell/SettingsDialog";
-import { ShortcutsDialog } from "@/components/Shell/ShortcutsDialog";
 import { StatusBar } from "@/components/Shell/StatusBar";
+import { Titelzeile } from "@/components/Shell/Titelzeile";
 import { Toolbar } from "@/components/Shell/Toolbar";
 import { useAssistant } from "@/store/assistant";
 import { ersteTasteFuer, inEingabefeld } from "@/lib/shortcuts";
 import { useEditor } from "@/store/editor";
 
 /**
- * Tabelle, Graph und Assistent werden erst geladen, wenn man sie oeffnet. Zusammen sind
- * Tabelle und Graph 115 KB gzip, dazu elkjs mit 456 KB im Worker. Im Startbundle haetten
- * sie nichts zu suchen, und `pnpm budget` wuerde es sofort melden.
+ * Graph und Assistent werden erst geladen, wenn man sie oeffnet. Der Graph allein wiegt
+ * 60 KB gzip, dazu elkjs mit 456 KB im Worker. Im Startbundle haetten sie nichts zu
+ * suchen, und `pnpm budget` wuerde es sofort melden.
  */
-const TableView = lazy(() => import("@/components/Table/TableView"));
 const GraphView = lazy(() => import("@/components/Graph/GraphView"));
 const AssistantPanel = lazy(() =>
   import("@/components/Assistant/AssistantPanel").then((m) => ({ default: m.AssistantPanel })),
@@ -53,10 +50,8 @@ export function AppShell() {
   const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [exportFormat, setExportFormat] = useState<"json" | "xml" | "aasx" | null>(null);
-  const [versionenOffen, setVersionenOffen] = useState(false);
+  const [formatwahlOffen, setFormatwahlOffen] = useState(false);
   const [einstellungenOffen, setEinstellungenOffen] = useState(false);
-  const [tastaturwegeOffen, setTastaturwegeOffen] = useState(false);
-  const [ueberOffen, setUeberOffen] = useState(false);
 
   const model = useEditor((state) => state.model);
   const meta = useEditor((state) => state.meta);
@@ -114,7 +109,8 @@ export function AppShell() {
 
   return (
     <div
-      className="flex h-screen flex-col bg-background"
+      className="relative flex h-screen flex-col overflow-hidden"
+      style={{ background: "var(--axon-buehne)" }}
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -122,6 +118,14 @@ export function AppShell() {
         if (file) void openFile(file);
       }}
     >
+      {/*
+        Das Datenband liegt hinter dem ganzen Rahmen. Am 05.08. stand hier noch die
+        Entscheidung "Keyvisual nur fuer die Anmeldung"; die Vorlage `AAS Editor AXON`
+        kehrt sie um. Der Bauteil bringt sein eigenes `matchMedia` mit und zeichnet bei
+        reduzierter Bewegung genau ein Bild.
+      */}
+      <Datenband />
+
       {/*
         Sprunglink: die Menuezeile und die Werkzeugleiste stehen vor dem Inhalt. Ohne
         diesen Weg tabbt man sich bei jedem Seitenaufruf erst durch beide.
@@ -133,19 +137,11 @@ export function AppShell() {
         {t("app.zumInhalt")}
       </a>
 
-      <MenuBar
-        onOeffnen={() => inputRef.current?.click()}
-        onExport={requestExport}
-        onVersionen={() => setVersionenOffen(true)}
-        onPalette={() => window.dispatchEvent(new Event(PALETTE_EVENT))}
-        onEinstellungen={() => setEinstellungenOffen(true)}
-        onTastaturwege={() => setTastaturwegeOffen(true)}
-        onUeber={() => setUeberOffen(true)}
-      />
+      <Titelzeile />
 
       <Toolbar
         onOeffnen={() => inputRef.current?.click()}
-        onExport={requestExport}
+        onExport={() => setFormatwahlOffen(true)}
         onEinstellungen={() => setEinstellungenOffen(true)}
       />
 
@@ -155,18 +151,28 @@ export function AppShell() {
             <ResizablePanelGroup orientation="vertical">
               <ResizablePanel defaultSize={issuePanelOpen ? "70" : "100"} minSize="30">
                 <ResizablePanelGroup orientation="horizontal">
-                  <ResizablePanel defaultSize="30" minSize="18">
+                  {/*
+                    In Pixeln, nicht in Prozent: bei 30 Prozent war der Baum auf einem
+                    breiten Bildschirm ueber 500px breit, obwohl die Namen darin kurz sind.
+                  */}
+                  <ResizablePanel defaultSize={360} minSize={220}>
                     <div className="h-full border-r border-border bg-sidebar">
                       <Tree />
                     </div>
                   </ResizablePanel>
                   <ResizableHandle withHandle />
-                  <ResizablePanel defaultSize="70" minSize="30">
-                    <Suspense fallback={<SichtLaedt />}>
-                      {view === "formular" ? <Inspector /> : null}
-                      {view === "tabelle" ? <TableView /> : null}
-                      {view === "graph" ? <GraphView /> : null}
-                    </Suspense>
+                  {/* Ohne eigene Vorgabe: die Sicht bekommt, was der Baum uebrig laesst. */}
+                  <ResizablePanel minSize="30">
+                    {/*
+                      `key={view}` haengt den Inhalt beim Wechsel neu ein, sonst liefe die
+                      Einblendung nur beim ersten Mal.
+                    */}
+                    <div key={view} className="h-full animate-[axon-eintritt_240ms_ease-out]">
+                      <Suspense fallback={<SichtLaedt />}>
+                        {view === "formular" ? <Inspector /> : null}
+                        {view === "graph" ? <GraphView /> : null}
+                      </Suspense>
+                    </div>
                   </ResizablePanel>
                 </ResizablePanelGroup>
               </ResizablePanel>
@@ -217,16 +223,17 @@ export function AppShell() {
 
       <StatusBar />
 
+      <ExportFormatDialog
+        offen={formatwahlOffen}
+        onClose={() => setFormatwahlOffen(false)}
+        onWahl={requestExport}
+      />
       <ExportDialog format={exportFormat} onClose={() => setExportFormat(null)} />
       <CommandPalette />
       <RestoreDialog />
-      <ConflictDialog />
       <DeleteDialog />
       <PasteDialog />
-      <VersionDialog offen={versionenOffen} onClose={() => setVersionenOffen(false)} />
       <SettingsDialog offen={einstellungenOffen} onClose={() => setEinstellungenOffen(false)} />
-      <ShortcutsDialog offen={tastaturwegeOffen} onClose={() => setTastaturwegeOffen(false)} />
-      <AboutDialog offen={ueberOffen} onClose={() => setUeberOffen(false)} />
 
       <input
         ref={inputRef}

@@ -8,9 +8,6 @@
     "dichte": "Density",
     "dichteKompakt": "Compact",
     "dichteKomfortabel": "Comfortable",
-    "erscheinung": "Appearance",
-    "hell": "Light",
-    "dunkel": "Dark",
     "sprache": "Language",
     "deutsch": "Deutsch",
     "englisch": "English",
@@ -18,17 +15,14 @@
     "zumInhalt": "Skip to content"
   },
   "status": {
-    "knoten": "{{count}} elements",
     "anhaenge": "{{count}} attachments",
+    "fassung": "Version {{nummer}}",
     "keineDatei": "No file open",
-    "versionUnbekannt": "no version marker",
-    "wirdGelesen": "Reading ...",
     "constraints": "{{count}} constraints",
     "warnungen": "{{count}} warnings",
     "keineBefunde": "No findings",
     "anhaengeLaden": "Loading attachments ...",
     "zoom": "Zoom {{prozent}} %",
-    "metamodell": "Metamodel",
     "gespeichert": "saved",
     "ungespeichert": "unsaved",
     "prueft": "Checking ..."
@@ -40,7 +34,6 @@
   },
   "baum": {
     "titel": "Structure",
-    "neu": "New",
     "neuIn": "Add to {{slot}}",
     "duplizieren": "Duplicate",
     "loeschen": "Delete",
@@ -160,11 +153,23 @@
       "leereListe": "{{feld}} is set but empty. Either at least one entry or none at all.",
       "spracheMehrfach": "{{feld}} contains the same language more than once. One entry per language is allowed.",
       "zuLang": "{{feld}} is too long, at most {{laenge}} characters are allowed.",
-      "idShortFehlt": "Every entry of {{feld}} needs an idShort.",
       "idShortsUneindeutig": "The idShorts within the value must be unique.",
       "submodelsModelReference": "Every reference under submodels must be a ModelReference to a submodel.",
-      "derivedFromModelReference": "derivedFrom must be a ModelReference to an AssetAdministrationShell."
-    }
+      "derivedFromModelReference": "derivedFrom must be a ModelReference to an AssetAdministrationShell.",
+      "wertPasstNichtZumTyp": "The value does not match the declared value type.",
+      "feldPasstNichtZumTyp": "{{feld}} does not match the declared value type.",
+      "wertLeer": "The value must not be empty.",
+      "listeBrauchtEintrag": "{{feld}} needs at least one entry.",
+      "modelReferenceNoetig": "{{feld}} must be a model reference to an element of this environment.",
+      "datumMuster": "The value must be an xs:dateTime in UTC, for example 2026-08-06T12:00:00Z.",
+      "dauerMuster": "The value must be an xs:duration, for example P1Y2M3DT4H5M6S.",
+      "uriNoetig": "The value must be a URI as per RFC 2396, at most 2048 characters.",
+      "fassungMuster": "{{feld}} does not match the required pattern.",
+      "mimeNoetig": "The value must be a valid MIME type as per RFC 2046, for example application/pdf.",
+      "sprachmarkeNoetig": "The value must be a language tag as per BCP 47, for example de or en-US.",
+      "intervallBeiEingang": "A maximum interval is not allowed for input direction."
+    },
+    "unuebersetzt": "not translated"
   },
   "export": {
     "json": "As JSON",
@@ -178,7 +183,12 @@
     "warnungWarnungen_one": "One data warning is open, for example a duplicate id or a missing attachment.",
     "warnungWarnungen_other": "{{count}} data warnings are open, for example duplicate ids or missing attachments.",
     "warnungHinweis": "The export can still be carried out.",
-    "trotzdem": "Export anyway"
+    "trotzdem": "Export anyway",
+    "formatTitel": "Export model",
+    "formatText": "Which format?",
+    "aasxText": "Complete package, including every attachment.",
+    "jsonText": "Environment only. Attachments are lost.",
+    "xmlText": "Environment only. Attachments are lost."
   },
   "fehler": {
     "titel": "That did not work",
@@ -187,9 +197,6 @@
     "export": "Export failed",
     "loeschen": "Deleting failed",
     "anlegen": "Creating failed",
-    "version": "The version could not be created",
-    "versionen": "The versions could not be loaded",
-    "versionLaden": "The version could not be loaded",
     "aenderung": "The change could not be carried out",
     "pruefung": "The check failed",
     "serverNichtErreichbar": "The server cannot be reached.",
@@ -202,12 +209,10 @@
       "route-unbekannt": "The server does not know this address.",
       "projekt-nicht-gefunden": "Project not found.",
       "projektname-fehlt": "A project name is required.",
-      "revision-fehlt": "The expected revision is missing from the request.",
       "environment-fehlt": "The environment is missing from the request.",
       "environment-kein-objekt": "The environment must be an object.",
       "slot-keine-liste": "{{slot}} must be a list.",
       "slot-eintrag-kein-objekt": "{{slot}} contains an entry that is not an object.",
-      "revision-konflikt": "The server revision is newer than yours. Nothing was overwritten.",
       "doppelte-id": "The id \"{{id}}\" occurs more than once.",
       "datei-fehlt": "A file is required.",
       "pfad-fehlt": "The package path is required.",
@@ -240,19 +245,16 @@
     "panelZu": "Hide findings",
     "sichten": "Views",
     "zuFormular": "Switch to the form",
-    "zuTabelle": "Switch to the table",
     "zuGraph": "Switch to the graph",
     "stichwort": {
       "sicht": "view",
       "formular": "form properties fields",
-      "tabelle": "table list",
       "graph": "graph relations map",
       "oeffnen": "file open load import",
       "export": "export save as",
       "rueckgaengig": "undo back",
       "wiederholen": "redo forward",
       "befunde": "findings panel errors warnings",
-      "darstellung": "appearance light dark theme",
       "dichte": "density compact comfortable",
       "sprache": "language german english deutsch"
     }
@@ -284,32 +286,10 @@
     "verwerfen": "Discard"
   },
   "sicht": {
+    "abgeschaltet": "The graph is being reworked.",
     "formular": "Form",
-    "tabelle": "Table",
     "graph": "Graph",
     "titel": "View"
-  },
-  "tabelle": {
-    "keinBehaelter": "No container selected",
-    "keinBehaelterText": "Select a submodel, a SubmodelElementCollection or a SubmodelElementList on the left. The table shows its entries.",
-    "leer": "This container is still empty.",
-    "eintraege_one": "1 entry",
-    "eintraege_other": "{{count}} entries",
-    "markiert_one": "1 selected",
-    "markiert_other": "{{count}} selected",
-    "markieren": "Select row",
-    "imFormular": "in the form",
-    "spalten": "Columns",
-    "mitBefund": "{{count}} with findings",
-    "enterOeffnet": "Enter opens the form",
-    "zeileVon": "Row {{zeile}} of {{gesamt}}",
-    "spalte": {
-      "idShort": "idShort",
-      "modelType": "Type",
-      "valueType": "valueType",
-      "value": "value",
-      "semanticId": "semanticId"
-    }
   },
   "graph": {
     "leerTitel": "Nothing to show",
@@ -410,54 +390,17 @@
     "gespeichert": "Saved",
     "geaendert": "Save",
     "speichert": "Saving ...",
-    "konflikt": "Conflict",
     "fehler": "Save again"
   },
-  "versionen": {
-    "knopf": "Versions",
-    "titel": "Versions",
-    "text": "A snapshot records the whole state. Loading one replaces the current state, it is saved only afterwards.",
-    "labelPlatzhalter": "Description, optional",
-    "anlegen": "Snapshot",
-    "leer": "No version yet",
-    "ohneLabel": "Without description",
-    "zeile": "{{datum}}, revision {{revision}}, {{knoten}} elements",
-    "laden": "Load",
-    "schliessen": "Close"
-  },
-  "konflikt": {
-    "titel": "The server revision is newer",
-    "text": "Your state builds on revision {{eigene}}, the server holds revision {{server}}. Nothing was overwritten.",
-    "alsNeues": "Save as a new project",
-    "ueberschreiben": "Overwrite the server (with a snapshot)",
-    "serverstand": "Load the server state, discard your changes",
-    "versionLabel": "before overwriting",
-    "kopieName": "{{name}} (copy)",
-    "ohneName": "Project"
-  },
   "menu": {
-    "datei": "File",
-    "bearbeiten": "Edit",
-    "ansicht": "View",
-    "werkzeuge": "Tools",
-    "hilfe": "Help",
-    "speichern": "Save",
-    "alsNeuesProjekt": "Save as a new project",
     "zurListe": "To the project list",
-    "ausschneiden": "Cut",
-    "kopieren": "Copy",
-    "einfuegen": "Paste",
     "neu": "New",
     "duplizieren": "Duplicate",
     "loeschen": "Delete",
-    "filterFokussieren": "Focus the filter",
-    "befunde": "Show findings",
     "allesAufklappen": "Expand all",
-    "allesZuklappen": "Collapse all",
-    "palette": "Command palette"
+    "allesZuklappen": "Collapse all"
   },
   "werkzeug": {
-    "validieren": "Validate",
     "einstellungen": "Settings"
   },
   "explorer": {
@@ -467,14 +410,6 @@
     "text": "Appearance, density and language. Everything else lives in the menu bar."
   },
   "hilfe": {
-    "tastaturwege": "Keyboard shortcuts",
-    "tastaturwegeText": "What can be reached without a mouse.",
-    "ueber": "About the editor",
-    "ueberText": "Editor for asset administration shells, built on the TypeScript SDKs by aas-core-works.",
-    "metamodell": "Metamodel",
-    "farbwelt": "Colours",
-    "gruppeAllgemein": "General",
-    "gruppeBaum": "In the tree",
     "palette": "Open the command palette",
     "assistent": "Show or hide the assistant",
     "speichern": "Save the project",
@@ -487,11 +422,7 @@
     "loeschen": "Delete, with confirmation",
     "duplizieren": "Duplicate",
     "idShort": "Focus the idShort in the form",
-    "gruppeTabelle": "Table",
-    "gruppeFormular": "Form",
     "filterLeeren": "Clear the filter",
-    "zeileWechseln": "Change row",
-    "zumFormular": "Jump to the form",
     "feldUebernehmen": "Commit the input",
     "feldVerwerfen": "Discard the input",
     "kopieren": "Copy",
@@ -536,8 +467,6 @@
     "gespeichert": "Project saved.",
     "exportiert": "File exported: {{name}}",
     "importiert": "File read: {{name}}",
-    "versionAngelegt": "Version created.",
-    "versionGeladen": "Version loaded. The state is not saved yet.",
     "projektAngelegt": "Project created.",
     "projektGeloescht": "Project deleted.",
     "eingefuegt": "Pasted.",

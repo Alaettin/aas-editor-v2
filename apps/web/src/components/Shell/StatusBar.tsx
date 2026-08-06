@@ -1,14 +1,14 @@
 import { useTranslation } from "react-i18next";
 
-import { nodeCount, useEditor } from "@/store/editor";
+import { useEditor } from "@/store/editor";
 
 /**
- * Statusleiste: woher der Stand kommt, wie gross er ist, und wie viele Befunde offen
- * sind. Der Befundzaehler ist zugleich der Weg ins Befundpanel, `data-issues-toggle`
- * bleibt deshalb erhalten.
+ * Statusleiste: welcher Stand offen ist, woher er kommt, wie gross er ist, und wie viele
+ * Constraints offen sind. Der Befundzaehler ist zugleich der Weg ins Befundpanel,
+ * `data-issues-toggle` bleibt deshalb erhalten.
  */
 export function StatusBar() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
 
   const model = useEditor((state) => state.model);
   const meta = useEditor((state) => state.meta);
@@ -20,18 +20,48 @@ export function StatusBar() {
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
 
+  const dirty = useEditor((state) => state.dirty);
+
   const constraints = issues.filter((issue) => issue.severity === "constraint").length;
-  const warnungen = issues.length - constraints;
+
+  // Der Projektname ohne Endung, wie in der Vorlage.
+  const projekt = meta ? meta.fileName.replace(/\.(json|xml|aasx)$/i, "") : null;
+  // Allein `dirty` sagt, ob etwas aussteht. Der Speichern-Knopf liest dasselbe Feld,
+  // sonst leuchtet hier ein Punkt, waehrend der Knopf sich fuer fertig haelt.
+  const gespeichert = !dirty;
+  const heute = new Intl.DateTimeFormat(i18n.language, { dateStyle: "long" }).format(new Date());
 
   return (
-    <footer className="flex h-(--h-statusbar) shrink-0 items-center gap-3 border-t border-border bg-card px-3.5 font-mono text-xs text-mono-foreground">
+    <footer className="flex h-(--h-statusbar) shrink-0 items-center gap-3 border-t border-border bg-muted px-3.5 font-mono text-xs text-mono-foreground">
+      {/*
+        Fassung, Datum und Projektname wie in der Vorlage. Format, Metamodell und Knotenzahl
+        sind auf Wunsch weg. Was bleibt, ist keine Wiederholung der Kopfzeile: die
+        Anhangsanzeigen warnen vor einem unvollstaendigen AASX-Export, und der Befund-Knopf
+        ist der Weg ins Befundpanel.
+      */}
+      <span data-numeric>
+        {t("status.fassung", { nummer: __APP_VERSION__ })} · {heute}
+        {projekt ? " · " : ""}
+      </span>
+      {projekt ? (
+        <span className="flex min-w-0 items-center gap-2">
+          {/*
+            Der Punkt ist die einzige Anzeige, dass etwas offen ist, seit der
+            "Gespeichert"-Chip aus der Kopfzeile weg ist. Ein Wort waere hier eine vierte
+            Angabe zwischen den Trennpunkten und wuerde die Zeile unruhig machen.
+          */}
+          {gespeichert ? null : (
+            <span
+              className="size-[7px] shrink-0 rounded-full bg-warning"
+              aria-label={t("status.ungespeichert")}
+            />
+          )}
+          <span className="truncate text-foreground">{projekt}</span>
+        </span>
+      ) : null}
+
       {meta ? (
         <>
-          <span>
-            {meta.format.toUpperCase()} · {t("status.metamodell")}{" "}
-            {meta.sourceVersion === "unbekannt" ? t("status.versionUnbekannt") : meta.sourceVersion}
-          </span>
-          <span data-numeric>{t("status.knoten", { count: nodeCount(model) })}</span>
           {meta.attachments.length > 0 ? (
             <span data-numeric>{t("status.anhaenge", { count: meta.attachments.length })}</span>
           ) : null}
@@ -54,22 +84,26 @@ export function StatusBar() {
           // Die Zaehler aendern sich nach jeder Pruefung. Ohne lebenden Bereich erfaehrt
           // niemand davon, der nicht gerade hinsieht.
           aria-live="polite"
+          // Der Knopf traegt immer einen Namen. Ohne die Warnungszahl war er bei null
+          // Constraints und offenen Warnungen leer, und ein leerer Knopf ist fuer einen
+          // Bildschirmleser namenlos.
+          aria-label={t("befund.titel")}
           onClick={() => setIssuePanelOpen(!issuePanelOpen)}
           className="flex items-center gap-2 rounded-xs px-1 hover:bg-accent disabled:hover:bg-transparent"
         >
           {constraints > 0 ? (
             <>
-              <span aria-hidden className="size-[7px] rounded-full bg-warning" />
+              <span
+                aria-hidden
+                className="size-[7px] animate-[axon-atem_2.4s_ease-in-out_infinite] rounded-full bg-warning"
+              />
               <span className="font-semibold text-warning-text" data-numeric>
                 {t("status.constraints", { count: constraints })}
               </span>
             </>
           ) : null}
-          {warnungen > 0 ? (
-            <span data-numeric>{t("status.warnungen", { count: warnungen })}</span>
-          ) : null}
-          {model && issues.length === 0 && pruefung === "ruht" ? (
-            <span>{t("status.keineBefunde")}</span>
+          {model && constraints === 0 && pruefung === "ruht" ? (
+            <span>{issues.length === 0 ? t("status.keineBefunde") : t("befund.titel")}</span>
           ) : null}
           {pruefung === "laeuft" ? <span>{t("status.prueft")}</span> : null}
         </button>

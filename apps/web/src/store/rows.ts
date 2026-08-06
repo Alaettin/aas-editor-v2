@@ -2,10 +2,12 @@ import {
   childSlotsOf,
   isJsonObject,
   search,
+  submodelsJeShell,
   type EditorModel,
   type EditorNode,
   type JsonValue,
   type NodeId,
+  type ShellZuordnung,
 } from "@aas-editor/core";
 
 /**
@@ -15,7 +17,34 @@ import {
  * TanStack Virtual gerendert, statt eine fertige Baumkomponente zu nehmen. Bei einem
  * normalisierten Store ist das wenig Aufwand und gibt volle Kontrolle ueber Tastatur
  * und Drag-and-drop.
+ *
+ * **Die Anzeige weicht bewusst vom Modell ab (seit 06.08.2026).** Im Metamodell sind alle
+ * Identifiables Geschwister unter `Environment`, und `AssetAdministrationShell.submodels`
+ * ist eine Liste von Verweisen. Der Baum zeigt stattdessen die Ordnung, die man erwartet:
+ * unter jeder Shell die Submodels, auf die sie zeigt, daneben ein Ordner je uebriger Liste.
+ * Geaendert wird dafuer **nur diese Ableitung**; ein Umbau des Modells zoege Normalisierer,
+ * Export, Validierung und Zwischenablage mit.
  */
+
+/**
+ * Kennung einer Ordnerzeile. Echte Knoten heissen `n0`, `n1`, ..., eine Kollision ist
+ * damit ausgeschlossen.
+ */
+const ORDNER = "slot:";
+
+export function ordnerId(slot: string): NodeId {
+  return `${ORDNER}${slot}`;
+}
+
+export function istOrdner(nodeId: NodeId | null): boolean {
+  return nodeId !== null && nodeId.startsWith(ORDNER);
+}
+
+/** Beschriftung einer Ordnerzeile. AAS-Begriffe bleiben unuebersetzt (Entscheidung 28.07.). */
+const ORDNER_LABEL: Record<string, string> = {
+  submodels: "Submodels",
+  conceptDescriptions: "ConceptDescriptions",
+};
 
 export interface TreeRow {
   readonly nodeId: NodeId;
@@ -32,6 +61,11 @@ export interface TreeRow {
   readonly disambiguator: string | null;
   /** Treffer der laufenden Suche, nur zur Hervorhebung */
   readonly matched: boolean;
+  /**
+   * Eine Sammelzeile fuer eine Liste des Environments, kein echter Knoten. Sie laesst sich
+   * nicht loeschen, nicht duplizieren und nicht im Formular oeffnen.
+   */
+  readonly ordner: boolean;
   readonly hasChildren: boolean;
   /** Zahl der Kinder ueber alle Slots, fuer den Zaehler rechts in der Zeile */
   readonly childCount: number;
@@ -65,9 +99,26 @@ export function buildRows(
 
   // Beim Filtern zeigt der Baum die Treffer **mit ihrer Elternkette**, damit sie im
   // Zusammenhang stehen bleiben. Ein Treffer ohne sein Submodel waere wertlos.
+  const zuordnung = submodelsJeShell(model);
+
   const treffer =
     filter.trim() === "" ? null : new Set(search(model, filter, 500).map((h) => h.nodeId));
-  const sichtbar = treffer ? withAncestors(model, treffer) : null;
+  const sichtbar = treffer ? withAncestors(model, treffer, zuordnung) : null;
+
+  /**
+   * Die Kinder einer Zeile, wie der Baum sie zeigt.
+   *
+   * Bei einer Shell sind das die verwiesenen Submodels; sie stehen im Modell nicht unter
+   * ihr, sondern als Verweisliste in ihren Daten.
+   */
+  const kinder = (node: EditorNode): { slot: string; ids: readonly NodeId[] }[] => {
+    if (node.kind === "AssetAdministrationShell") {
+      return [{ slot: "submodels", ids: zuordnung.jeShell.get(node.nodeId) ?? [] }];
+    }
+    return childSlotsOf(node.kind)
+      .map((entry) => ({ slot: entry.name, ids: node.children[entry.name] ?? [] }))
+      .filter((entry) => entry.ids.length > 0);
+  };
 
   // Wie oft ein idShort unter denselben Geschwistern vorkommt, je Slot einmal gezaehlt.
   // Frueher lief das je Zeile ueber die ganze Geschwisterliste: in einer Sammlung mit
@@ -102,12 +153,11 @@ export function buildRows(
     if (!node) return;
     if (sichtbar && !sichtbar.has(nodeId)) return;
 
-    const slots = childSlotsOf(node.kind);
+    const slots = kinder(node);
     let hasChildren = false;
     let childCount = 0;
     for (const entry of slots) {
-      const ids = node.children[entry.name];
-      if (!ids) continue;
+      const ids = entry.ids;
       // Der Zaehler nennt den tatsaechlichen Bestand, auch wenn ein Filter laeuft: die
       // gefilterte Zahl waere eine andere Aussage und wuerde beim Tippen springen.
       childCount += ids.length;
@@ -130,6 +180,7 @@ export function buildRows(
         parentId && slot ? zaehleGeschwister(parentId, slot) : null,
       ),
       matched: treffer ? treffer.has(nodeId) : false,
+      ordner: false,
       hasChildren,
       childCount,
       expanded: isOpen,
@@ -145,27 +196,120 @@ export function buildRows(
     // Kinder eines Knotens **eine** Ebene, unabhaengig davon, in welchem Slot sie haengen.
     let stellung = 0;
     for (const entry of slots) {
-      const ids = node.children[entry.name];
-      if (!ids) continue;
-      for (let i = 0; i < ids.length; i += 1) {
+      for (let i = 0; i < entry.ids.length; i += 1) {
         stellung += 1;
-        visit(ids[i] as NodeId, depth + 1, entry.name, i, nodeId, stellung, childCount);
+        visit(entry.ids[i] as NodeId, depth + 1, entry.slot, i, nodeId, stellung, childCount);
       }
     }
   };
 
-  visit(model.rootId, 0, null, 0, null, 1, 1);
+  /** Eine Sammelzeile fuer eine Liste des Environments, samt ihrer Kinder. */
+  const ordnerZeile = (slot: string, ids: readonly NodeId[], posinset: number, setsize: number) => {
+    const eigene = sichtbar ? ids.filter((id) => sichtbar.has(id)) : ids;
+    if (eigene.length === 0) return;
+
+    const nodeId = ordnerId(slot);
+    const isOpen = sichtbar ? true : Boolean(expanded[nodeId]);
+    rows.push({
+      nodeId,
+      depth: 1,
+      kind: slot,
+      label: ORDNER_LABEL[slot] ?? slot,
+      id: null,
+      disambiguator: null,
+      matched: false,
+      ordner: true,
+      hasChildren: true,
+      childCount: ids.length,
+      expanded: isOpen,
+      slot,
+      index: 0,
+      parentId: model.rootId,
+      posinset,
+      setsize,
+    });
+    if (!isOpen) return;
+    for (let i = 0; i < ids.length; i += 1) {
+      visit(ids[i] as NodeId, 2, slot, i, nodeId, i + 1, ids.length);
+    }
+  };
+
+  // --- Die Wurzel von Hand, weil ihre Kinder anders geordnet werden als im Modell -----
+  const wurzel = model.nodes[model.rootId];
+  if (!wurzel) return rows;
+
+  const shells = wurzel.children["assetAdministrationShells"] ?? [];
+  const cds = wurzel.children["conceptDescriptions"] ?? [];
+  const sichtbareShells = sichtbar ? shells.filter((id) => sichtbar.has(id)) : shells;
+  const hatFreie =
+    (sichtbar ? zuordnung.frei.filter((id) => sichtbar.has(id)) : zuordnung.frei).length > 0;
+  const hatCds = (sichtbar ? cds.filter((id) => sichtbar.has(id)) : cds).length > 0;
+
+  const kinderDerWurzel = sichtbareShells.length + (hatFreie ? 1 : 0) + (hatCds ? 1 : 0);
+  const wurzelOffen = sichtbar ? true : Boolean(expanded[model.rootId]);
+
+  rows.push({
+    nodeId: model.rootId,
+    depth: 0,
+    kind: wurzel.kind,
+    label: wurzel.kind,
+    id: null,
+    disambiguator: null,
+    matched: treffer ? treffer.has(model.rootId) : false,
+    ordner: false,
+    hasChildren: kinderDerWurzel > 0,
+    childCount: kinderDerWurzel,
+    expanded: wurzelOffen,
+    slot: null,
+    index: 0,
+    parentId: null,
+    posinset: 1,
+    setsize: 1,
+  });
+
+  if (wurzelOffen && kinderDerWurzel > 0) {
+    let stellung = 0;
+    for (let i = 0; i < shells.length; i += 1) {
+      stellung += 1;
+      visit(
+        shells[i] as NodeId,
+        1,
+        "assetAdministrationShells",
+        i,
+        model.rootId,
+        stellung,
+        kinderDerWurzel,
+      );
+    }
+    if (hatFreie) {
+      stellung += 1;
+      ordnerZeile("submodels", zuordnung.frei, stellung, kinderDerWurzel);
+    }
+    if (hatCds) ordnerZeile("conceptDescriptions", cds, stellung + 1, kinderDerWurzel);
+  }
+
   return rows;
 }
 
-/** Die Treffer plus alle ihre Vorfahren, damit der Baum zusammenhaengend bleibt. */
-function withAncestors(model: EditorModel, treffer: ReadonlySet<NodeId>): Set<NodeId> {
+/**
+ * Die Treffer plus alle ihre Vorfahren, damit der Baum zusammenhaengend bleibt.
+ *
+ * "Vorfahre" heisst hier **wie der Baum ihn zeigt**: ein Submodel haengt unter seiner Shell,
+ * nicht unter dem Environment. Ohne diese Zeile verschwaende ein gefundenes Submodel, weil
+ * seine Shell nicht als sichtbar gilt.
+ */
+function withAncestors(
+  model: EditorModel,
+  treffer: ReadonlySet<NodeId>,
+  zuordnung: ShellZuordnung,
+): Set<NodeId> {
   const out = new Set<NodeId>();
   for (const nodeId of treffer) {
     let current: NodeId | null = nodeId;
     while (current !== null && !out.has(current)) {
       out.add(current);
-      current = model.nodes[current]?.parent ?? null;
+      const shell = zuordnung.shellVon.get(current);
+      current = shell ?? model.nodes[current]?.parent ?? null;
     }
   }
   return out;
@@ -218,13 +362,21 @@ export function indexRows(rows: readonly TreeRow[]): Map<NodeId, number> {
   return index;
 }
 
-/** Der Pfad von der Wurzel zum Knoten, fuer die Breadcrumbs. */
+/**
+ * Der Pfad von der Wurzel zum Knoten, fuer die Brotkrumen.
+ *
+ * Folgt derselben Ableitung wie der Baum, nicht dem Modell: bei einem Submodel steht die
+ * Shell dazwischen. Sonst naennten Baum und Formular verschiedene Pfade fuer dasselbe
+ * Element.
+ */
 export function pathTo(model: EditorModel, nodeId: NodeId): NodeId[] {
+  const { shellVon } = submodelsJeShell(model);
   const path: NodeId[] = [];
   let current: NodeId | null = nodeId;
   while (current !== null) {
     path.unshift(current);
-    current = model.nodes[current]?.parent ?? null;
+    const shell = shellVon.get(current);
+    current = shell ?? model.nodes[current]?.parent ?? null;
   }
   return path;
 }

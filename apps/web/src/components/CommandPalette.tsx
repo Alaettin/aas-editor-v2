@@ -4,14 +4,11 @@ import {
   Download,
   FolderOpen,
   ListTree,
-  Moon,
   Redo2,
   Rows2,
   Rows3,
   Languages,
   ShieldAlert,
-  Sun,
-  Table2,
   Workflow,
   FileText,
   Undo2,
@@ -58,9 +55,7 @@ export function CommandPalette() {
   const exportAs = useEditor((state) => state.exportAs);
   const undo = useEditor((state) => state.undo);
   const redo = useEditor((state) => state.redo);
-  const theme = useAnsicht((state) => state.theme);
   const density = useAnsicht((state) => state.density);
-  const setTheme = useAnsicht((state) => state.setTheme);
   const setDensity = useAnsicht((state) => state.setDensity);
   const language = useAnsicht((state) => state.language);
   const setLanguage = useAnsicht((state) => state.setLanguage);
@@ -163,16 +158,9 @@ export function CommandPalette() {
               {t("palette.zuFormular")}
             </CommandItem>
             <CommandItem
-              value={stichwort("sicht", "tabelle")}
-              disabled={!model}
-              onSelect={() => ausfuehren(() => setView("tabelle"))}
-            >
-              <Table2 />
-              {t("palette.zuTabelle")}
-            </CommandItem>
-            <CommandItem
               value={stichwort("sicht", "graph")}
-              disabled={!model}
+              // Der Graph wird ueberarbeitet, siehe ViewSwitch.
+              disabled
               onSelect={() => ausfuehren(() => setView("graph"))}
             >
               <Workflow />
@@ -224,14 +212,6 @@ export function CommandPalette() {
             >
               <ShieldAlert />
               {issuePanelOpen ? t("palette.panelZu") : t("palette.panelAuf")}
-            </CommandItem>
-
-            <CommandItem
-              value={stichwort("darstellung")}
-              onSelect={() => ausfuehren(() => setTheme(theme === "dark" ? "light" : "dark"))}
-            >
-              {theme === "dark" ? <Sun /> : <Moon />}
-              {theme === "dark" ? t("app.hell") : t("app.dunkel")}
             </CommandItem>
 
             <CommandItem

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import type { ValidationIssue } from "@aas-editor/core/validation";
 
 import { Chip } from "@/components/ui/chip";
-import { befundText, hatRohmeldung } from "@/lib/befund";
+import { befundText, hatRohmeldung, istUnuebersetzt } from "@/lib/befund";
 
 /**
  * Ein Befund in Worten: Kennung, verstaendlicher Satz, und die Rohmeldung der SDK zum
@@ -43,6 +43,16 @@ export function IssueText({
         </Chip>
       ) : null}
       {befundText(issue, t)}
+      {/*
+        Ein unuebersetzter Befund sagt das auch. Sonst liest sich die englische Rohmeldung
+        wie ein regulaerer Satz, und niemand kaeme auf die Idee, dass hier eine Uebersetzung
+        fehlt.
+      */}
+      {istUnuebersetzt(issue) ? (
+        <Chip tone="neutral" fill="outline" pill className="ml-1.5">
+          {t("befund.unuebersetzt")}
+        </Chip>
+      ) : null}
       {hasRaw ? (
         <>
           {" "}

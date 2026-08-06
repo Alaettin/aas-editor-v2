@@ -3,7 +3,14 @@ import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
 import { useEditor, type View } from "@/store/editor";
 
-const SICHTEN: readonly View[] = ["formular", "tabelle", "graph"];
+const SICHTEN: readonly View[] = ["graph", "formular"];
+
+/**
+ * Der Graph ist seit dem 06.08.2026 abgeschaltet: er wird ueberarbeitet. Bewusst
+ * deaktiviert statt entfernt, damit die Sicht als geplant erkennbar bleibt und der
+ * Umschalter nachher nicht neu gebaut werden muss.
+ */
+const ABGESCHALTET: readonly View[] = ["graph"];
 
 /**
  * Segmentkontrolle statt Reiter: der Baum bleibt in allen drei Sichten links stehen,
@@ -26,6 +33,7 @@ export function ViewSwitch() {
     >
       {SICHTEN.map((sicht) => {
         const aktiv = view === sicht;
+        const abgeschaltet = ABGESCHALTET.includes(sicht);
         return (
           <button
             key={sicht}
@@ -33,7 +41,8 @@ export function ViewSwitch() {
             role="tab"
             aria-selected={aktiv}
             data-view={sicht}
-            disabled={!model}
+            disabled={!model || abgeschaltet}
+            title={abgeschaltet ? t("sicht.abgeschaltet") : undefined}
             onClick={() => setView(sicht)}
             className={cn(
               "rounded-md px-3 py-1 text-sm transition-colors duration-(--duration-quick) disabled:opacity-50",

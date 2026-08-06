@@ -26,11 +26,12 @@ import {
 import type { ValidationIssue } from "@aas-editor/core/validation";
 
 import { ApiError } from "@/api/client";
-import { filesApi, projectsApi, versionsApi } from "@/api/projects";
+import { filesApi, projectsApi } from "@/api/projects";
 import { benenneUm } from "@/lib/dateiname";
 import { meldeErfolg, meldeFehler, meldeHinweis } from "@/lib/melden";
 import { aasWorker, type AttachmentInfo, type OpenResult } from "@/worker/bridge";
 import { clearDraft, createAutosave, loadDraft, type Draft } from "./autosave";
+import { ordnerId } from "./rows";
 
 /**
  * Der Zustand des Hauptthreads.
@@ -54,15 +55,14 @@ export const NO_ATTACHMENTS: readonly AttachmentInfo[] = [];
  * Die drei Sichten aus Plan Abschnitt 8. Der Baum bleibt in allen dreien links stehen,
  * gewechselt wird nur die rechte Flaeche: es ist ein Perspektivwechsel, kein Ortswechsel.
  */
-export type View = "formular" | "tabelle" | "graph";
+export type View = "formular" | "graph";
 
 export type Status = "leer" | "laedt" | "bereit" | "fehler";
 /**
  * Verhaeltnis zum Serverstand. "ohneProjekt" heisst: aus einer Datei geoeffnet und noch
  * nirgends abgelegt.
  */
-export type ServerStatus =
-  "ohneProjekt" | "gespeichert" | "geaendert" | "speichert" | "konflikt" | "fehler";
+export type ServerStatus = "ohneProjekt" | "gespeichert" | "geaendert" | "speichert" | "fehler";
 
 interface OpenMeta {
   readonly format: OpenResult["format"];
@@ -109,7 +109,6 @@ interface EditorState {
   /** Erwartete Revision fuer das optimistische Sperren. */
   revision: number;
   serverStatus: ServerStatus;
-  serverKonflikt: { aktuelleRevision: number; aktualisiertAm: number } | null;
   /**
    * Ob die Anhangs-Bytes im Worker liegen. Solange sie fehlen, meldet die Validierung
    * jedes File-Element als fehlenden Anhang und ein AASX-Export waere unvollstaendig.
@@ -119,10 +118,6 @@ interface EditorState {
   ladeProjekt: (id: string) => Promise<void>;
   speichern: () => Promise<void>;
   alsNeuesProjektSpeichern: (name: string) => Promise<string | null>;
-  konfliktSchliessen: () => void;
-  /** Liefert, ob es geklappt hat: der Dialog zeigt den Fehler zusaetzlich bei sich. */
-  versionAnlegen: (label: string | null) => Promise<boolean>;
-  versionLaden: (versionId: string) => Promise<boolean>;
 
   /** Ein gefundener Entwurf aus IndexedDB, der zur Wiederherstellung angeboten wird */
   draft: Draft | null;
@@ -180,7 +175,6 @@ interface EditorState {
   requestPaste: (nodeId: NodeId | null) => void;
 
   /** Validierung sofort anstossen, statt auf die Entprellung zu warten. */
-  revalidate: () => Promise<void>;
 
   /** Zoomstufe des Graphen, fuer die Statusleiste ausserhalb des ReactFlowProvider. */
   graphZoom: number;
@@ -225,9 +219,12 @@ function scheduleValidation(set: (partial: Partial<EditorState>) => void): void 
         if (lauf !== validateLauf) return;
         set({ issues, pruefung: "ruht" });
       })
-      .catch(() => {
-        // Eine fehlgeschlagene Validierung darf die Bearbeitung nicht anhalten.
+      .catch((error: unknown) => {
+        // Eine fehlgeschlagene Validierung darf die Bearbeitung nicht anhalten, aber sie
+        // darf auch nicht stumm bleiben: seit der Validieren-Knopf weg ist, gibt es keinen
+        // zweiten Weg, auf dem der Fehlschlag noch auffiele.
         if (lauf === validateLauf) set({ pruefung: "ruht" });
+        meldeFehler(error, "fehler.pruefung");
       });
   }, verzoegerung);
 }
@@ -254,14 +251,7 @@ export const useEditor = create<EditorState>()((set, get) => {
       history: result.history,
       dirty: true,
       error: null,
-      // Ein Konflikt bleibt stehen, bis er beantwortet ist. Alles andere heisst jetzt
-      // "ungespeichert".
-      serverStatus:
-        get().serverStatus === "konflikt"
-          ? "konflikt"
-          : get().projektId === null
-            ? "ohneProjekt"
-            : "geaendert",
+      serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert",
     });
     void aasWorker().applyPatches(result.change.patches);
     scheduleValidation(set);
@@ -307,12 +297,15 @@ export const useEditor = create<EditorState>()((set, get) => {
     projektName: null,
     revision: 0,
     serverStatus: "ohneProjekt",
-    serverKonflikt: null,
     anhaengeBereit: true,
 
     view: "formular",
 
     async openFile(file) {
+      // Wird im Editor eines Projekts geoeffnet, ersetzt die Datei dessen Inhalt und das
+      // Projekt bleibt bestehen. Bis zum 06.08.2026 riss `openFile` den Projektbezug ab:
+      // die Fusszeile meldete dann Ungespeichertes, und der Speichern-Knopf war tot.
+      const offenesProjekt = get().projektId;
       set({ status: "laedt", error: null, draft: null });
       // Eine frisch geoeffnete Datei ersetzt den alten Entwurf, er waere sonst irrefuehrend.
       void clearDraft();
@@ -320,12 +313,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         const bytes = new Uint8Array(await file.arrayBuffer());
         const opened = await aasWorker().open(bytes, file.name);
 
-        // Die Wurzel und ihre Identifiables sind zu Beginn aufgeklappt, alles darunter
-        // nicht. Ein Modell mit 10.000 Elementen soll nicht als 10.000 Zeilen starten.
-        const expanded: Record<NodeId, true> = { [opened.model.rootId]: true };
-        for (const ids of Object.values(opened.model.nodes[opened.model.rootId]?.children ?? {})) {
-          for (const id of ids) expanded[id] = true;
-        }
+        const expanded = aufgeklappteWurzel(opened.model);
 
         set({
           model: opened.model,
@@ -341,14 +329,13 @@ export const useEditor = create<EditorState>()((set, get) => {
           selection: opened.model.rootId,
           expanded,
           issues: [],
-          dirty: false,
+          // Ohne Projekt gehoert die Datei zu keinem Stand auf dem Server; mit Projekt ist
+          // sie eine Aenderung daran, die erst das Speichern hinausschreibt.
+          dirty: offenesProjekt !== null,
           error: null,
-          // Eine Datei gehoert zu keinem Projekt, bis sie eines wird.
-          projektId: null,
-          projektName: null,
-          revision: 0,
-          serverStatus: "ohneProjekt",
-          serverKonflikt: null,
+          ...(offenesProjekt === null
+            ? { projektId: null, projektName: null, revision: 0, serverStatus: "ohneProjekt" }
+            : { serverStatus: "geaendert" }),
           anhaengeBereit: true,
         });
 
@@ -413,7 +400,6 @@ export const useEditor = create<EditorState>()((set, get) => {
           projektName: detail.projekt.name,
           revision: detail.revision,
           serverStatus: "gespeichert",
-          serverKonflikt: null,
         });
 
         // Erst die Bytes, dann validieren. Andernfalls meldet die Validierung fuer jedes
@@ -433,14 +419,14 @@ export const useEditor = create<EditorState>()((set, get) => {
     },
 
     async speichern() {
-      const { model, projektId, revision, meta } = get();
+      const { model, projektId, meta } = get();
       if (!model || projektId === null) return;
 
       set({ serverStatus: "speichert", error: null });
       try {
         await anhaengeHochladen(projektId);
+        // Ohne `revision`: gespeichert wird ueberschreibend, siehe `saveProject` im Server.
         const antwort = await projectsApi.save(projektId, {
-          revision,
           environment: denormalize(model),
           nodeCount: countNodes(model),
           ...(meta ? { sourceFormat: meta.format } : {}),
@@ -449,27 +435,12 @@ export const useEditor = create<EditorState>()((set, get) => {
           revision: antwort.projekt.revision,
           projektName: antwort.projekt.name,
           serverStatus: "gespeichert",
-          serverKonflikt: null,
           dirty: false,
         });
         // Gespeichert heisst gesichert, der lokale Entwurf wird nicht mehr gebraucht.
         void clearDraft();
         meldeErfolg("melden.gespeichert");
       } catch (error) {
-        if (
-          error instanceof ApiError &&
-          error.status === 409 &&
-          error.code === "revision-konflikt"
-        ) {
-          set({
-            serverStatus: "konflikt",
-            serverKonflikt: {
-              aktuelleRevision: Number(error.details["aktuelleRevision"] ?? 0),
-              aktualisiertAm: Number(error.details["aktualisiertAm"] ?? 0),
-            },
-          });
-          return;
-        }
         meldeFehler(error, "fehler.speichern");
         set({ serverStatus: "fehler" });
       }
@@ -492,7 +463,6 @@ export const useEditor = create<EditorState>()((set, get) => {
           projektName: antwort.project.name,
           revision: antwort.project.revision,
           serverStatus: "gespeichert",
-          serverKonflikt: null,
           dirty: false,
         });
         // Die Anhaenge gehoeren zum neuen Projekt, sie werden danach hochgeladen.
@@ -504,58 +474,6 @@ export const useEditor = create<EditorState>()((set, get) => {
         meldeFehler(error, "fehler.speichern");
         set({ serverStatus: "fehler" });
         return null;
-      }
-    },
-
-    konfliktSchliessen: () =>
-      set({
-        serverKonflikt: null,
-        serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert",
-      }),
-
-    async versionAnlegen(label) {
-      const { projektId } = get();
-      if (projektId === null) return false;
-      try {
-        await versionsApi.create(projektId, label);
-        meldeErfolg("melden.versionAngelegt");
-        return true;
-      } catch (error) {
-        meldeFehler(error, "fehler.version");
-        return false;
-      }
-    },
-
-    async versionLaden(versionId) {
-      const { projektId } = get();
-      if (projektId === null) return false;
-
-      set({ status: "laedt", error: null });
-      try {
-        const geladen = await versionsApi.get(projektId, versionId);
-        const model = normalize(geladen.environment as Parameters<typeof normalize>[0]);
-        await aasWorker().setModel(model);
-        await anhaengeHolen(projektId, set);
-
-        // Eine geladene Version ist noch nicht der Serverstand: sie muss gespeichert
-        // werden, sonst waere das Zurueckholen ein stilles Ueberschreiben.
-        set({
-          model,
-          history: emptyHistory,
-          status: "bereit",
-          selection: model.rootId,
-          expanded: aufgeklappteWurzel(model),
-          dirty: true,
-          serverStatus: "geaendert",
-          issues: await aasWorker().validate(),
-        });
-        meldeErfolg("melden.versionGeladen");
-        return true;
-      } catch (error) {
-        const grund = error instanceof ApiError ? error.text : (error as Error).message;
-        meldeFehler(error, "fehler.versionLaden");
-        set({ status: "fehler", error: grund });
-        return false;
       }
     },
 
@@ -579,10 +497,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         // der einzige Fall neben dem Oeffnen, in dem das Vollmodell ueber die Bruecke geht.
         await aasWorker().setModel(draft.model);
 
-        const expanded: Record<NodeId, true> = { [draft.model.rootId]: true };
-        for (const ids of Object.values(draft.model.nodes[draft.model.rootId]?.children ?? {})) {
-          for (const id of ids) expanded[id] = true;
-        }
+        const expanded = aufgeklappteWurzel(draft.model);
 
         set({
           model: draft.model,
@@ -603,6 +518,7 @@ export const useEditor = create<EditorState>()((set, get) => {
           selection: draft.model.rootId,
           expanded,
           dirty: true,
+          serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert",
           draft: null,
           error: null,
         });
@@ -653,9 +569,23 @@ export const useEditor = create<EditorState>()((set, get) => {
       set((state) => {
         if (!state.model) return state;
         if (!open) return { expanded: { [state.model.rootId]: true } };
-        const next: Record<NodeId, true> = {};
+        // Die Ordnerzeilen des Explorers sind keine Knoten des Modells und muessen eigens
+        // genannt werden. Ohne sie hiesse "alles aufklappen" alles ausser den Ordnern, und
+        // bei einer Datei ohne Verwaltungsschale bliebe der Baum fast leer.
+        const next: Record<NodeId, true> = {
+          [ordnerId("submodels")]: true,
+          [ordnerId("conceptDescriptions")]: true,
+        };
         for (const node of Object.values(state.model.nodes)) {
-          if (Object.values(node.children).some((ids) => ids.length > 0)) next[node.nodeId] = true;
+          // Eine Shell hat im Modell **keine** Kinder: ihre Submodels haengen an
+          // Verweisen. Ohne diesen Zweig bliebe sie beim Aufklappen zu, und damit der
+          // ganze Baum darunter.
+          if (
+            node.kind === "AssetAdministrationShell" ||
+            Object.values(node.children).some((ids) => ids.length > 0)
+          ) {
+            next[node.nodeId] = true;
+          }
         }
         return { expanded: next };
       }),
@@ -708,7 +638,12 @@ export const useEditor = create<EditorState>()((set, get) => {
       if (!model) return;
       const step = undoModel(model, history);
       if (!step) return;
-      set({ model: step.model, history: step.history, dirty: true });
+      set({
+        model: step.model,
+        history: step.history,
+        dirty: true,
+        serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert",
+      });
       void aasWorker().applyPatches(step.patches);
       scheduleValidation(set);
       if (get().selection && !step.model.nodes[get().selection as NodeId]) {
@@ -721,7 +656,12 @@ export const useEditor = create<EditorState>()((set, get) => {
       if (!model) return;
       const step = redoModel(model, history);
       if (!step) return;
-      set({ model: step.model, history: step.history, dirty: true });
+      set({
+        model: step.model,
+        history: step.history,
+        dirty: true,
+        serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert",
+      });
       void aasWorker().applyPatches(step.patches);
       scheduleValidation(set);
       if (get().selection && !step.model.nodes[get().selection as NodeId]) {
@@ -803,21 +743,6 @@ export const useEditor = create<EditorState>()((set, get) => {
     requestDelete: (nodeIds) => set({ pendingDelete: nodeIds }),
     requestPaste: (nodeId) => set({ pasteTargetId: nodeId }),
 
-    async revalidate() {
-      if (!get().model) return;
-      // Der entprellte Lauf wuerde sonst gleich danach dasselbe noch einmal rechnen.
-      clearTimeout(validateTimer);
-      const lauf = ++validateLauf;
-      set({ pruefung: "laeuft" });
-      try {
-        const issues = await aasWorker().validate();
-        if (lauf === validateLauf) set({ issues, pruefung: "ruht" });
-      } catch (error) {
-        if (lauf === validateLauf) set({ pruefung: "ruht" });
-        meldeFehler(error, "fehler.pruefung");
-      }
-    },
-
     graphZoom: 1,
     setGraphZoom: (graphZoom) => set({ graphZoom }),
   };
@@ -831,11 +756,19 @@ if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>)["__aasEditorStore"] = useEditor;
 }
 
-/** Wurzel und Identifiables offen, alles darunter zu. Wie beim Oeffnen einer Datei. */
-function aufgeklappteWurzel(model: EditorModel): Record<NodeId, true> {
+/**
+ * Der Anfangszustand des Baums: Wurzel und Shells offen, alles darunter zu.
+ *
+ * Die Ordner fuer Submodels und ConceptDescriptions bleiben zu. Frueher standen **alle**
+ * direkten Kinder offen, also auch sechsundzwanzig ConceptDescriptions am Stueck; seit sie
+ * in einem Ordner liegen, waere das eine lange Liste, die niemand aufgeschlagen hat.
+ *
+ * Ein Modell mit 10.000 Elementen soll nicht als 10.000 Zeilen starten.
+ */
+export function aufgeklappteWurzel(model: EditorModel): Record<NodeId, true> {
   const expanded: Record<NodeId, true> = { [model.rootId]: true };
-  for (const ids of Object.values(model.nodes[model.rootId]?.children ?? {})) {
-    for (const id of ids) expanded[id] = true;
+  for (const id of model.nodes[model.rootId]?.children["assetAdministrationShells"] ?? []) {
+    expanded[id] = true;
   }
   return expanded;
 }

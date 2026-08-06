@@ -26,197 +26,140 @@
  * - Keine Einzelwerte im Komponentencode. Alles kommt aus diesen Tokens.
  * - Genau eine Akzentfarbe, sie heisst `primary`. Weitere Farbe traegt Bedeutung
  *   (Gueltigkeit, Auswahl, Typ), sie dekoriert nicht.
- * - Dunkelmodus ist keine Invertierung, sondern eine eigene, handkuratierte Rampe.
+ * - **Es gibt genau eine Erscheinung.** Bis zum 06.08.2026 gab es eine helle und eine
+ *   dunkle Rampe; seit die Anwendung durchgaengig auf der AXON-Buehne steht, waere eine
+ *   zweite Rampe eine zweite Marke. `.dark` gibt es nicht mehr.
  * - Bewegung diszipliniert, 150 bis 200 ms, prefers-reduced-motion wird respektiert.
  * - **Hex statt OKLCH.** Die Werte stammen aus einer externen Markenvorgabe und muessen
  *   dagegen pruefbar bleiben. Neue Werte werden nicht berechnet, sondern uebernommen.
+ * - Kantig statt rund: die Radien sind bewusst klein, so wie die Vorlagen.
  *
- * Die drei Typfarben (AssetAdministrationShell blau, Submodel gruen, ConceptDescription
- * violett) sind das Rueckgrat: Baumpunkt, Chip, Tabellenbadge, Graphknoten und Legende
- * benutzen dieselben Tokens. Die shadcn-Namen liegen als Alias darauf.
+ * Die drei Typfarben (AssetAdministrationShell cyan, Submodel gruen, ConceptDescription
+ * rosa) sind das Rueckgrat: Baumpunkt, Chip, Graphknoten und Legende benutzen dieselben
+ * Tokens. Die shadcn-Namen liegen als Alias darauf.
  *
  * Achtung: shadcns `accent` ist eine gedaempfte Hover-Flaeche, **nicht** die Markenfarbe.
  * Die Markenfarbe ist `primary`.
  */
 
+/*
+ * Die Klasse `dark` steht seit dem 06.08.2026 bedingungslos am Wurzelelement, es gibt
+ * keinen Umschalter mehr. Sie bleibt allein deshalb, weil neunzehn `dark:`-Utilities im
+ * shadcn-Fremdcode unter `components/ui/` daran haengen (etwa die Fuellung des
+ * Umriss-Knopfes). Ohne die Klasse fielen sie still aus, und die Knoepfe saehen auf der
+ * dunklen Flaeche nach ihrer hellen Fassung aus.
+ */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* --- Hell: der Ausgangszustand --------------------------------------------------- */
+/* --- Die eine Rampe: die AXON-Flaeche --------------------------------------------- */
+
+/*
+ * Die Werte stammen aus `AAS Editor AXON`. Weil sie unter den shadcn-Namen stehen, zieht
+ * die ganze Anwendung mit, ohne dass ein Bauteil angefasst wird: Baum, Formular, Graph,
+ * Befunde, Dialoge, Palette. Genau dafuer wurde die Vokabel im Maerz uebernommen.
+ *
+ * Deckkraft statt fertiger Mischfarbe, wo etwas auf der Buehne liegt: der Verlauf soll
+ * durchscheinen, und dieselbe Flaeche muss ueber hellerem und dunklerem Blau tragen.
+ */
 
 :root {
-  /* Typfarben, die Grundlage von allem darunter */
-  --type-aas: #1c5db3;
-  --type-aas-surface: #e8f0fa;
-  --type-aas-text: #1c5db3;
-  --type-aas-mono: #5a83b8;
-  --type-sm: #00a587;
-  --type-sm-surface: #e0f5f0;
-  --type-sm-text: #00745f;
-  --type-sm-border: #bce5dc;
-  --type-cd: #8d3cc6;
-  --type-cd-surface: #f3e9fa;
-  --type-cd-text: #8d3cc6;
-  --type-cd-border: #e2cbf3;
-  --type-cd-card: #f9f5fc;
+  /*
+   * Typfarben. Cyan, Gruen und Rosa statt Blau, Gruen und Violett: das alte Core Blue der
+   * AssetAdministrationShell waere auf dieser Flaeche Blau auf Blau.
+   */
+  --type-aas: #00fdfd;
+  --type-aas-surface: rgb(0 253 253 / 0.14);
+  --type-aas-text: #00fdfd;
+  --type-aas-mono: rgb(255 255 255 / 0.6);
+  --type-sm: #00a386;
+  --type-sm-surface: rgb(0 163 134 / 0.2);
+  --type-sm-text: #1eb095;
+  --type-sm-border: rgb(0 163 134 / 0.6);
+  --type-cd: #e0b0e0;
+  --type-cd-surface: rgb(224 176 224 / 0.16);
+  --type-cd-text: #e0b0e0;
+  --type-cd-border: rgb(224 176 224 / 0.28);
+  --type-cd-card: rgb(136 56 192 / 0.12);
 
-  --background: #f4f5f7;
-  --foreground: #1b1d26;
+  /* Die Buehne selbst ist ein Verlauf, siehe --axon-buehne. Dies ist ihr Grundton. */
+  --background: #0a2450;
+  --foreground: #ffffff;
 
-  --card: #ffffff;
-  --card-foreground: #1b1d26;
-  --popover: #ffffff;
-  --popover-foreground: #1b1d26;
+  --card: rgb(6 26 60 / 0.55);
+  --card-foreground: #ffffff;
+  /* Dialoge liegen ueber Text und brauchen mehr Deckung als eine Karte. */
+  --popover: #0c2c5f;
+  --popover-foreground: #ffffff;
 
-  /* Die eine Markenfarbe */
-  --primary: var(--type-aas);
-  --primary-foreground: #ffffff;
+  /*
+   * Die eine Markenfarbe ist das Aktionsgruen, nicht mehr die Typfarbe der Shell. So
+   * tragen Anmeldung, Einstieg und Editor denselben Knopf. Cyan bleibt, was es in den
+   * Vorlagen ist: Auswahl und Fokus.
+   */
+  --primary: var(--type-sm);
+  --primary-foreground: #06203f;
 
-  --secondary: #fafafb;
-  --secondary-foreground: #3a3e4a;
+  --secondary: rgb(255 255 255 / 0.06);
+  --secondary-foreground: rgb(255 255 255 / 0.8);
 
-  --muted: #fafafb;
-  --muted-foreground: #636873;
+  --muted: rgb(5 22 52 / 0.5);
+  --muted-foreground: rgb(255 255 255 / 0.62);
 
   /* Hover- und Auswahlflaeche, bewusst gedaempft */
-  --accent: #f0f1f3;
-  --accent-foreground: #1b1d26;
+  --accent: rgb(255 255 255 / 0.06);
+  --accent-foreground: #ffffff;
 
   /* Rot ist destruktiven Aktionen und geloeschten Diff-Zeilen vorbehalten */
-  --destructive: #b23b3b;
+  --destructive: #e24a3a;
   --destructive-foreground: #ffffff;
-  --destructive-muted: #fdf3f2;
+  --destructive-muted: rgb(226 74 58 / 0.12);
 
-  --border: #dfe2e7;
-  --input: #dfe2e7;
+  --border: rgb(255 255 255 / 0.12);
+  --input: rgb(255 255 255 / 0.16);
   --ring: var(--type-aas);
 
   /* Editor-eigene Bedeutungsfarben, es gibt sie bei shadcn nicht */
-  --selected: var(--type-aas-surface);
-  --selected-foreground: var(--type-aas-text);
+  --selected: rgb(0 253 253 / 0.09);
+  --selected-foreground: #ffffff;
   /* Befunde sind orange, nicht rot: gefuellt heisst Constraint, weich heisst Warnung */
-  --warning: #f77039;
-  --warning-foreground: #ffffff;
-  --warning-muted: #fff9f6;
-  --warning-text: #bb471f;
+  --warning: #f06a38;
+  --warning-foreground: #06203f;
+  --warning-muted: rgb(240 106 56 / 0.12);
+  --warning-text: #f89268;
   --success: var(--type-sm);
-  --success-foreground: #ffffff;
-  --success-muted: var(--type-sm-surface);
-  --success-text: var(--type-sm-text);
+  --success-foreground: #06203f;
+  --success-muted: rgb(0 163 134 / 0.16);
+  --success-text: #1eb095;
 
   /* Feinere Abstufungen, die shadcn nicht kennt */
-  --border-subtle: #e8eaee;
-  --border-row: #f0f1f3;
-  --foreground-faint: #656b78;
-  --mono-foreground: #6e7382;
-  --input-fill: #fafafb;
-  --segment-track: #efefef;
-  --segment-active: #ffffff;
-  --segment-active-foreground: var(--type-aas-text);
-  --graph-grid: #dadde2;
-  --logo-gradient: linear-gradient(135deg, #1c5db3 55%, #8d3cc6);
+  --border-subtle: rgb(255 255 255 / 0.08);
+  --border-row: rgb(255 255 255 / 0.06);
+  --foreground-faint: rgb(255 255 255 / 0.62);
+  --mono-foreground: rgb(255 255 255 / 0.62);
+  --input-fill: #0b2a5e;
+  --segment-track: rgb(5 22 52 / 0.6);
+  --segment-active: rgb(0 253 253 / 0.12);
+  --segment-active-foreground: #ffffff;
+  --graph-grid: rgb(255 255 255 / 0.06);
+  --logo-gradient: linear-gradient(135deg, #00fdfd 55%, #e0b0e0);
 
   /* Diff: hinzugefuegt gruen, entfernt in den destruktiven Toenen */
-  --diff-add: #00745f;
-  --diff-add-surface: #f0faf7;
+  --diff-add: #1eb095;
+  --diff-add-surface: rgb(0 163 134 / 0.14);
   --diff-del: var(--destructive);
   --diff-del-surface: var(--destructive-muted);
 
-  --sidebar: #fafafb;
-  --sidebar-foreground: #1b1d26;
-  --sidebar-primary: var(--type-aas);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f0f1f3;
-  --sidebar-accent-foreground: #1b1d26;
-  --sidebar-border: #dfe2e7;
+  --sidebar: rgb(5 22 52 / 0.5);
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: var(--type-sm);
+  --sidebar-primary-foreground: #06203f;
+  --sidebar-accent: rgb(255 255 255 / 0.06);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.08);
   --sidebar-ring: var(--type-aas);
 
-  --shadow-raised: 0 2px 8px rgb(27 29 38 / 0.08);
-  --shadow-overlay: 0 24px 64px -12px rgb(27 29 38 / 0.28);
-}
-
-/* --- Dunkel: eigene Rampe, keine Invertierung ------------------------------------ */
-
-.dark {
-  --type-aas: #5b93dd;
-  --type-aas-surface: #1e2c42;
-  --type-aas-text: #7fb0ec;
-  --type-aas-mono: #5a83b8;
-  --type-sm: #2fbfa3;
-  --type-sm-surface: #12332c;
-  --type-sm-text: #2fbfa3;
-  --type-sm-border: #235a4e;
-  --type-cd: #b06fe0;
-  --type-cd-surface: #2e2140;
-  --type-cd-text: #b06fe0;
-  --type-cd-border: #4a2e63;
-  --type-cd-card: #20182b;
-
-  --background: #14161d;
-  --foreground: #e8eaf0;
-
-  --card: #1b1d26;
-  --card-foreground: #e8eaf0;
-  --popover: #1b1d26;
-  --popover-foreground: #e8eaf0;
-
-  --primary: var(--type-aas);
-  --primary-foreground: #14161d;
-
-  --secondary: #171922;
-  --secondary-foreground: #b8bcc8;
-
-  --muted: #171922;
-  --muted-foreground: #8b90a0;
-
-  --accent: #262a36;
-  --accent-foreground: #e8eaf0;
-
-  --destructive: #f97066;
-  --destructive-foreground: #14161d;
-  --destructive-muted: #2a1518;
-
-  --border: #2e3240;
-  --input: #2e3240;
-  --ring: var(--type-aas);
-
-  --selected: var(--type-aas-surface);
-  --selected-foreground: var(--type-aas-text);
-  --warning: #f98a5e;
-  --warning-foreground: #14161d;
-  --warning-muted: #241b18;
-  --warning-text: #f98a5e;
-  --success: var(--type-sm);
-  --success-foreground: #14161d;
-  --success-muted: var(--type-sm-surface);
-  --success-text: var(--type-sm-text);
-
-  --border-subtle: #262a36;
-  --border-row: #1e212b;
-  --foreground-faint: #868c99;
-  --mono-foreground: #868c99;
-  --input-fill: #171922;
-  --segment-track: #14161d;
-  --segment-active: #262a36;
-  --segment-active-foreground: var(--type-aas-text);
-  --graph-grid: #232733;
-  --logo-gradient: linear-gradient(135deg, #5b93dd 55%, #b06fe0);
-
-  --diff-add: #2fbfa3;
-  --diff-add-surface: #10251e;
-  --diff-del: var(--destructive);
-  --diff-del-surface: var(--destructive-muted);
-
-  --sidebar: #171922;
-  --sidebar-foreground: #e8eaf0;
-  --sidebar-primary: var(--type-aas);
-  --sidebar-primary-foreground: #14161d;
-  --sidebar-accent: #262a36;
-  --sidebar-accent-foreground: #e8eaf0;
-  --sidebar-border: #2e3240;
-  --sidebar-ring: var(--type-aas);
-
-  --shadow-raised: 0 2px 8px rgb(0 0 0 / 0.3);
-  --shadow-overlay: 0 24px 64px -12px rgb(0 0 0 / 0.55);
+  --shadow-raised: 0 2px 8px rgb(0 0 0 / 0.35);
+  --shadow-overlay: 0 24px 64px -12px rgb(0 0 0 / 0.6);
 }
 
 /* --- Die AXON-Buehne der Anmeldung ----------------------------------------------- */
@@ -224,10 +167,10 @@
 /*
  * Markenbild, kein Oberflaechenchrom.
  *
- * Das Keyvisual kennt keinen Dunkelmodus, deshalb stehen seine Werte bewusst **ausserhalb**
- * der Themenrampe und nicht in :root und .dark. Sie gelten nur dort, wo die Buehne steht,
- * und die Klasse traegt der Umschlag der Anmelderoute. Damit sieht die Anmeldung auch dann
- * richtig aus, wenn nach dem Abmelden noch die Dunkelklasse an der Wurzel klebt.
+ * Die Anmeldung steht auf einem flachen Blau, die Anwendung auf einem Verlauf. Deshalb
+ * bleibt die Buehne ein eigener Block und wandert nicht in die Rampe: sie traegt zudem
+ * die Kanaltripel fuer den Canvas, die als Oberflaechenfarben nichts zu suchen haetten.
+ * Gemeinsam sind beiden die Markenfarben; darauf achtet ein Waechter in tokens.test.ts.
  */
 .szene-axon {
   --axon-grund: #1858b0;
@@ -460,6 +403,8 @@
   --tracking-aktion: 0.18em;
   --tracking-fein: 0.1em;
   --blur-glas: 24px;
+  /* Die Graphknoten streuen kaum: sie sind klein, und der Text darin muss stehen. */
+  --blur-knoten: 6px;
   /*
    * Die Anmeldeleiste streut schwaecher als die Dialoge. 24px loeschen jede Struktur
    * dahinter, und dann nuetzt auch eine duennere Flaeche nichts: hinter der Leiste laufen
@@ -469,19 +414,26 @@
 
   --spacing: 0.25rem;
 
-  /* Radienleiter der Mockups. Vollstaendig deklariert, damit rounded-xl und
-     rounded-4xl nicht mehr auf Tailwind-Vorgaben durchfallen. */
-  --radius-xs: 4px; /* Badges, kbd, Ankreuzfeld */
-  --radius-sm: 5px; /* Menueeintrag, Logokachel */
-  --radius-md: 6px; /* Werkzeugknopf, Baumzeile, Geisterknopf */
-  --radius: 7px; /* Eingaben und Knoepfe */
-  --radius-lg: 7px;
-  --radius-xl: 8px; /* Segmentschiene, Diffkasten */
-  --radius-2xl: 9px; /* CD-Knoten, Zoomstapel, Legende, Chateingabe */
-  --radius-3xl: 10px; /* AAS- und Submodel-Knoten */
-  --radius-4xl: 11px; /* Formular- und Inspektorkarten */
-  --radius-5xl: 12px; /* Chatblasen */
-  --radius-6xl: 14px; /* Kommando-Palette */
+  /*
+   * Radienleiter, vollstaendig deklariert, damit rounded-xl und rounded-4xl nicht auf
+   * Tailwind-Vorgaben durchfallen.
+   *
+   * Die AXON-Vorlagen sind durchgaengig kantig: kein Kasten hat mehr als eine angedeutete
+   * Ecke. Statt in dreissig Bauteilen `rounded-*` zu streichen, endet die Leiter hier bei
+   * 2px. Runde Dinge, die rund bleiben muessen (Punkte, Avatare), benutzen `rounded-full`
+   * und sind davon nicht betroffen.
+   */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 2px;
+  --radius: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+  --radius-4xl: 2px;
+  --radius-5xl: 2px;
+  --radius-6xl: 2px;
 
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --duration-quick: 150ms;
@@ -490,40 +442,31 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
     /*
      * Dichte: umgeschaltet ueber data-density am Wurzelelement. In px, damit die
      * Haarlinien der Einrueckungsfuehrung auf ganze Geraetepixel fallen.
      */
     --row-height: 27px;
     --tree-indent: 19px;
-    --table-row-height: 38px;
-    --table-header-height: 34px;
-  }
-
-  .dark {
-    color-scheme: dark;
   }
 
   [data-density="compact"] {
     --row-height: 24px;
     --tree-indent: 16px;
-    --table-row-height: 32px;
-    --table-header-height: 30px;
   }
 
   [data-density="cozy"] {
     --row-height: 27px;
     --tree-indent: 19px;
-    --table-row-height: 38px;
-    --table-header-height: 34px;
   }
 
   /* Feste Hoehen des Rahmens, damit kein Layoutwert im TSX steht */
   :root {
-    --h-menubar: 32px;
-    --h-toolbar: 40px;
-    --h-statusbar: 28px;
+    --h-titelzeile: 60px;
+    --w-titellogo: 104px;
+    --h-toolbar: 46px;
+    --h-statusbar: 32px;
     --h-panel-header: 32px;
     --h-chat-header: 40px;
 
@@ -607,6 +550,56 @@
     100% {
       top: 104%;
       opacity: 0;
+    }
+  }
+
+  /* Der gewaehlte Graphknoten atmet, statt einen dicken Ring zu tragen. */
+  @keyframes axon-knoten {
+    0%,
+    100% {
+      box-shadow:
+        0 0 0 1px var(--type-sm-border),
+        0 0 22px var(--type-sm-surface);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px var(--type-sm),
+        0 0 34px var(--type-sm-surface);
+    }
+  }
+
+  /* Der kurze Strich, der ueber eine Graphkante laeuft. */
+  @keyframes axon-strich {
+    to {
+      stroke-dashoffset: -260;
+    }
+  }
+
+  /*
+   * Sichtwechsel Formular <-> Graph. Kurz und flach: die Flaeche traegt den ganzen
+   * Editorinhalt, ein weiter Weg waere hier ein Ruckeln, kein Uebergang.
+   */
+  @keyframes axon-eintritt {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /* Der Rahmen der gewaehlten Baumzeile atmet leise mit. */
+  @keyframes axon-auswahl {
+    0%,
+    100% {
+      box-shadow: inset 2px 0 0 var(--primary);
+    }
+    50% {
+      box-shadow:
+        inset 2px 0 0 var(--primary),
+        0 0 12px var(--type-aas-surface);
     }
   }
 

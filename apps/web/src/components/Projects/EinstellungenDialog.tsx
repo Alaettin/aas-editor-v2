@@ -56,10 +56,8 @@ export function EinstellungenDialog({
   readonly onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const theme = useAnsicht((state) => state.theme);
   const density = useAnsicht((state) => state.density);
   const language = useAnsicht((state) => state.language);
-  const setTheme = useAnsicht((state) => state.setTheme);
   const setDensity = useAnsicht((state) => state.setDensity);
   const setLanguage = useAnsicht((state) => state.setLanguage);
 
@@ -77,16 +75,6 @@ export function EinstellungenDialog({
           <Dialog.Description className={TEXT}>
             {t("projekte.einstellungenHinweis")}
           </Dialog.Description>
-
-          <Wahl
-            titel={t("app.erscheinung")}
-            optionen={[
-              { wert: "light", label: t("app.hell") },
-              { wert: "dark", label: t("app.dunkel") },
-            ]}
-            gewaehlt={theme}
-            onWahl={(wert) => setTheme(wert as "light" | "dark")}
-          />
 
           <Wahl
             titel={t("app.dichte")}

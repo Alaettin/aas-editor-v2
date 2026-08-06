@@ -4,11 +4,12 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * Der Dunkelmodus ist eine eigene Rampe, keine Invertierung. Genau deshalb kann er
- * auseinanderlaufen: eine neue Farbe wird oben ergaenzt und unten vergessen, und der
- * Fehler zeigt sich erst, wenn jemand umschaltet.
+ * Wachen ueber die Farbordnung.
  *
- * Dieser Test ist der einzige mechanische Schutz dagegen.
+ * Bis zum 06.08.2026 stand hier vor allem der Abgleich zweier Rampen. Es gibt nur noch
+ * eine, und die Gefahr hat sich verschoben: die Markenfarben stehen jetzt an **zwei**
+ * Orten, in der Rampe und in `.szene-axon`. Laufen sie auseinander, sieht die Anmeldung
+ * anders aus als der Rest, und niemand merkt es beim Arbeiten an einer der beiden Stellen.
  */
 
 const QUELLE = readFileSync(
@@ -25,41 +26,43 @@ function eigenschaften(selektor: string): Set<string> {
 }
 
 describe("Design-Tokens", () => {
-  it("fuehrt in hell und dunkel dieselben Namen", () => {
-    const hell = eigenschaften(":root");
-    const dunkel = eigenschaften(".dark");
-
-    const nurHell = [...hell].filter((name) => !dunkel.has(name));
-    const nurDunkel = [...dunkel].filter((name) => !hell.has(name));
-
-    expect({ nurHell, nurDunkel }).toEqual({ nurHell: [], nurDunkel: [] });
+  it("fuehrt genau eine Rampe", () => {
+    // Ein wiederkehrender `.dark`-Block waere der Rueckfall in zwei Erscheinungen.
+    expect(QUELLE).not.toContain(".dark {");
+    expect(eigenschaften(":root").size).toBeGreaterThan(50);
   });
 
   it("haelt die AXON-Markenfarben unveraendert", () => {
     // Markenvorgabe, nicht berechnet. Aendert sie jemand, soll es auffallen.
-    expect(QUELLE).toContain("--type-aas: #1c5db3;");
-    expect(QUELLE).toContain("--type-sm: #00a587;");
-    expect(QUELLE).toContain("--type-cd: #8d3cc6;");
-    expect(QUELLE).toContain("--warning: #f77039;");
+    expect(QUELLE).toContain("--type-aas: #00fdfd;");
+    expect(QUELLE).toContain("--type-sm: #00a386;");
+    expect(QUELLE).toContain("--type-cd: #e0b0e0;");
+    expect(QUELLE).toContain("--warning: #f06a38;");
   });
 
-  it("haelt die Buehne der Anmeldung ausserhalb der Themenrampe", () => {
+  it("sagt in Rampe und Anmeldebuehne dasselbe ueber die Marke", () => {
     expect(QUELLE).toContain(".szene-axon {");
     expect(QUELLE).toContain("--axon-grund: #1858b0;");
-    expect(QUELLE).toContain("--axon-aktion: #00a386;");
-    expect(QUELLE).toContain("--axon-fokus: #00fdfd;");
 
-    // Sie duerfen nicht in die Rampe wandern: das Keyvisual kennt keinen Dunkelmodus, und
-    // ein Verschieben nach oben wuerde die Namensgleichheit erst scheinbar reparieren.
-    const inRampe = [...eigenschaften(":root"), ...eigenschaften(".dark")].filter((name) =>
-      name.startsWith("--axon-"),
-    );
+    // Cyan und Gruen stehen an zwei Orten. Weichen sie voneinander ab, sieht die Anmeldung
+    // anders aus als die Anwendung, und beim Arbeiten an einer Stelle faellt es nie auf.
+    const wert = (name: string) => QUELLE.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6});`))?.[1];
+    expect(wert("--axon-fokus")).toBe(wert("--type-aas"));
+    expect(wert("--axon-aktion")).toBe(wert("--type-sm"));
+    expect(wert("--axon-strom-pink")).toBe(wert("--type-cd"));
+    expect(wert("--axon-strom-orange")).toBe(wert("--warning"));
+
+    // Die Buehnenwerte duerfen trotzdem nicht in die Rampe wandern: sie tragen die
+    // Kanaltripel des Canvas, die als Oberflaechenfarben nichts zu suchen haetten.
+    const inRampe = [...eigenschaften(":root")].filter((name) => name.startsWith("--axon-"));
     expect(inRampe).toEqual([]);
   });
 
-  it("laesst primary auf der Typfarbe der Shell liegen", () => {
+  it("laesst primary auf dem Aktionsgruen liegen", () => {
     // Genau eine Akzentfarbe, und sie ist keine zweite Wahrheit neben den Typfarben.
-    expect(QUELLE).toContain("--primary: var(--type-aas);");
+    // Bis zum 06.08.2026 war das die Typfarbe der Shell; seit die Flaeche blau ist, ist
+    // der gefuellte Knopf gruen, wie in Anmeldung und Einstieg.
+    expect(QUELLE).toContain("--primary: var(--type-sm);");
   });
 
   it("haelt Farbwerte aus dem Programmcode heraus", () => {

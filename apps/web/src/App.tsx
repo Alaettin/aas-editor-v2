@@ -23,14 +23,13 @@ import { anwenden, useAnsicht } from "@/store/ansicht";
  * bilden.
  */
 export function App() {
-  const theme = useAnsicht((state) => state.theme);
   const density = useAnsicht((state) => state.density);
   const language = useAnsicht((state) => state.language);
 
   useEffect(() => {
-    anwenden({ theme, density, language });
+    anwenden({ density, language });
     if (i18n.language !== language) void i18n.changeLanguage(language);
-  }, [theme, density, language]);
+  }, [density, language]);
 
   return (
     <TooltipProvider delayDuration={400}>

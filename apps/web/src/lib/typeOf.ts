@@ -55,3 +55,33 @@ export function shortKind(kind: string): string {
       return kind;
   }
 }
+
+/**
+ * Das Kuerzel vor dem Namen im Baum. Kuerzer als `shortKind`, weil es in jeder Zeile
+ * steht und alle Namen sonst um die laengste Form herum einruecken muessten. Vier
+ * Zeichen sind die Obergrenze, danach wird die Spalte breiter als die Einrueckung.
+ */
+const KUERZEL: Record<string, string> = {
+  AssetAdministrationShell: "AAS",
+  Submodel: "SM",
+  ConceptDescription: "CD",
+  Environment: "ENV",
+  AnnotatedRelationshipElement: "ARel",
+  BasicEventElement: "Evt",
+  Blob: "Blob",
+  Capability: "Cap",
+  Entity: "Ent",
+  File: "File",
+  MultiLanguageProperty: "MLP",
+  Operation: "Op",
+  Property: "Prop",
+  Range: "Rng",
+  ReferenceElement: "Ref",
+  RelationshipElement: "Rel",
+  SubmodelElementCollection: "SMC",
+  SubmodelElementList: "SML",
+};
+
+export function kuerzelOf(kind: string): string {
+  return KUERZEL[kind] ?? kind.slice(0, 4);
+}

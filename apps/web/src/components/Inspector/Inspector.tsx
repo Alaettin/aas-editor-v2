@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, Copy, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Copy, Trash2 } from "lucide-react";
 import { specOf } from "@aas-editor/core";
 import { topLevelField, type ValidationIssue } from "@aas-editor/core/validation";
 
@@ -116,6 +116,15 @@ export function Inspector() {
   const eigeneBefunde = issues.filter((issue) => issue.nodeId === selection).length;
   const istWurzel = node.parent === null;
 
+  // Umschalter fuer alle Gruppen, nach dem Muster aus dem Baumkopf: sind alle offen,
+  // klappt der Knopf zu, sonst auf.
+  const alleOffen = spec.groups.every((group) => openGroups[group.title] ?? !group.collapsed);
+  const gruppenUmschalten = () => {
+    const naechste: Record<string, boolean> = {};
+    for (const group of spec.groups) naechste[group.title] = !alleOffen;
+    setOpenGroups(naechste);
+  };
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background">
       <header className="shrink-0 px-7 pt-3.5">
@@ -149,6 +158,14 @@ export function Inspector() {
           </Chip>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            <Button variant="accent-outline" size="sm" onClick={gruppenUmschalten}>
+              {alleOffen ? (
+                <ChevronsDownUp data-icon="inline-start" />
+              ) : (
+                <ChevronsUpDown data-icon="inline-start" />
+              )}
+              {alleOffen ? t("menu.allesZuklappen") : t("menu.allesAufklappen")}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -184,7 +201,20 @@ export function Inspector() {
         {/* Linke Spalte: die Gruppen des Deskriptors, je Gruppe eine Karte. */}
         <div className="flex max-w-[640px] flex-[1.35] flex-col gap-3.5">
           {spec.groups.map((group) => {
-            const groupIssues = group.fields.reduce(
+            /*
+             * Veraltetes bleibt weg, solange es leer ist. Gefiltert wird hier und nicht im
+             * FieldRenderer: sonst bliebe eine leere Gruppe samt Befundzaehler stehen.
+             * Traegt das Feld einen Wert, bleibt es sichtbar, sonst schriebe der Editor
+             * still etwas mit, das niemand mehr sehen oder loeschen kann.
+             */
+            const felder = group.fields.filter(
+              (field) =>
+                field.deprecated !== true ||
+                (node.data[field.key] !== undefined && node.data[field.key] !== ""),
+            );
+            if (felder.length === 0) return null;
+
+            const groupIssues = felder.reduce(
               (sum, field) => sum + (issuesByField.get(field.key)?.length ?? 0),
               0,
             );
@@ -211,7 +241,7 @@ export function Inspector() {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <FieldGroup className="gap-4">
-                      {group.fields.map((field) => (
+                      {felder.map((field) => (
                         <FieldRenderer
                           key={field.key}
                           spec={field}

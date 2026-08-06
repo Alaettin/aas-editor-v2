@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildCensus } from "@/store/census";
 import { buildIssueCounts } from "@/store/issueCounts";
-import { buildRows } from "@/store/rows";
+import { ordnerId, buildRows } from "@/store/rows";
 
 /**
  * Die Zahlen aus Plan Abschnitt 10, gemessen statt behauptet.
@@ -91,7 +91,17 @@ describe.skipIf(!vorhanden)("Leistung bei zehntausend Elementen", () => {
     const zensus = miss("buildCensus", 5, () => buildCensus(model));
     const befunde = miss("buildIssueCounts", 5, () => buildIssueCounts(model, []));
 
-    expect(buildRows(model, expanded).length).toBe(countNodes(model));
+    // Eine Zeile je Knoten, dazu die Ordnerzeilen des Environments: seit dem 06.08.2026
+    // stehen Submodels unter ihrer Shell und ConceptDescriptions in einem Ordner. Die
+    // Ordner sind keine Knoten und muessen fuer "alles offen" eigens genannt werden.
+    const wirklichAlles = {
+      ...expanded,
+      [ordnerId("submodels")]: true as const,
+      [ordnerId("conceptDescriptions")]: true as const,
+    };
+    const zeilenzahl = buildRows(model, wirklichAlles).length;
+    expect(zeilenzahl).toBeGreaterThanOrEqual(countNodes(model));
+    expect(zeilenzahl).toBeLessThanOrEqual(countNodes(model) + 2);
     // Alle drei laufen je Modellaenderung. Zusammen muessen sie deutlich unter einem
     // Rahmen bleiben, sonst ruckelt jede Eingabe. Gemessen sind es 7, 3 und 0 ms; die
     // Grenzen liegen bei etwa dem Dreifachen, damit die Tagesform der Maschine keinen

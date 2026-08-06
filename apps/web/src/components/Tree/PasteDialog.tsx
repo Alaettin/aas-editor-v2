@@ -88,9 +88,7 @@ export function PasteDialog() {
           <AlertDialogDescription asChild>
             <div className="flex flex-col gap-2">
               {!ziel ? (
-                <span>
-                  {t("einfuegen.unmoeglichText", { kind: clipboard?.kind ?? "" })}
-                </span>
+                <span>{t("einfuegen.unmoeglichText", { kind: clipboard?.kind ?? "" })}</span>
               ) : (
                 <>
                   <span>{t("einfuegen.kollision", { count: konflikte.length })}</span>

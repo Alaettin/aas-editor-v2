@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { Datenband } from "@/components/Projects/Datenband";
+import { Datenband } from "@/components/Keyvisual/Datenband";
 import { DeleteProjectDialog } from "@/components/Projects/DeleteProjectDialog";
 import { Detailleiste } from "@/components/Projects/Detailleiste";
 import { EinstellungenDialog } from "@/components/Projects/EinstellungenDialog";

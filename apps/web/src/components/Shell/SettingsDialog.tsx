@@ -12,8 +12,10 @@ import { SectionLabel } from "@/components/ui/section-label";
 import { useAnsicht } from "@/store/ansicht";
 
 /**
- * Einstellungen, bewusst klein: Erscheinung und Dichte. Alles andere gehoert in die
- * Menuezeile, wo es im Zusammenhang steht.
+ * Einstellungen, bewusst klein: Dichte und Sprache. Alles andere sitzt an seinem Ort in
+ * der Werkzeugleiste oder in deren Ueberlaufmenue.
+ *
+ * Die Erscheinung stand hier bis zum 06.08.2026. Es gibt nur noch eine.
  */
 export function SettingsDialog({
   offen,
@@ -23,9 +25,7 @@ export function SettingsDialog({
   readonly onClose: () => void;
 }) {
   const { t } = useTranslation();
-  const theme = useAnsicht((state) => state.theme);
   const density = useAnsicht((state) => state.density);
-  const setTheme = useAnsicht((state) => state.setTheme);
   const setDensity = useAnsicht((state) => state.setDensity);
   const language = useAnsicht((state) => state.language);
   const setLanguage = useAnsicht((state) => state.setLanguage);
@@ -37,26 +37,6 @@ export function SettingsDialog({
           <DialogTitle>{t("werkzeug.einstellungen")}</DialogTitle>
           <DialogDescription>{t("einstellungen.text")}</DialogDescription>
         </DialogHeader>
-
-        <div className="flex flex-col gap-2">
-          <SectionLabel>{t("app.erscheinung")}</SectionLabel>
-          <div className="flex gap-2">
-            <Button
-              variant={theme === "light" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTheme("light")}
-            >
-              {t("app.hell")}
-            </Button>
-            <Button
-              variant={theme === "dark" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setTheme("dark")}
-            >
-              {t("app.dunkel")}
-            </Button>
-          </div>
-        </div>
 
         <div className="flex flex-col gap-2">
           <SectionLabel>{t("app.dichte")}</SectionLabel>

@@ -47,6 +47,21 @@ export function PillEdge({
   return (
     <>
       <BaseEdge id={id} path={pfad} style={style} />
+      {/*
+        Ueber der ruhenden Kante laeuft ein kurzer Strich mit, wie in der Vorlage: die
+        Karte soll als Datenfluss lesbar sein, nicht als Diagramm. Der Strich traegt keine
+        Information und ist deshalb `aria-hidden`; der `prefers-reduced-motion`-Block in
+        tokens.css stellt ihn still.
+      */}
+      <path
+        aria-hidden
+        d={pfad}
+        fill="none"
+        strokeWidth={2}
+        strokeLinecap="round"
+        className="stroke-foreground/70 [animation:axon-strich_5.2s_linear_infinite]"
+        strokeDasharray="3 130"
+      />
       <EdgeLabelRenderer>
         <div
           style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
