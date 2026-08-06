@@ -27,14 +27,17 @@ function rundlauf(environment: Record<string, unknown>): unknown {
   });
 }
 
-/** Die drei Slots werden immer gesetzt, auch leer. Das ist der Fixpunkt, nicht ein Verlust. */
-function mitLeerenSlots(environment: Record<string, unknown>): Record<string, unknown> {
-  return {
-    assetAdministrationShells: [],
-    submodels: [],
-    conceptDescriptions: [],
-    ...environment,
-  };
+/**
+ * Ein leerer Slot kommt nicht zurueck, und das ist richtig: das Metamodell verlangt fuer
+ * alle drei "either not set or have at least one item", ein `"submodels": []` ist selbst
+ * ein Constraint-Verstoss. Steht er in der Quelle, ist sein Verschwinden kein Verlust.
+ */
+function ohneLeereSlots(environment: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...environment };
+  for (const slot of ["assetAdministrationShells", "submodels", "conceptDescriptions"]) {
+    if (Array.isArray(out[slot]) && out[slot].length === 0) delete out[slot];
+  }
+  return out;
 }
 
 describe("Rundlauf Environment zu Zeilen und zurueck", () => {
@@ -49,7 +52,7 @@ describe("Rundlauf Environment zu Zeilen und zurueck", () => {
         string,
         unknown
       >;
-      expect(kanonisch(rundlauf(roh)), datei).toBe(kanonisch(mitLeerenSlots(roh)));
+      expect(kanonisch(rundlauf(roh)), datei).toBe(kanonisch(ohneLeereSlots(roh)));
     }
   });
 

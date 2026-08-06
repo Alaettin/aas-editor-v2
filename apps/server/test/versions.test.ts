@@ -60,8 +60,11 @@ describe("Versionen", () => {
       url: `/api/projects/${projekt.id}`,
       headers: { cookie: server.cookie },
     });
-    expect(aktuell.json<{ environment: Record<string, unknown[]> }>().environment["submodels"])
-      .toHaveLength(0);
+    // Ein leerer Slot kommt gar nicht mehr zurueck: das Metamodell verlangt "either not
+    // set or have at least one item", eine leere Liste waere selbst ein Befund.
+    expect(
+      aktuell.json<{ environment: Record<string, unknown[]> }>().environment,
+    ).not.toHaveProperty("submodels");
   });
 
   it("komprimiert den Schnappschuss", async () => {

@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FastifyInstance } from "fastify";
 import { buildServer } from "../../src/app.js";
+import type { Db } from "../../src/db/client.js";
 import { readEnv, type ServerEnv } from "../../src/env.js";
 
 /**
@@ -21,6 +22,12 @@ const MIGRATIONS = fileURLToPath(new URL("../../drizzle", import.meta.url));
 export interface TestServer {
   readonly app: FastifyInstance;
   readonly env: ServerEnv;
+  /**
+   * Direkter Zugriff auf die Ablage. Gebraucht fuer Zusagen, die sich ueber die
+   * Schnittstelle nicht pruefen lassen: dass eine gemerkte Zahl wirklich gemerkt ist und
+   * nicht jedes Mal neu gerechnet wird, sieht man nur, wenn man sie unterschiebt.
+   */
+  readonly db: Db;
   readonly cookie: string;
   readonly close: () => Promise<void>;
 }
@@ -42,6 +49,7 @@ export async function startTestServer(overrides: Record<string, string> = {}): P
   return {
     app: built.app,
     env,
+    db: built.db,
     cookie,
     close: async () => {
       await built.close();

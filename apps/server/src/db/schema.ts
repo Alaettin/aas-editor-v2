@@ -37,10 +37,26 @@ export const projects = sqliteTable(
     /** Optimistisches Sperren: PUT schickt die erwartete Revision mit. */
     revision: integer("revision").notNull().default(1),
     nodeCount: integer("node_count").notNull().default(0),
+    /**
+     * Zahl der Befunde (Constraint-Verstoesse und Datenwarnungen) und die Fassung, fuer die
+     * sie gilt. Beide leer heisst "noch nie gerechnet", und das ist etwas anderes als null
+     * Befunde. Gerechnet wird beim ersten Abruf der Uebersicht, danach nur wieder, wenn die
+     * Fassung weitergezaehlt hat.
+     */
+    issueCount: integer("issue_count"),
+    issueRevision: integer("issue_revision"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull(),
   },
-  (t) => [index("idx_projects_created").on(t.createdAt, t.id)],
+  (t) => [
+    index("idx_projects_created").on(t.createdAt, t.id),
+    /**
+     * Der Name ist die einzige Kennung, die ein Mensch im Einstieg sieht. Zwei Projekte
+     * gleichen Namens sind dort nicht auseinanderzuhalten, deshalb steht die
+     * Eindeutigkeit in der Datenbank und nicht nur im Dialog.
+     */
+    uniqueIndex("uq_projects_name").on(t.name),
+  ],
 );
 
 /**

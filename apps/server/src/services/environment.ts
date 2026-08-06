@@ -77,8 +77,13 @@ export function splitEnvironment(environment: unknown): SplitEnvironment {
 }
 
 /**
- * Setzt wieder zusammen. Die drei Schluessel werden immer gesetzt, auch als leere Liste:
- * das ist der stabile Fixpunkt, an dem sich Zerlegen und Zusammensetzen treffen.
+ * Setzt wieder zusammen.
+ *
+ * **Ein leerer Slot wird weggelassen, nicht als leere Liste geschrieben.** Das Metamodell
+ * verlangt fuer alle drei "either not set or have at least one item"; ein
+ * `"assetAdministrationShells": []` ist also selbst ein Constraint-Verstoss. Solange die
+ * leeren Listen mitgeschrieben wurden, trug jedes Projekt ohne Verwaltungsschale zwei
+ * erfundene Befunde mit sich herum, im Editor wie in der Befundzahl des Einstiegs.
  */
 export function joinEnvironment(
   environmentData: string,
@@ -87,6 +92,10 @@ export function joinEnvironment(
   const root = JSON.parse(environmentData) as Json;
   const out: Json = { ...root };
   for (const slot of IDENTIFIABLE_SLOTS) {
+    if (rows[slot].length === 0) {
+      delete out[slot];
+      continue;
+    }
     out[slot] = rows[slot].map((row) => JSON.parse(row.json) as Json);
   }
   return out;

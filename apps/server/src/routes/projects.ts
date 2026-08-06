@@ -2,15 +2,17 @@ import type { FastifyInstance } from "fastify";
 import type { Db } from "../db/client.js";
 import { badRequest } from "../errors.js";
 import {
+  befundeVon,
   createProject,
   deleteProject,
-  getProject,
   listProjects,
+  parseProjectQuery,
   readEnvironment,
+  readUebersicht,
   saveProject,
+  summaryOf,
   type SaveInput,
 } from "../services/projects.js";
-import { parsePageQuery } from "../services/pagination.js";
 
 interface SaveBody extends SaveInput {
   revision?: unknown;
@@ -22,8 +24,7 @@ export function projectRoutes(app: FastifyInstance, db: Db): void {
     scope.addHook("preHandler", app.requireAuth);
 
     scope.get("/api/projects", (req) => {
-      const page = parsePageQuery(req.query as { limit?: unknown; cursor?: unknown });
-      return listProjects(db, page);
+      return listProjects(db, parseProjectQuery(req.query as Record<string, unknown>));
     });
 
     scope.post("/api/projects", (req, reply) => {
@@ -38,20 +39,17 @@ export function projectRoutes(app: FastifyInstance, db: Db): void {
 
     scope.get("/api/projects/:id", (req) => {
       const { id } = req.params as { id: string };
-      const project = getProject(db, id);
+      const projekt = summaryOf(db, id);
+      return { projekt, revision: projekt.revision, environment: readEnvironment(db, id) };
+    });
+
+    // Schmale Auskunft fuer das Detailpanel des Einstiegs, ohne das Environment.
+    scope.get("/api/projects/:id/uebersicht", async (req) => {
+      const { id } = req.params as { id: string };
       return {
-        projekt: {
-          id: project.id,
-          name: project.name,
-          metamodelVersion: project.metamodelVersion,
-          sourceFormat: project.sourceFormat,
-          revision: project.revision,
-          nodeCount: project.nodeCount,
-          createdAt: project.createdAt,
-          updatedAt: project.updatedAt,
-        },
-        revision: project.revision,
-        environment: readEnvironment(db, id),
+        projekt: summaryOf(db, id),
+        submodelle: readUebersicht(db, id),
+        befunde: await befundeVon(db, id),
       };
     });
 
