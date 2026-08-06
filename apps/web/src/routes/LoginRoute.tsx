@@ -60,7 +60,7 @@ export function LoginRoute() {
     "font-mono text-3xs tracking-(--tracking-etikett) text-axon-schrift-still uppercase";
 
   return (
-    <main className="szene-axon relative flex h-screen min-h-(--h-anmeldebuehne) items-center justify-center overflow-hidden bg-axon-grund px-6 md:justify-end md:px-(--x-anmeldekarte)">
+    <main className="szene-axon relative flex h-screen min-h-(--h-anmeldebuehne) items-center justify-center overflow-hidden bg-axon-grund px-6 md:px-0">
       {breit ? <AxonKeyvisual kartenRef={karteRef} /> : null}
 
       {/*
@@ -87,7 +87,13 @@ export function LoginRoute() {
           boxShadow:
             "0 0 calc(20px + var(--axon-blitz) * 40px) rgb(var(--axon-fokus-kanaele) / calc(var(--axon-blitz) * 0.16))",
         }}
-        className="relative flex w-full max-w-(--w-anmeldekarte) flex-col gap-6.5 overflow-hidden rounded-[2px] border bg-axon-karte px-8.5 pt-8.5 pb-6.5 backdrop-blur-(--blur-glas)"
+        /*
+         * Zwei Gestalten, eine Flaeche. Schmal bleibt es die Karte: sie steht mittig und
+         * traegt ringsum einen Rand. Ab 48rem wird daraus die Leiste aus Vorlage v4, die
+         * am rechten Rand klebt und die volle Hoehe fuellt; dann bleibt nur die linke
+         * Haarlinie, denn die drei anderen Kanten liegen am Bildrand.
+         */
+        className="relative flex w-full max-w-(--w-anmeldekarte) flex-col gap-6.5 overflow-hidden rounded-[2px] border bg-axon-anmeldung px-8.5 pt-8.5 pb-6.5 backdrop-blur-(--blur-anmeldung) md:absolute md:inset-y-0 md:right-0 md:w-(--w-anmeldeleiste) md:max-w-none md:min-w-(--min-w-anmeldeleiste) md:justify-center md:gap-8.5 md:rounded-none md:border-0 md:border-l md:py-0 md:pr-(--pr-anmeldeleiste) md:pl-(--pl-anmeldeleiste)"
       >
         {/* Die Lichtkante links, mit einem Punkt, der sie hinabwandert. */}
         <span

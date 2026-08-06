@@ -137,6 +137,10 @@ test.describe("Oberflaeche", () => {
   test("traegt den Dunkelmodus auch ausserhalb des Editors", async ({ page }) => {
     // Bis Phase 9 setzte allein `AppShell` die Klasse an der Wurzel. Wer direkt auf
     // /projekte einstieg, sah die Liste immer hell, egal was eingestellt war.
+    //
+    // Der Einstieg selbst ist inzwischen Markenflaeche und folgt der Erscheinung bewusst
+    // nicht mehr. Geprueft wird hier trotzdem an ihm, denn der Gegenstand ist die Klasse
+    // an der Wurzel und das Vorabskript, nicht die Farbe der Liste.
     await page.goto("/projekte");
     await page.evaluate(() =>
       (window as never as { __aasAnsichtStore: AnsichtStore }).__aasAnsichtStore

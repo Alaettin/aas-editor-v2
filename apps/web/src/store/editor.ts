@@ -27,6 +27,7 @@ import type { ValidationIssue } from "@aas-editor/core/validation";
 
 import { ApiError } from "@/api/client";
 import { filesApi, projectsApi, versionsApi } from "@/api/projects";
+import { benenneUm } from "@/lib/dateiname";
 import { meldeErfolg, meldeFehler, meldeHinweis } from "@/lib/melden";
 import { aasWorker, type AttachmentInfo, type OpenResult } from "@/worker/bridge";
 import { clearDraft, createAutosave, loadDraft, type Draft } from "./autosave";
@@ -367,7 +368,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = get().meta ? renameTo(get().meta!.fileName, format) : exported.fileName;
+        anchor.download = get().meta ? benenneUm(get().meta!.fileName, format) : exported.fileName;
         anchor.click();
         URL.revokeObjectURL(url);
         // Exportiert heisst gesichert: der Entwurf wird nicht mehr gebraucht.
@@ -910,11 +911,6 @@ async function anhaengeHochladen(projektId: string): Promise<void> {
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes as unknown as ArrayBuffer);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function renameTo(fileName: string, format: string): string {
-  const base = fileName.replace(/\.(json|xml|aasx)$/i, "");
-  return `${base}.${format}`;
 }
 
 // --- Abgeleitete Werte ---------------------------------------------------------------

@@ -253,6 +253,13 @@
   --axon-halo: 200 240 255;
   --axon-vignette: 6 24 60;
 
+  /*
+   * Zwei Glasstaerken, und das hat einen Grund. Die Anmeldeleiste liegt ueber dem
+   * Keyvisual, das dort ruhig ist: sie darf duenner sein und ein wenig davon durchlassen.
+   * Die Dialoge des Einstiegs liegen ueber einer Tabelle voller Text, dort waere dasselbe
+   * Glas unruhig.
+   */
+  --axon-anmeldung: rgb(6 30 72 / 0.6);
   --axon-karte: rgb(6 30 72 / 0.72);
   --axon-karte-rand: rgb(255 255 255 / 0.1);
   --axon-feld-rand: rgb(255 255 255 / 0.24);
@@ -267,6 +274,35 @@
   --axon-schrift-still: rgb(255 255 255 / 0.5);
   --axon-schrift-fein: rgb(255 255 255 / 0.4);
   --axon-fehler: #ffb08a;
+
+  /*
+   * Der Einstieg (Projektauswahl) steht auf derselben Buehne, ist aber Flaeche und nicht
+   * Karte: er braucht einen Verlauf, zwei ruhige Seitenflaechen und Trennlinien.
+   *
+   * Die Vorlage setzt ihre feinen Mono-Etiketten auf Weiss 0,38 bis 0,40. Auf diesem Blau
+   * sind das rund 3:1 und damit unter der Schwelle. Deshalb hoert die Rampe der Etiketten
+   * bei --axon-schrift-still (0,5) auf; --axon-schrift-fein bleibt reiner Zierde
+   * vorbehalten, die auch ohne Lesbarkeit auskommt.
+   */
+  --axon-buehne: linear-gradient(135deg, #0a2450 0%, #10366f 55%, #0a2450 100%);
+  --axon-flaeche: rgb(5 22 52 / 0.5);
+  --axon-flaeche-leise: rgb(5 22 52 / 0.35);
+  --axon-linie: rgb(255 255 255 / 0.12);
+  --axon-linie-fein: rgb(255 255 255 / 0.07);
+  --axon-zeile-hover: rgb(255 255 255 / 0.06);
+  --axon-zeile-aktiv: rgb(0 253 253 / 0.09);
+  --axon-kachel: #0c2c5f;
+  --axon-feld: #0b2a5e;
+  --axon-fehler-kraeftig: #e24a3a;
+  /*
+   * Beschriftung auf gefuelltem Gruen. Die Vorlage setzt dort Weiss, das sind auf #00a386
+   * nur 3,1:1. Das tiefe Buehnenblau kommt auf 5,1:1, und die Marke bleibt das Gruen.
+   */
+  --axon-aktion-schrift: #06203f;
+  /* Die Punkte vor dem Projektnamen, je Quellformat */
+  --axon-format-json: #00fdfd;
+  --axon-format-xml: #e0b0e0;
+  --axon-format-aasx: #00a386;
 
   /* Die Lichtkante links an der Karte: cyan oben, gruen unten, an den Enden auslaufend */
   --axon-kante: linear-gradient(
@@ -366,6 +402,7 @@
 
   /* Die Buehne der Anmeldung, aufgeloest im Geltungsbereich von .szene-axon */
   --color-axon-grund: var(--axon-grund);
+  --color-axon-anmeldung: var(--axon-anmeldung);
   --color-axon-karte: var(--axon-karte);
   --color-axon-karte-rand: var(--axon-karte-rand);
   --color-axon-feld-rand: var(--axon-feld-rand);
@@ -378,6 +415,16 @@
   --color-axon-schrift-still: var(--axon-schrift-still);
   --color-axon-schrift-fein: var(--axon-schrift-fein);
   --color-axon-fehler: var(--axon-fehler);
+  --color-axon-flaeche: var(--axon-flaeche);
+  --color-axon-flaeche-leise: var(--axon-flaeche-leise);
+  --color-axon-linie: var(--axon-linie);
+  --color-axon-linie-fein: var(--axon-linie-fein);
+  --color-axon-zeile-hover: var(--axon-zeile-hover);
+  --color-axon-zeile-aktiv: var(--axon-zeile-aktiv);
+  --color-axon-kachel: var(--axon-kachel);
+  --color-axon-feld: var(--axon-feld);
+  --color-axon-fehler-kraeftig: var(--axon-fehler-kraeftig);
+  --color-axon-aktion-schrift: var(--axon-aktion-schrift);
 }
 
 @theme {
@@ -413,6 +460,12 @@
   --tracking-aktion: 0.18em;
   --tracking-fein: 0.1em;
   --blur-glas: 24px;
+  /*
+   * Die Anmeldeleiste streut schwaecher als die Dialoge. 24px loeschen jede Struktur
+   * dahinter, und dann nuetzt auch eine duennere Flaeche nichts: hinter der Leiste laufen
+   * die Schienen weiter, und genau die soll man ahnen.
+   */
+  --blur-anmeldung: 12px;
 
   --spacing: 0.25rem;
 
@@ -476,11 +529,27 @@
 
     /* Masse der Anmeldebuehne, aus der Vorgabe */
     --w-anmeldelogo: 200px;
+    /* Auf schmalen Fenstern bleibt die Anmeldung eine Karte, ab 48rem wird sie die Leiste
+       aus Vorlage v4: volle Hoehe am rechten Rand. Ein 38-Prozent-Streifen mit 420px
+       Mindestbreite ergibt auf einem Telefon keinen Sinn. */
     --w-anmeldekarte: 356px;
-    --x-anmeldekarte: 14%;
+    --w-anmeldeleiste: 38%;
+    --min-w-anmeldeleiste: 420px;
+    --pl-anmeldeleiste: 6%;
+    --pr-anmeldeleiste: 8%;
     --h-anmeldebuehne: 520px;
     --h-anmeldefeld: 30px;
     --h-anmeldeknopf: 52px;
+
+    /* Masse des Einstiegs, aus der Vorlage */
+    --w-einstiegslogo: 128px;
+    --w-einstiegsleiste: 236px;
+    --w-einstiegsdetail: 330px;
+    --w-einstiegssuche: 340px;
+    --min-w-einstiegstabelle: 900px;
+    --h-einstiegsfeld: 40px;
+    --h-einstiegsknopf: 46px;
+    --h-einstiegsschalter: 32px;
   }
 
   * {
