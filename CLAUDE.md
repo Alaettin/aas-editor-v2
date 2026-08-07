@@ -1,4 +1,15 @@
-# AXON Studio: Projektkonventionen
+# AXON Editor: Projektkonventionen
+
+**Der Editor heisst seit dem 07.08.2026 AXON Editor** und liegt auf
+`axon-editor.sliplane.app`. Den Namen AXON Studio traegt jetzt der **Hub**
+(`...\Claude\AXON Studio`, `axon-studio.sliplane.app`), der zugleich der
+Identitaetsanbieter dieses Editors ist. Repo, Ordner und Paketnamen (`@aas-editor/*`)
+heissen weiterhin `aas-editor`.
+
+**Die Anmeldung laeuft ueber den Hub** (`AUTH_MODE=oidc`). `passwort` bleibt die
+Rueckfallebene in den Diensteinstellungen: geht am Hub etwas schief, ist der Editor sonst
+fuer niemanden mehr erreichbar. Die ganze Logik liegt hinter `AuthProvider`; das ID-Token
+prueft `auth/oidc.ts` selbst, ohne JOSE-Bibliothek.
 
 Web-basierter Editor fuer Asset Administration Shells auf Basis der TypeScript-SDKs von
 aas-core-works. Die vollstaendige Umsetzungsvorgabe (Ziel, Architektur, Phasen 0 bis 9, Abnahmen)
