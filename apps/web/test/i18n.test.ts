@@ -101,6 +101,20 @@ describe("Uebersetzungen", () => {
     expect(fehlend.sort()).toEqual([]);
   });
 
+  it("traegt im Browsertitel denselben Namen wie in der Oberflaeche", () => {
+    /*
+     * Der Titel steht in index.html und wird von keiner Uebersetzung erreicht. Bei der
+     * Umbenennung auf AXON Editor am 07.08.2026 blieb er deshalb auf dem alten Namen
+     * stehen, und zwar unbemerkt: die Oberflaeche sagte das eine, der Tab das andere.
+     */
+    const html = readFileSync(
+      fileURLToPath(new URL("../index.html", import.meta.url)),
+      "utf8",
+    );
+    const titel = /<title>([^<]*)<\/title>/.exec(html)?.[1];
+    expect(titel).toBe(de.app.titel);
+  });
+
   it("kennt jeden Grund, mit dem der Rueckweg vom Hub scheitern kann", () => {
     /*
      * Der Rueckweg der OIDC-Anmeldung endet bei jedem Fehler auf `/login?fehler=<grund>`,

@@ -17,7 +17,7 @@ import { leseSchluessel, lesen } from "./assistentEinstellung.js";
  * das Modell darf.
  */
 
-const SYSTEMTEXT = `Du bist der Assistent in AXON Studio, einem Editor fuer Verwaltungsschalen
+const SYSTEMTEXT = `Du bist der Assistent im AXON Editor, einem Editor fuer Verwaltungsschalen
 nach IDTA-Metamodell 3.1 (Asset Administration Shell).
 
 Du arbeitest ueber Werkzeuge am Modell, das der Nutzer gerade geoeffnet hat, samt seinen
