@@ -28,6 +28,8 @@ export function LoginRoute() {
   const status = useAuth((state) => state.status);
   const fehler = useAuth((state) => state.fehler);
   const anmelden = useAuth((state) => state.anmelden);
+  const modus = useAuth((state) => state.modus);
+  const hoereModus = useAuth((state) => state.hoereModus);
 
   const language = useAnsicht((state) => state.language);
   const setLanguage = useAnsicht((state) => state.setLanguage);
@@ -44,6 +46,22 @@ export function LoginRoute() {
   useEffect(() => {
     if (status === "angemeldet") void navigate(ziel, { replace: true });
   }, [status, navigate, ziel]);
+
+  useEffect(() => {
+    if (modus === null) void hoereModus();
+  }, [modus, hoereModus]);
+
+  /*
+   * Der Grund eines gescheiterten Rueckwegs steht in der Adresse, nicht im Speicher: der
+   * Server hat hierher **umgeleitet**, die Seite wurde also neu geladen und jeder Zustand
+   * von vorher ist weg.
+   */
+  const hubFehlerSchluessel = new URLSearchParams(location.search).get("fehler");
+  const hubFehler = hubFehlerSchluessel
+    ? t(`anmeldung.hubFehler.${hubFehlerSchluessel}`, {
+        defaultValue: t("anmeldung.hubFehler.unbekannt"),
+      })
+    : null;
 
   const absenden = async (event: FormEvent) => {
     event.preventDefault();
@@ -120,50 +138,75 @@ export function LoginRoute() {
           {t("anmeldung.titel")}
         </h1>
 
-        <div className="flex flex-col gap-5">
-          <label className="flex flex-col gap-2.25" htmlFor="benutzer">
-            <span className={etikett}>{t("anmeldung.benutzer")}</span>
-            <input
-              id="benutzer"
-              name="benutzer"
-              autoComplete="username"
-              autoFocus
-              value={benutzer}
-              onChange={(event) => setBenutzer(event.target.value)}
-              className={feld}
-            />
-          </label>
+        {/*
+          Zwei Spielarten, eine Buehne. Solange `modus` noch nicht da ist, steht hier
+          nichts: ein Formular, das eine Zehntelsekunde spaeter durch eine Schaltflaeche
+          ersetzt wird, sieht nach einem Fehler aus.
+        */}
+        {modus === "passwort" ? (
+          <div className="flex flex-col gap-5">
+            <label className="flex flex-col gap-2.25" htmlFor="benutzer">
+              <span className={etikett}>{t("anmeldung.benutzer")}</span>
+              <input
+                id="benutzer"
+                name="benutzer"
+                autoComplete="username"
+                autoFocus
+                value={benutzer}
+                onChange={(event) => setBenutzer(event.target.value)}
+                className={feld}
+              />
+            </label>
 
-          <label className="flex flex-col gap-2.25" htmlFor="passwort">
-            <span className={etikett}>{t("anmeldung.passwort")}</span>
-            <input
-              id="passwort"
-              name="passwort"
-              type="password"
-              autoComplete="current-password"
-              value={passwort}
-              onChange={(event) => setPasswort(event.target.value)}
-              className={feld}
-            />
-          </label>
-        </div>
+            <label className="flex flex-col gap-2.25" htmlFor="passwort">
+              <span className={etikett}>{t("anmeldung.passwort")}</span>
+              <input
+                id="passwort"
+                name="passwort"
+                type="password"
+                autoComplete="current-password"
+                value={passwort}
+                onChange={(event) => setPasswort(event.target.value)}
+                className={feld}
+              />
+            </label>
+          </div>
+        ) : modus === "oidc" ? (
+          <p className="text-sm text-axon-schrift-leise">{t("anmeldung.hubHinweis")}</p>
+        ) : null}
 
         <div className="flex flex-col gap-5">
-          {fehler ? (
+          {hubFehler ?? fehler ? (
             <p role="alert" className="text-sm text-axon-fehler">
-              {fehler}
+              {hubFehler ?? fehler}
             </p>
           ) : null}
 
-          <button
-            type="submit"
-            disabled={laeuft || benutzer === ""}
-            aria-busy={laeuft}
-            className="flex h-(--h-anmeldeknopf) items-center justify-between rounded-[2px] border border-axon-aktion px-5 text-sm tracking-(--tracking-aktion) text-axon-schrift uppercase transition-colors duration-(--duration-calm) hover:border-axon-aktion-hover hover:bg-axon-aktion disabled:pointer-events-none disabled:opacity-40"
-          >
-            <span>{laeuft ? t("anmeldung.laeuft") : t("anmeldung.anmelden")}</span>
-            <ArrowRight className="size-4" />
-          </button>
+          {modus === "oidc" ? (
+            /*
+              Ein Anker, kein Knopf mit onClick: der Weg zum Hub ist eine Navigation, und
+              der Server antwortet darauf mit einer Umleitung. Ein `fetch` liefe der
+              Umleitung hinterher und landete im Nichts, weil der Browser dabei nicht
+              mitwandert.
+            */
+            <a
+              href="/api/auth/anmelden"
+              className="flex h-(--h-anmeldeknopf) items-center justify-between rounded-[2px] border border-axon-aktion px-5 text-sm tracking-(--tracking-aktion) text-axon-schrift uppercase transition-colors duration-(--duration-calm) hover:border-axon-aktion-hover hover:bg-axon-aktion"
+            >
+              <span>{t("anmeldung.ueberHub")}</span>
+              <ArrowRight className="size-4" />
+            </a>
+          ) : (
+            <button
+              type="submit"
+              disabled={laeuft || benutzer === "" || modus === null}
+              aria-busy={laeuft}
+              className="flex h-(--h-anmeldeknopf) items-center justify-between rounded-[2px] border border-axon-aktion px-5 text-sm tracking-(--tracking-aktion) text-axon-schrift uppercase transition-colors duration-(--duration-calm) hover:border-axon-aktion-hover hover:bg-axon-aktion disabled:pointer-events-none disabled:opacity-40"
+            >
+              <span>{laeuft ? t("anmeldung.laeuft") : t("anmeldung.anmelden")}</span>
+              <ArrowRight className="size-4" />
+            </button>
+          )}
 
           <div className="flex items-center justify-between font-mono text-2xs tracking-(--tracking-fein) text-axon-schrift-fein">
             {/*

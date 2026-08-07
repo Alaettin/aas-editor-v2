@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import { authApi, type Benutzer } from "@/api/auth";
+import { authApi, type AnmeldeModus, type Benutzer } from "@/api/auth";
 import { ApiError } from "@/api/client";
 import i18n from "@/i18n";
 
@@ -16,6 +16,15 @@ interface AuthState {
   status: AuthStatus;
   benutzer: Benutzer | null;
   fehler: string | null;
+  /**
+   * Woher die Identitaet kommt. `null` heisst: noch nicht gefragt.
+   *
+   * Die Anmeldemaske zeigt je nach Antwort ein Formular oder eine Umleitung. Solange der
+   * Wert fehlt, zeigt sie **keines von beidem**: ein Formular, das gleich verschwindet,
+   * ist schlimmer als ein Moment Stille.
+   */
+  modus: AnmeldeModus | null;
+  hoereModus: () => Promise<void>;
 
   pruefe: () => Promise<void>;
   anmelden: (benutzer: string, passwort: string) => Promise<boolean>;
@@ -28,6 +37,18 @@ export const useAuth = create<AuthState>()((set) => ({
   status: "unbekannt",
   benutzer: null,
   fehler: null,
+  modus: null,
+
+  async hoereModus() {
+    try {
+      const { modus } = await authApi.modus();
+      set({ modus });
+    } catch {
+      // Antwortet der Server nicht, ist der Passwortweg die sichere Annahme: er ist der
+      // aeltere, und eine Anmeldemaske ohne jede Eingabe waere eine Sackgasse.
+      set({ modus: "passwort" });
+    }
+  },
 
   async pruefe() {
     set({ status: "prueft" });

@@ -17,8 +17,22 @@ export interface ServerEnv {
   readonly dataDir: string;
   readonly dbPath: string;
   readonly attachmentDir: string;
+  /**
+   * Woher die Identitaet kommt.
+   *
+   * `passwort` ist der alte Weg und bleibt die Rueckfallebene: geht am Hub etwas schief,
+   * ist der Editor sonst fuer niemanden mehr erreichbar.
+   */
+  readonly authModus: "passwort" | "oidc";
   readonly authUsername: string;
   readonly authPassword: string;
+  /** Nur bei `authModus === "oidc"` gesetzt. */
+  readonly oidc: {
+    readonly aussteller: string;
+    readonly clientId: string;
+    readonly clientSecret: string;
+    readonly rueckweg: string;
+  } | null;
   readonly sessionSecret: string;
   readonly sessionTtlMs: number;
   readonly maxUploadBytes: number;
@@ -49,6 +63,39 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
   const ttlHours = number("SESSION_TTL_HOURS", source["SESSION_TTL_HOURS"], 720);
   const maxUploadMb = number("MAX_UPLOAD_MB", source["MAX_UPLOAD_MB"], 50);
 
+  const rohModus = source["AUTH_MODE"] ?? "passwort";
+  if (rohModus !== "passwort" && rohModus !== "oidc") {
+    throw new ConfigError(`AUTH_MODE muss "passwort" oder "oidc" sein, gelesen wurde "${rohModus}".`);
+  }
+  const authModus = rohModus;
+
+  /*
+   * Im OIDC-Betrieb sind die vier Werte Pflicht, und zwar hier und nicht erst beim ersten
+   * Anmeldeversuch. Ein Server, der ohne Client-Geheimnis startet, sieht gesund aus und
+   * scheitert erst, wenn sich jemand anmelden will.
+   */
+  const oidc =
+    authModus === "oidc"
+      ? {
+          aussteller: required("OIDC_ISSUER", source["OIDC_ISSUER"]),
+          clientId: required("OIDC_CLIENT_ID", source["OIDC_CLIENT_ID"]),
+          clientSecret: required("OIDC_CLIENT_SECRET", source["OIDC_CLIENT_SECRET"]),
+          rueckweg: required("OIDC_REDIRECT_URI", source["OIDC_REDIRECT_URI"]),
+        }
+      : null;
+
+  /*
+   * Benutzername und Passwort sind nur im Passwortbetrieb Pflicht. Sie im OIDC-Betrieb
+   * weiter zu verlangen hiesse, ein Passwort zu pflegen, das niemand mehr benutzt, und das
+   * ist genau die Art Zugangsdatum, die jahrelang unveraendert stehen bleibt.
+   */
+  const authUsername = authModus === "passwort"
+    ? required("AUTH_USERNAME", source["AUTH_USERNAME"])
+    : (source["AUTH_USERNAME"] ?? "");
+  const authPassword = authModus === "passwort"
+    ? required("AUTH_PASSWORD", source["AUTH_PASSWORD"])
+    : (source["AUTH_PASSWORD"] ?? "");
+
   return {
     port: number("PORT", source["PORT"], 3200),
     host: source["HOST"] ?? "0.0.0.0",
@@ -57,8 +104,10 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     dataDir,
     dbPath: resolve(dataDir, "aas-editor.db"),
     attachmentDir: resolve(dataDir, "attachments"),
-    authUsername: required("AUTH_USERNAME", source["AUTH_USERNAME"]),
-    authPassword: required("AUTH_PASSWORD", source["AUTH_PASSWORD"]),
+    authModus,
+    authUsername,
+    authPassword,
+    oidc,
     sessionSecret: required("SESSION_SECRET", source["SESSION_SECRET"]),
     sessionTtlMs: ttlHours * 60 * 60 * 1000,
     maxUploadBytes: maxUploadMb * 1024 * 1024,

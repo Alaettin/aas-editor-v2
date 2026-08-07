@@ -1,6 +1,6 @@
 {
   "app": {
-    "titel": "AXON Studio",
+    "titel": "AXON Editor",
     "oeffnen": "Open",
     "exportieren": "Export",
     "rueckgaengig": "Undo",
@@ -342,14 +342,26 @@
     "anmelden": "Sign in",
     "laeuft": "Checking ...",
     "abmelden": "Sign out",
-    "titel": "AXON Studio",
+    "titel": "AXON Editor",
     "sprache": "Language",
-    "marke": "Neoception, Pepperl+Fuchs"
+    "marke": "Neoception, Pepperl+Fuchs",
+    "ueberHub": "Sign in with AXON Studio",
+    "hubHinweis": "Sign-in goes through AXON Studio. You will be taken there and returned here afterwards.",
+    "hubFehler": {
+      "abgelehnt": "You denied access. Without consent this cannot continue.",
+      "abgelaufen": "The sign-in attempt expired. Please try again.",
+      "state": "The return does not match this sign-in attempt. Please try again.",
+      "token": "AXON Studio replied, but the reply was not valid.",
+      "unvollstaendig": "The return from AXON Studio was incomplete.",
+      "hub": "AXON Studio cancelled the sign-in attempt.",
+      "kein-hub": "This editor does not sign in through AXON Studio.",
+      "unbekannt": "Sign-in failed. The reason is in the server log."
+    }
   },
   "projekte": {
     "titel": "Projects",
     "arbeitsbereich": "Workspace",
-    "marke": "AXON Studio",
+    "marke": "AXON Editor",
     "navProjekte": "Projects",
     "navRepository": "Repository",
     "suche": "Search projects",

@@ -101,6 +101,29 @@ describe("Uebersetzungen", () => {
     expect(fehlend.sort()).toEqual([]);
   });
 
+  it("kennt jeden Grund, mit dem der Rueckweg vom Hub scheitern kann", () => {
+    /*
+     * Der Rueckweg der OIDC-Anmeldung endet bei jedem Fehler auf `/login?fehler=<grund>`,
+     * und die Anmeldemaske macht daraus einen Satz. Fehlt der Satz, steht dort der
+     * Rueckfall "unbekannt", und der Nutzer erfaehrt nicht, was los ist.
+     *
+     * Die Gruende werden **aus dem Server gelesen**, nicht hier abgeschrieben: eine Liste
+     * von Hand liefe irgendwann auseinander, und zwar unbemerkt.
+     */
+    const quelle = readFileSync(
+      fileURLToPath(new URL("../../server/src/routes/auth.ts", import.meta.url)),
+      "utf8",
+    );
+    const gruende = [...quelle.matchAll(/zurueck\("([a-z-]+)"\)/g)].map((t) => t[1]!);
+    expect(gruende.length, "keine Gruende gefunden, hat sich der Aufruf umbenannt?")
+      .toBeGreaterThan(3);
+
+    const fehlend = [...new Set(gruende)].filter(
+      (grund) => !vorhanden(`anmeldung.hubFehler.${grund}`),
+    );
+    expect(fehlend.sort()).toEqual([]);
+  });
+
   it("kennt jeden Befundschluessel, den der Kern liefern kann", () => {
     // Der Kern liefert Schluessel, keine Saetze. Faellt hier einer durch, zeigt der
     // Editor bei einem echten Constraint-Verstoss den rohen Schluessel an.
@@ -270,6 +293,10 @@ const UMSCHRIFT = [
  */
 const BAUSTEINE = [
   "tabelle.spalte.",
+  // Zusammengesetzt aus dem Grund, den der Server an /login?fehler=... anhaengt.
+  // Vollstaendigkeit prueft die Runde "kennt jeden Grund, mit dem der Rueckweg
+  // scheitern kann" weiter oben.
+  "anmeldung.hubFehler.",
   "sicht.",
   "export.",
   "feld.",

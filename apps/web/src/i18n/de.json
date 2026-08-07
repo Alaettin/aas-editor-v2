@@ -1,6 +1,6 @@
 {
   "app": {
-    "titel": "AXON Studio",
+    "titel": "AXON Editor",
     "oeffnen": "Öffnen",
     "exportieren": "Exportieren",
     "rueckgaengig": "Rückgängig",
@@ -342,14 +342,26 @@
     "anmelden": "Anmelden",
     "laeuft": "Wird geprüft ...",
     "abmelden": "Abmelden",
-    "titel": "AXON Studio",
+    "titel": "AXON Editor",
     "sprache": "Sprache",
-    "marke": "Neoception, Pepperl+Fuchs"
+    "marke": "Neoception, Pepperl+Fuchs",
+    "ueberHub": "Mit AXON Studio anmelden",
+    "hubHinweis": "Die Anmeldung läuft über AXON Studio. Du wirst dorthin geleitet und kommst danach zurück.",
+    "hubFehler": {
+      "abgelehnt": "Du hast den Zugriff abgelehnt. Ohne Zustimmung geht es hier nicht weiter.",
+      "abgelaufen": "Der Anmeldeversuch ist abgelaufen. Bitte noch einmal.",
+      "state": "Der Rückweg passt nicht zu diesem Anmeldeversuch. Bitte noch einmal.",
+      "token": "AXON Studio hat geantwortet, aber die Antwort war nicht gültig.",
+      "unvollstaendig": "Der Rückweg von AXON Studio war unvollständig.",
+      "hub": "AXON Studio hat den Anmeldeversuch abgebrochen.",
+      "kein-hub": "Dieser Editor meldet nicht über AXON Studio an.",
+      "unbekannt": "Die Anmeldung ist gescheitert. Der Grund steht im Serverprotokoll."
+    }
   },
   "projekte": {
     "titel": "Projekte",
     "arbeitsbereich": "Arbeitsbereich",
-    "marke": "AXON Studio",
+    "marke": "AXON Editor",
     "navProjekte": "Projekte",
     "navRepository": "Repository",
     "suche": "Projekt suchen",

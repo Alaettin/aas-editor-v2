@@ -13,6 +13,14 @@ export interface SessionPayload {
   readonly sub: string;
   /** Ablauf in Millisekunden seit 1970 */
   readonly exp: number;
+  /**
+   * Anzeigename, seit dem 07.08.2026.
+   *
+   * Bei der Anmeldung ueber AXON Studio ist `sub` eine UUID und taugt nicht zum Anzeigen.
+   * Optional, damit Sitzungen aus der Zeit davor gueltig bleiben: das Feld fehlt dort, und
+   * ein Pflichtfeld haette alle auf einen Schlag ausgesperrt.
+   */
+  readonly name?: string;
 }
 
 export function issueSession(reply: FastifyReply, payload: SessionPayload, env: ServerEnv): void {
@@ -51,7 +59,11 @@ export function readSession(req: FastifyRequest): SessionPayload | null {
     ) as Partial<SessionPayload>;
     if (typeof payload.sub !== "string" || typeof payload.exp !== "number") return null;
     if (payload.exp <= Date.now()) return null;
-    return { sub: payload.sub, exp: payload.exp };
+    return {
+      sub: payload.sub,
+      exp: payload.exp,
+      ...(typeof payload.name === "string" ? { name: payload.name } : {}),
+    };
   } catch {
     return null;
   }
