@@ -679,7 +679,16 @@ export const useEditor = create<EditorState>()((set, get) => {
       const { model } = get();
       if (!model) return;
       const before = model.nextNodeId;
-      change("Element dupliziert", (draft) => duplicateNode(draft, nodeId));
+      /*
+       * Die geschweiften Klammern sind hier tragend: `duplicateNode` liefert die neue
+       * nodeId **und** aendert den Entwurf. Ohne sie gibt die Pfeilfunktion diese id
+       * zurueck, und Immer bricht mit "returned a new value and modified its draft" ab.
+       * Der Fehler landete in `change` in einer Meldung, das Duplizieren tat schlicht
+       * nichts. Die drei Nachbarn oben liefern void, deshalb faellt nur dieser eine auf.
+       */
+      change("Element dupliziert", (draft) => {
+        duplicateNode(draft, nodeId);
+      });
       const kopie = `n${before}`;
       if (get().model?.nodes[kopie]) set({ selection: kopie });
     },

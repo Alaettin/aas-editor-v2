@@ -517,6 +517,32 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /*
+   * Vom Browser ausgefuellte Felder bleiben in unseren Farben.
+   *
+   * Chrome und Firefox faerben sie sonst gelb, damit man sieht, was aus dem Passwortspeicher
+   * kam. Auf einer dunkelblauen Flaeche ist das ein greller Balken, und zwar dort, wo der
+   * Nutzer als Erstes hinsieht: der Anmeldung.
+   *
+   * Bewusst **ohne** den ueblichen `box-shadow: inset 0 0 0 1000px <farbe>`: die Felder der
+   * Anmeldung sind durchsichtig und tragen nur eine Unterlinie, ein deckender Schatten
+   * machte daraus einen gefuellten Kasten. Die beiden Browser brauchen ohnehin
+   * verschiedene Griffe, und keiner davon deckt zu.
+   */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:autofill {
+    /* Firefox faerbt ueber einen Filter, nicht ueber den Hintergrund. */
+    filter: none;
+    /* Chrome blendet das Gelb per Uebergang ein; einer, der nie ankommt, nimmt ihm die
+       Gelegenheit, und das Feld bleibt durchsichtig. */
+    transition: background-color 100000s ease-in-out 0s;
+    /* Die Schriftfarbe ignoriert `color`, solange das Feld als ausgefuellt gilt. */
+    -webkit-text-fill-color: currentcolor;
+    caret-color: currentcolor;
+  }
+
   :focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;

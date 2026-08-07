@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { useAnsicht } from "@/store/ansicht";
+import { AssistentEinstellungAbschnitt } from "./AssistentEinstellung";
 
 /**
  * Einstellungen, bewusst klein: Dichte und Sprache. Alles andere sitzt an seinem Ort in
@@ -27,8 +28,6 @@ export function SettingsDialog({
   const { t } = useTranslation();
   const density = useAnsicht((state) => state.density);
   const setDensity = useAnsicht((state) => state.setDensity);
-  const language = useAnsicht((state) => state.language);
-  const setLanguage = useAnsicht((state) => state.setLanguage);
 
   return (
     <Dialog open={offen} onOpenChange={(next) => !next && onClose()}>
@@ -58,30 +57,12 @@ export function SettingsDialog({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2">
-          <SectionLabel>{t("app.sprache")}</SectionLabel>
-          <div className="flex gap-2">
-            {/*
-              Die Sprachnamen stehen in ihrer eigenen Sprache: "Deutsch" heisst auch auf
-              Englisch Deutsch. Wer die Oberflaeche gerade nicht lesen kann, findet so
-              trotzdem den Weg zurueck.
-            */}
-            <Button
-              variant={language === "de" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setLanguage("de")}
-            >
-              {t("app.deutsch")}
-            </Button>
-            <Button
-              variant={language === "en" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setLanguage("en")}
-            >
-              {t("app.englisch")}
-            </Button>
-          </div>
-        </div>
+        {/*
+          Keine Sprachwahl mehr: die Befehlspalette (Strg+K) schaltet sie um, die
+          Anmeldung und der Einstieg haben ihren eigenen Umschalter. Vier Stellen fuer
+          dieselbe Einstellung waren drei zu viel.
+        */}
+        <AssistentEinstellungAbschnitt />
       </DialogContent>
     </Dialog>
   );

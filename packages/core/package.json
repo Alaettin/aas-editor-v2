@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./io": "./src/io/index.ts",
     "./validation": "./src/validation/index.ts",
+    "./assistent": "./src/assistent/werkzeuge.ts",
     "./aas-core": "./src/model/aasCore.ts",
     "./*": "./src/*.ts"
   },

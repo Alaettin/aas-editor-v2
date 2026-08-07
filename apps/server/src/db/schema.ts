@@ -125,6 +125,22 @@ export const files = sqliteTable(
   ],
 );
 
+/**
+ * Einstellungen, die nicht aus der .env kommen koennen, weil der Nutzer sie zur Laufzeit
+ * setzt. Heute genau zwei Zeilen: der OpenAI-Schluessel des Assistenten und das gewaehlte
+ * Modell.
+ *
+ * Der Schluessel liegt **verschluesselt** (`services/geheimnis.ts`) und verlaesst die
+ * Tabelle nur in Richtung OpenAI, nie in Richtung Browser. Eine eigene Spalte je
+ * Einstellung waere ehrlicher getypt, aber jede neue Einstellung braeuchte dann eine
+ * Migration; bei zwei Werten ohne Abfragen darauf wiegt das schwerer.
+ */
+export const einstellungen = sqliteTable("einstellungen", {
+  schluessel: text("schluessel").primaryKey(),
+  wert: text("wert").notNull(),
+  aktualisiert: integer("aktualisiert").notNull(),
+});
+
 export type ProjectRow = typeof projects.$inferSelect;
 export type IdentifiableRow = typeof submodels.$inferSelect;
 export type FileRow = typeof files.$inferSelect;

@@ -131,6 +131,10 @@ describe("requireAuth", () => {
     ["GET", "/api/projects/irgendwas/submodels"],
     ["GET", "/api/projects/irgendwas/submodels/abc"],
     ["PUT", "/api/projects/irgendwas/submodels/abc"],
+    ["GET", "/api/einstellungen/assistent"],
+    ["PUT", "/api/einstellungen/assistent"],
+    ["DELETE", "/api/einstellungen/assistent"],
+    ["POST", "/api/assistent/nachricht"],
   ];
 
   it.each(routen)("%s %s ohne Cookie ergibt 401", async (method, url) => {

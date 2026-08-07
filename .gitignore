@@ -6,6 +6,11 @@ coverage/
 !.env.example
 *.local
 
+# Schluessel, die beim Ausprobieren neben dem Projekt liegen. Ein `git add -A` haette
+# ai_key.txt am 06.08.2026 sonst nach GitHub getragen; der Schluessel ist echt.
+*key*.txt
+*.pem
+
 # Maschinenlokale Symlinks auf .agents/skills, von `npx skills add` angelegt
 .claude/skills/
 .DS_Store

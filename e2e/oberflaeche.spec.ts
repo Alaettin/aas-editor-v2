@@ -100,7 +100,11 @@ test.describe("Oberflaeche", () => {
     }
   });
 
-  test("der Assistent sagt, dass er nicht angebunden ist", async ({ page }) => {
+  /**
+   * Ohne hinterlegten Schluessel bleibt der Assistent stumm und sagt das auch. Die
+   * Testumgebung hat keinen, das ist hier also der reale Zustand und nicht gestellt.
+   */
+  test("der Assistent sagt, dass kein Schluessel hinterlegt ist", async ({ page }) => {
     await anmeldenUndOeffnen(page, `Assistent ${String(Date.now())}`);
 
     const vorher = (await page.locator("main").boundingBox())?.width ?? 0;
@@ -108,13 +112,256 @@ test.describe("Oberflaeche", () => {
 
     const panel = page.locator("[data-assistant]");
     await expect(panel).toBeVisible();
-    await expect(panel.getByText("Nicht verbunden")).toBeVisible();
-    await expect(panel.locator("input")).toBeDisabled();
-    await expect(panel.getByRole("button", { name: "Anwenden" })).toBeDisabled();
+    await expect(panel.locator("[data-assistant-status]")).toHaveText("Nicht verbunden");
+    await expect(panel.locator("textarea")).toBeDisabled();
 
     const nachher = (await page.locator("main").boundingBox())?.width ?? 0;
     // Verdraengen statt ueberlagern: die Sicht muss wirklich schmaler geworden sein.
     expect(nachher).toBeLessThan(vorher);
+  });
+
+  /**
+   * Und mit Schluessel arbeitet er wirklich am Modell. Der Anbieter wird abgefangen: der
+   * Lauf soll die Schleife und die Werkzeuge pruefen, nicht das Netz und nicht die Rechnung.
+   */
+  test("der Assistent legt ueber ein Werkzeug ein Element an", async ({ page }) => {
+    await page.route("**/api/einstellungen/assistent", async (route) => {
+      await route.fulfill({
+        json: {
+          gesetzt: true,
+          endung: "abcd",
+          modell: "gpt-5.6-sol",
+          modelle: [{ id: "gpt-5.6-sol", eingabe: 5, ausgabe: 30 }],
+        },
+      });
+    });
+
+    // Erste Runde: ein Werkzeugaufruf. Zweite Runde: die Antwort dazu.
+    let runde = 0;
+    await page.route("**/api/assistent/nachricht", async (route) => {
+      runde += 1;
+      const ereignisse =
+        runde === 1
+          ? [
+              {
+                art: "fertig",
+                ausgabe: [
+                  {
+                    type: "function_call",
+                    call_id: "call_1",
+                    name: "teilbaum_einfuegen",
+                    // Die Wurzel ist per Zusage des Kerns immer n0; jede andere nodeId
+                    // haenge davon ab, was in probe.json steht.
+                    arguments: JSON.stringify({
+                      elternId: "n0",
+                      slot: "submodels",
+                      json: JSON.stringify({
+                        modelType: "Submodel",
+                        id: "https://example.com/sm/e2e",
+                        idShort: "Technikdaten",
+                        submodelElements: [
+                          {
+                            modelType: "Property",
+                            idShort: "Leistung",
+                            valueType: "xs:string",
+                            value: "5 kW",
+                          },
+                        ],
+                      }),
+                    }),
+                  },
+                ],
+                verbrauch: { input_tokens: 10, output_tokens: 5 },
+              },
+            ]
+          : [
+              { art: "text", text: "Technikdaten angelegt." },
+              { art: "fertig", ausgabe: [], verbrauch: { input_tokens: 12, output_tokens: 4 } },
+            ];
+
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body: ereignisse.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""),
+      });
+    });
+
+    await anmeldenUndOeffnen(page, `Assistent Werkzeug ${String(Date.now())}`);
+    await page.keyboard.press("Control+j");
+
+    const panel = page.locator("[data-assistant]");
+    await expect(panel.locator("[data-assistant-status]")).toHaveText("gpt-5.6-sol");
+
+    await panel.locator("textarea").fill("Lege ein Teilmodell Technikdaten an");
+    await panel.locator("textarea").press("Enter");
+
+    // Die Werkzeugzeile im Verlauf, der Antworttext und der Knoten im Baum.
+    await expect(panel.getByText("Technikdaten angelegt.")).toBeVisible();
+
+    // Nach dem Lauf klappt die Schrittgruppe zu, der Zaehler bleibt.
+    await expect(panel.getByText("1 Schritt", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Technikdaten eingefuegt")).toBeHidden();
+
+    // Aufgeklappt nennt die Zeile den Namen, nicht die Klasse: "Technikdaten", nicht "Submodel".
+    await panel.getByText("1 Schritt", { exact: true }).click();
+    await expect(panel.getByText("Technikdaten eingefuegt")).toBeVisible();
+
+    // Und der Knoten steht wirklich im Modell. Ueber den Filter statt ueber die Sichtbarkeit
+    // im Baum: ein freies Teilmodell liegt in einem Ordner, der zugeklappt sein darf.
+    await page.getByRole("textbox", { name: "Filter" }).fill("Technikdaten");
+    await expect(page.getByRole("treeitem", { name: /Technikdaten/ })).toBeVisible();
+  });
+
+  /**
+   * Ein Fehlschlag darf sich nicht hinter dem Zaehler verstecken: das ist genau der Fall,
+   * in dem der Nutzer nachsehen muesste. Das Loeschen der Wurzel lehnt der Kern ab.
+   */
+  test("ein gescheiterter Schritt bleibt ohne Aufklappen sichtbar", async ({ page }) => {
+    await page.route("**/api/einstellungen/assistent", async (route) => {
+      await route.fulfill({
+        json: {
+          gesetzt: true,
+          endung: "abcd",
+          modell: "gpt-5.6-sol",
+          modelle: [{ id: "gpt-5.6-sol", eingabe: 5, ausgabe: 30 }],
+        },
+      });
+    });
+
+    let runde = 0;
+    await page.route("**/api/assistent/nachricht", async (route) => {
+      runde += 1;
+      const ereignisse =
+        runde === 1
+          ? [
+              {
+                art: "fertig",
+                ausgabe: [
+                  {
+                    type: "function_call",
+                    call_id: "call_1",
+                    name: "element_loeschen",
+                    arguments: JSON.stringify({ nodeId: "n0" }),
+                  },
+                ],
+                verbrauch: { input_tokens: 8, output_tokens: 3 },
+              },
+            ]
+          : [
+              { art: "text", text: "Das geht nicht." },
+              { art: "fertig", ausgabe: [], verbrauch: { input_tokens: 9, output_tokens: 4 } },
+            ];
+
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+        body: ereignisse.map((e) => `data: ${JSON.stringify(e)}\n\n`).join(""),
+      });
+    });
+
+    await anmeldenUndOeffnen(page, `Assistent Fehler ${String(Date.now())}`);
+    await page.keyboard.press("Control+j");
+
+    const panel = page.locator("[data-assistant]");
+    await panel.locator("textarea").fill("Loesche alles");
+    await panel.locator("textarea").press("Enter");
+
+    await expect(panel.getByText("Das geht nicht.")).toBeVisible();
+    // Ohne einen Klick auf den Zaehler.
+    await expect(panel.getByText(/nicht loeschen/)).toBeVisible();
+  });
+
+  /**
+   * Das Modell wechselt man im Kopf des Assistenten, nicht in den Einstellungen: die
+   * Entscheidung faellt waehrend des Gespraechs.
+   */
+  test("der Modellwechsel sitzt im Kopf des Assistenten", async ({ page }) => {
+    let modell = "gpt-5.6-sol";
+    await page.route("**/api/einstellungen/assistent", async (route) => {
+      if (route.request().method() === "PUT") {
+        modell = (route.request().postDataJSON() as { modell: string }).modell;
+      }
+      await route.fulfill({
+        json: {
+          gesetzt: true,
+          endung: "abcd",
+          modell,
+          modelle: [
+            { id: "gpt-5.6-sol", eingabe: 5, ausgabe: 30 },
+            { id: "gpt-5.6-luna", eingabe: 0.2, ausgabe: 1.2 },
+          ],
+        },
+      });
+    });
+
+    await anmeldenUndOeffnen(page, `Assistent Modell ${String(Date.now())}`);
+    await page.keyboard.press("Control+j");
+
+    const status = page.locator("[data-assistant] [data-assistant-status]");
+    await expect(status).toHaveText("gpt-5.6-sol");
+
+    await status.click();
+    await page.getByRole("menuitemradio", { name: /gpt-5\.6-luna/ }).click();
+
+    await expect(status).toHaveText("gpt-5.6-luna");
+    expect(modell).toBe("gpt-5.6-luna");
+  });
+
+  /**
+   * Der Schluessel: eintragen, dann steht nur noch eine Zeile mit der Maske da. Aendern
+   * klappt das Feld auf, Abbrechen wieder zu. Und das Feld ist dabei leer, weil der
+   * Server den Schluessel nicht herausgibt.
+   */
+  test("der Schluessel steht als Zeile, das Feld kommt erst beim Aendern", async ({ page }) => {
+    /*
+     * Der Endpunkt wird abgefangen, und zwar aus zwei Gruenden. Er macht den Lauf
+     * unabhaengig davon, ob auf dem Entwicklungsserver schon ein Schluessel liegt. Und
+     * vor allem: ein Test, der am Ende "Schluessel entfernen" drueckt, hat sonst den
+     * echten Schluessel des Entwicklers geloescht.
+     */
+    let hinterlegt: string | null = null;
+    await page.route("**/api/einstellungen/assistent", async (route) => {
+      const art = route.request().method();
+      if (art === "PUT") {
+        const rumpf = route.request().postDataJSON() as { schluessel?: string };
+        if (rumpf.schluessel !== undefined) hinterlegt = rumpf.schluessel;
+      }
+      if (art === "DELETE") hinterlegt = null;
+
+      await route.fulfill({
+        json: {
+          gesetzt: hinterlegt !== null,
+          endung: hinterlegt === null ? null : hinterlegt.slice(-4),
+          modell: "gpt-5.6-sol",
+          modelle: [{ id: "gpt-5.6-sol", eingabe: 5, ausgabe: 30 }],
+        },
+      });
+    });
+
+    await anmeldenUndOeffnen(page, `Schluessel ${String(Date.now())}`);
+    await page.getByRole("button", { name: "Einstellungen" }).click();
+
+    const dialog = page.getByRole("dialog");
+    const feld = dialog.getByLabel("OpenAI-Schlüssel");
+
+    // Ohne hinterlegten Schluessel steht das Feld sofort da.
+    await expect(feld).toBeVisible();
+    await feld.fill("sk-probe-0000000000000000abcd");
+    await dialog.getByRole("button", { name: "Sichern" }).click();
+
+    // Danach nur noch die Zeile mit der Maske.
+    await expect(dialog.getByText("••••abcd")).toBeVisible();
+    await expect(feld).toBeHidden();
+
+    await dialog.getByRole("button", { name: "Ändern" }).click();
+    await expect(feld).toBeVisible();
+    await expect(feld).toHaveValue("");
+
+    await dialog.getByRole("button", { name: "Abbrechen" }).click();
+    await expect(dialog.getByText("••••abcd")).toBeVisible();
+
+    await dialog.getByRole("button", { name: "Schlüssel entfernen" }).click();
+    await expect(feld).toBeVisible();
   });
 
   test("spricht auf Englisch wirklich Englisch", async ({ page }) => {

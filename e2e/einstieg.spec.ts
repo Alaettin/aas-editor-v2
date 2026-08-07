@@ -74,23 +74,22 @@ test.describe("Einstieg", () => {
     await expect(page.getByRole("button", { name: "Erste Seite" })).toBeDisabled();
   });
 
-  test("stellt die Sprache ueber die Einstellungen um", async ({ page }) => {
+  /**
+   * Der Umschalter sitzt unten in der Seitenleiste, nicht mehr in den Einstellungen: dort
+   * stand er doppelt, neben Anmeldung und Befehlspalette.
+   */
+  test("stellt die Sprache ueber die Seitenleiste um", async ({ page }) => {
     await page.goto("/projekte");
     await zeilenBereit(page);
 
-    // Der Dialog ist modal und macht die Flaeche darunter fuer Rollen unerreichbar.
-    // Zum Nachsehen, ob die Sprache wirklich umgeschaltet hat, muss er zu sein.
-    await page.getByRole("button", { name: "Einstellungen" }).click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await page.getByRole("dialog").getByRole("radio", { name: "English" }).click();
-    await page.keyboard.press("Escape");
+    // Nicht ueber die Gruppe: deren Name ist selbst uebersetzt und heisst nach dem
+    // Umschalten "Language". Die beiden Kuerzel sind auf der Seite eindeutig.
+    await page.getByRole("button", { name: "EN", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
 
     // Zurueckstellen, sonst laufen die uebrigen Pruefungen auf Englisch: die Sprache
-    // ueberdauert das Neuladen, sie liegt im selben Speicher wie Erscheinung und Dichte.
-    await page.getByRole("button", { name: "Settings" }).click();
-    await page.getByRole("dialog").getByRole("radio", { name: "Deutsch" }).click();
-    await page.keyboard.press("Escape");
+    // ueberdauert das Neuladen, sie liegt im selben Speicher wie die Dichte.
+    await page.getByRole("button", { name: "DE", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Projekte" })).toBeVisible();
   });
 

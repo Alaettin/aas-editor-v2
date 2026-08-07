@@ -5,7 +5,9 @@ import { openDatabase, type Db } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
 import type { ServerEnv } from "./env.js";
 import { registerErrorHandler } from "./errors.js";
+import { assistentRoutes } from "./routes/assistent.js";
 import { authRoutes } from "./routes/auth.js";
+import { einstellungsRoutes } from "./routes/einstellungen.js";
 import { healthRoutes } from "./routes/health.js";
 import { fileRoutes } from "./routes/files.js";
 import { projectRoutes } from "./routes/projects.js";
@@ -52,6 +54,8 @@ export async function buildServer(
   projectRoutes(app, db);
   fileRoutes(app, db, env);
   submodelRoutes(app, db);
+  einstellungsRoutes(app, db, env);
+  await assistentRoutes(app, db, env);
 
   // Zuletzt, damit keine API-Route verdeckt wird.
   if (hatFrontend) await statischeDateien(app, frontendFolder as string);
