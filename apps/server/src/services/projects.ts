@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { normalize } from "@aas-editor/core";
 import { validate } from "@aas-editor/core/validation";
 import { and, asc, count, desc, eq, gte, inArray, sql, type SQL } from "drizzle-orm";
+import type { FastifyRequest } from "fastify";
 import type { Db, Tx } from "../db/client.js";
 import {
   conceptDescriptions,
@@ -11,7 +12,7 @@ import {
   submodels,
   type ProjectRow,
 } from "../db/schema.js";
-import { badRequest, conflict, notFound } from "../errors.js";
+import { badRequest, conflict, notFound, unauthorized } from "../errors.js";
 import {
   collectFilePaths,
   joinEnvironment,
@@ -20,6 +21,18 @@ import {
   type Json,
 } from "./environment.js";
 import { MAX_LIMIT } from "./pagination.js";
+
+/**
+ * Wer fragt. Zu lesen erst **nach** `requireAuth`, das `req.benutzer` setzt.
+ *
+ * Der Wurf ist keine Formsache: faellt der Hook an einer Route einmal weg, soll sie
+ * scheitern und nicht stillschweigend die Projekte aller Nutzer zeigen.
+ */
+export function besitzer(req: FastifyRequest): string {
+  const id = req.benutzer?.id;
+  if (typeof id !== "string" || id === "") throw unauthorized();
+  return id;
+}
 
 const TABLE_FOR_SLOT = {
   assetAdministrationShells: shells,
@@ -111,11 +124,16 @@ function namensMuster(q: string): SQL {
   return sql`${projects.name} like ${muster} escape '\\'`;
 }
 
-function bedingungen(query: ProjectQuery): SQL | undefined {
-  const teile: SQL[] = [];
+/**
+ * Der Besitzer ist **keine** Filterbedingung unter anderen, er steht immer davor. Deshalb
+ * nimmt er hier den ersten Platz und ist kein optionaler Parameter: ein vergessener
+ * Besitzer soll nicht "alle Projekte" bedeuten, sondern gar nicht erst uebersetzen.
+ */
+function bedingungen(besitzer: string, query: ProjectQuery): SQL {
+  const teile: SQL[] = [eq(projects.ownerId, besitzer)];
   if (query.q !== null) teile.push(namensMuster(query.q));
   if (query.seit !== null) teile.push(gte(projects.updatedAt, query.seit));
-  return teile.length === 0 ? undefined : and(...teile);
+  return and(...teile) as SQL;
 }
 
 const SORT_SPALTE = {
@@ -134,8 +152,8 @@ const SORT_SPALTE = {
  * dafuer je Sortierung anders aussehen. Teilmodelle blaettern unveraendert ueber
  * `services/pagination.ts`.
  */
-export function listProjects(db: Db, query: ProjectQuery): ProjectPage {
-  const where = bedingungen(query);
+export function listProjects(db: Db, besitzer: string, query: ProjectQuery): ProjectPage {
+  const where = bedingungen(besitzer, query);
   const richtung = query.dir === "asc" ? asc : desc;
 
   const rows = db
@@ -155,8 +173,8 @@ export function listProjects(db: Db, query: ProjectQuery): ProjectPage {
 }
 
 /** Die Zusammenfassung eines einzelnen Projekts, samt Teilmodellzahl. */
-export function summaryOf(db: Db, id: string): ProjectSummary {
-  const row = getProject(db, id);
+export function summaryOf(db: Db, besitzer: string, id: string): ProjectSummary {
+  const row = getProject(db, besitzer, id);
   const anzahl =
     db.select({ anzahl: count() }).from(submodels).where(eq(submodels.projectId, id)).get()
       ?.anzahl ?? 0;
@@ -221,10 +239,33 @@ export function parseProjectQuery(query: Record<string, unknown>): ProjectQuery 
   };
 }
 
-export function getProject(db: Db, id: string): ProjectRow {
-  const row = db.select().from(projects).where(eq(projects.id, id)).get();
+/**
+ * Das Projekt, sofern es dem Besitzer gehoert. Der eine Wachposten: alles, was ein Projekt
+ * anfasst, kommt hier vorbei.
+ *
+ * Ein fremdes Projekt gibt denselben Fehler wie eine erfundene Kennung. Ein eigener Code
+ * ("gehoert dir nicht") waere ehrlicher, verriete aber, dass es die Kennung gibt.
+ */
+export function getProject(db: Db, besitzer: string, id: string): ProjectRow {
+  const row = db
+    .select()
+    .from(projects)
+    .where(and(eq(projects.id, id), eq(projects.ownerId, besitzer)))
+    .get();
   if (row === undefined) throw notFound("projekt-nicht-gefunden", "Project not found.");
   return row;
+}
+
+/**
+ * Uebergibt die herrenlosen Projekte an einen Besitzer und meldet, wie viele es waren.
+ *
+ * Gedacht fuer genau einen Moment: die erste Anmeldung nach der Einfuehrung der Trennung.
+ * Danach findet der Aufruf nichts mehr und kostet ein UPDATE ohne Treffer.
+ */
+export function uebernimmHerrenlose(db: Db, besitzer: string): number {
+  if (besitzer === "") return 0;
+  return db.update(projects).set({ ownerId: besitzer }).where(eq(projects.ownerId, "")).run()
+    .changes;
 }
 
 export interface SubmodelUebersicht {
@@ -241,8 +282,12 @@ export interface SubmodelUebersicht {
  * vier Zahlen und eine kurze Liste waeren das bei einem grossen Modell einige Megabyte,
  * jedes Mal, wenn jemand eine Zeile anklickt.
  */
-export function readUebersicht(db: Db, projectId: string): SubmodelUebersicht[] {
-  getProject(db, projectId);
+export function readUebersicht(
+  db: Db,
+  besitzer: string,
+  projectId: string,
+): SubmodelUebersicht[] {
+  getProject(db, besitzer, projectId);
   return db
     .select({ id: submodels.id, idShort: submodels.idShort, json: submodels.json })
     .from(submodels)
@@ -264,14 +309,16 @@ export function readUebersicht(db: Db, projectId: string): SubmodelUebersicht[] 
  * seit dem Import nie gespeichert wurden. Das Ergebnis wird mit der Fassung abgelegt, fuer
  * die es gilt: solange niemand speichert, kostet jeder weitere Abruf nichts.
  */
-export async function befundeVon(db: Db, projectId: string): Promise<number> {
-  const projekt = getProject(db, projectId);
+export async function befundeVon(db: Db, besitzer: string, projectId: string): Promise<number> {
+  const projekt = getProject(db, besitzer, projectId);
   if (projekt.issueRevision === projekt.revision && projekt.issueCount !== null) {
     return projekt.issueCount;
   }
 
   // `normalize` ist reine JSON-Arbeit ohne SDK; erst `validate` laedt die verification.
-  const model = normalize(readEnvironment(db, projectId) as Parameters<typeof normalize>[0]);
+  const model = normalize(
+    readEnvironment(db, besitzer, projectId) as Parameters<typeof normalize>[0],
+  );
   const issues = await validate(model, anhangspfade(db, projectId));
   const anzahl = issues.length;
 
@@ -318,7 +365,7 @@ function zaehleElemente(knoten: unknown): number {
   return summe;
 }
 
-export function readEnvironment(db: Db, projectId: string): Json {
+export function readEnvironment(db: Db, besitzer: string, projectId: string): Json {
   const rows = {} as Record<IdentifiableSlot, { json: string }[]>;
   for (const [slot, table] of Object.entries(TABLE_FOR_SLOT) as [
     IdentifiableSlot,
@@ -331,11 +378,12 @@ export function readEnvironment(db: Db, projectId: string): Json {
       .orderBy(asc(table.sortIndex), asc(table.rowId))
       .all();
   }
-  return joinEnvironment(getProject(db, projectId).environmentData, rows);
+  return joinEnvironment(getProject(db, besitzer, projectId).environmentData, rows);
 }
 
 export function createProject(
   db: Db,
+  besitzer: string,
   input: SaveInput & { name: string },
 ): { project: ProjectSummary; environment: Json } {
   const now = Date.now();
@@ -348,6 +396,7 @@ export function createProject(
       tx.insert(projects)
         .values({
           id,
+          ownerId: besitzer,
           name: input.name,
           metamodelVersion: input.metamodelVersion ?? "3.1",
           sourceFormat: input.sourceFormat ?? "json",
@@ -362,7 +411,10 @@ export function createProject(
     }),
   );
 
-  return { project: summaryOf(db, id), environment: readEnvironment(db, id) };
+  return {
+    project: summaryOf(db, besitzer, id),
+    environment: readEnvironment(db, besitzer, id),
+  };
 }
 
 /**
@@ -375,7 +427,7 @@ function mitNamensschutz<T>(name: string | undefined, lauf: () => T): T {
     return lauf();
   } catch (fehler) {
     const text = fehler instanceof Error ? fehler.message : "";
-    if (text.includes("uq_projects_name") || text.includes("projects.name")) {
+    if (text.includes("uq_projects_owner_name") || text.includes("projects.name")) {
       throw conflict("projektname-vergeben", `The project name "${name ?? ""}" is already taken.`, {
         name: name ?? "",
       });
@@ -392,7 +444,12 @@ function mitNamensschutz<T>(name: string | undefined, lauf: () => T): T {
  * Wegen. Das ist auf Wunsch entfallen. Der Zaehler bleibt, weil die gemerkte Befundzahl
  * (`issue_revision`) darueber ungueltig wird.
  */
-export function saveProject(db: Db, id: string, input: SaveInput): ProjectSummary {
+export function saveProject(
+  db: Db,
+  besitzer: string,
+  id: string,
+  input: SaveInput,
+): ProjectSummary {
   const now = Date.now();
   const split = splitEnvironment(input.environment);
   assertUniqueIds(split);
@@ -400,7 +457,11 @@ export function saveProject(db: Db, id: string, input: SaveInput): ProjectSummar
 
   mitNamensschutz(input.name, () =>
     db.transaction((tx) => {
-      const current = tx.select().from(projects).where(eq(projects.id, id)).get();
+      const current = tx
+        .select()
+        .from(projects)
+        .where(and(eq(projects.id, id), eq(projects.ownerId, besitzer)))
+        .get();
       if (current === undefined) throw notFound("projekt-nicht-gefunden", "Project not found.");
 
       tx.update(projects)
@@ -441,11 +502,16 @@ export function saveProject(db: Db, id: string, input: SaveInput): ProjectSummar
     }),
   );
 
-  return summaryOf(db, id);
+  return summaryOf(db, besitzer, id);
 }
 
-export function deleteProject(db: Db, id: string): void {
-  const result = db.delete(projects).where(eq(projects.id, id)).run();
+export function deleteProject(db: Db, besitzer: string, id: string): void {
+  // Der Besitzer steht im `where`, nicht in einer Pruefung davor: sonst blieben zwischen
+  // Pruefung und Loeschen zwei Anweisungen, und die zweite traefe wieder jede Zeile.
+  const result = db
+    .delete(projects)
+    .where(and(eq(projects.id, id), eq(projects.ownerId, besitzer)))
+    .run();
   if (result.changes === 0) throw notFound("projekt-nicht-gefunden", "Project not found.");
 }
 

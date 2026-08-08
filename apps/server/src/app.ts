@@ -50,7 +50,7 @@ export async function buildServer(
   await app.register(multipart, { limits: { fileSize: env.maxUploadBytes, files: 1 } });
 
   healthRoutes(app, db);
-  await authRoutes(app, env);
+  await authRoutes(app, db, env);
   projectRoutes(app, db);
   fileRoutes(app, db, env);
   submodelRoutes(app, db);

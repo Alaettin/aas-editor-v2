@@ -5,7 +5,7 @@ import type { Db } from "../db/client.js";
 import { projects as projectsTable, submodels } from "../db/schema.js";
 import { badRequest, notFound } from "../errors.js";
 import { parsePageQuery, toPage, type Cursor } from "../services/pagination.js";
-import { getProject } from "../services/projects.js";
+import { besitzer, getProject } from "../services/projects.js";
 
 /**
  * Einzelne Submodels unter ihrer base64url-kodierten `id`, in der Form von IDTA-01002.
@@ -31,7 +31,9 @@ export function submodelRoutes(app: FastifyInstance, db: Db): void {
 
     scope.get("/api/projects/:id/submodels", (req) => {
       const { id } = req.params as { id: string };
-      getProject(db, id);
+      // Der Wachposten steht vor jeder Abfrage: die Teilmodelle haengen am Projekt, und
+      // ein fremdes Projekt darf hier keine einzige Zeile herausgeben.
+      getProject(db, besitzer(req), id);
       const page = parsePageQuery(req.query as { limit?: unknown; cursor?: unknown });
 
       // Sortiert nach der fachlichen id, so wie das spaetere Repository blaettert.
@@ -60,7 +62,7 @@ export function submodelRoutes(app: FastifyInstance, db: Db): void {
 
     scope.get("/api/projects/:id/submodels/:encodedId", (req) => {
       const { id, encodedId } = req.params as { id: string; encodedId: string };
-      getProject(db, id);
+      getProject(db, besitzer(req), id);
       const row = db
         .select({ json: submodels.json })
         .from(submodels)
@@ -72,7 +74,7 @@ export function submodelRoutes(app: FastifyInstance, db: Db): void {
 
     scope.put("/api/projects/:id/submodels/:encodedId", (req) => {
       const { id, encodedId } = req.params as { id: string; encodedId: string };
-      const project = getProject(db, id);
+      const project = getProject(db, besitzer(req), id);
       const submodelId = decode(encodedId);
 
       const body = req.body as Record<string, unknown> | undefined;

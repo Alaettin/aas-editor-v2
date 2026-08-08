@@ -16,7 +16,8 @@ import {
  * einzelnes Submodel unter seiner id ausliefern (IDTA-01002), ohne die Persistenz neu
  * zu schreiben.
  *
- * Keine `users`-Tabelle: die Anmeldung kommt aus der .env (Plan Abschnitt 9).
+ * Keine `users`-Tabelle: die Identitaet kommt aus der Sitzung, im Betrieb vom Hub. Ein
+ * Projekt haelt deshalb nur die Kennung seines Besitzers, keinen Verweis auf eine Zeile.
  * Zeitstempel durchgaengig als Millisekunden, damit DB und JSON dieselbe Zahl fuehren.
  */
 
@@ -24,6 +25,16 @@ export const projects = sqliteTable(
   "projects",
   {
     id: text("id").primaryKey(),
+    /**
+     * Wem das Projekt gehoert: die Kennung aus der Sitzung, also der `sub` des Hubs oder
+     * `einzelbenutzer` im Passwortmodus.
+     *
+     * Der leere Text heisst **herrenlos** und steht fuer die Projekte aus der Zeit vor der
+     * Trennung (08.08.2026); der erste Nutzer, der sich danach anmeldet, uebernimmt sie.
+     * Bewusst nicht `null`: in SQLite ist jedes `null` in einem Unique-Index von jedem
+     * anderen verschieden, damit haetten herrenlose Projekte die Namensregel unterlaufen.
+     */
+    ownerId: text("owner_id").notNull().default(""),
     name: text("name").notNull(),
     metamodelVersion: text("metamodel_version").notNull().default("3.1"),
     sourceFormat: text("source_format").notNull().default("json"),
@@ -53,12 +64,17 @@ export const projects = sqliteTable(
   },
   (t) => [
     index("idx_projects_created").on(t.createdAt, t.id),
+    /** Die Liste des Einstiegs laeuft immer ueber den Besitzer. */
+    index("idx_projects_owner").on(t.ownerId, t.updatedAt, t.id),
     /**
      * Der Name ist die einzige Kennung, die ein Mensch im Einstieg sieht. Zwei Projekte
      * gleichen Namens sind dort nicht auseinanderzuhalten, deshalb steht die
      * Eindeutigkeit in der Datenbank und nicht nur im Dialog.
+     *
+     * Je Besitzer, nicht mehr global: sonst blockierte ein fremdes Projekt den eigenen
+     * Namen und verriete dabei, dass es das fremde gibt.
      */
-    uniqueIndex("uq_projects_name").on(t.name),
+    uniqueIndex("uq_projects_owner_name").on(t.ownerId, t.name),
   ],
 );
 

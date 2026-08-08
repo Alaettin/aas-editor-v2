@@ -1,9 +1,11 @@
 import rateLimit from "@fastify/rate-limit";
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from "fastify";
+import type { Db } from "../db/client.js";
 import type { ServerEnv } from "../env.js";
 import { anmeldungFalsch, badRequest, unauthorized } from "../errors.js";
 import { clearSession, issueSession } from "../auth/session.js";
 import { gleich, OidcFehler } from "../auth/oidc.js";
+import { uebernimmHerrenlose } from "../services/projects.js";
 
 interface LoginBody {
   benutzer?: unknown;
@@ -46,7 +48,21 @@ function setzeAnlauf(reply: FastifyReply, anlauf: Anlauf, env: ServerEnv): void 
   );
 }
 
-export async function authRoutes(app: FastifyInstance, env: ServerEnv): Promise<void> {
+/**
+ * Die Projekte aus der Zeit vor der Besitzertrennung (08.08.2026) tragen keinen Besitzer.
+ * Der erste, der sich danach anmeldet, uebernimmt sie. Ein zweiter Aufruf findet nichts
+ * mehr, die Uebernahme ist damit von selbst einmalig.
+ */
+function uebernimmBestand(db: Db, benutzerId: string, log: FastifyBaseLogger): void {
+  const anzahl = uebernimmHerrenlose(db, benutzerId);
+  if (anzahl > 0) log.info({ benutzer: benutzerId, anzahl }, "Herrenlose Projekte uebernommen");
+}
+
+export async function authRoutes(
+  app: FastifyInstance,
+  db: Db,
+  env: ServerEnv,
+): Promise<void> {
   // Nur an diesen Routen, nicht global: die Ratenbegrenzung soll Anmeldeversuche bremsen,
   // nicht das Blaettern in der Projektliste.
   await app.register(rateLimit, { global: false });
@@ -81,6 +97,7 @@ export async function authRoutes(app: FastifyInstance, env: ServerEnv): Promise<
       }
 
       issueSession(reply, { sub: user.id, name: user.name, exp: Date.now() + env.sessionTtlMs }, env);
+      uebernimmBestand(db, user.id, req.log);
       return { benutzer: user };
     },
   );
@@ -153,6 +170,7 @@ export async function authRoutes(app: FastifyInstance, env: ServerEnv): Promise<
           { sub: benutzer.id, name: benutzer.name, exp: Date.now() + env.sessionTtlMs },
           env,
         );
+        uebernimmBestand(db, benutzer.id, req.log);
         return await reply.redirect("/projekte", 302);
       } catch (ursache) {
         // Der Grund gehoert ins Protokoll, nicht in die Adresszeile: er nennt mitunter

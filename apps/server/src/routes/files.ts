@@ -3,7 +3,7 @@ import type { Db } from "../db/client.js";
 import type { ServerEnv } from "../env.js";
 import { badRequest } from "../errors.js";
 import { deleteFile, listFiles, readFile, storeFile } from "../services/files.js";
-import { getProject } from "../services/projects.js";
+import { besitzer, getProject } from "../services/projects.js";
 
 export function fileRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
   app.register((scope, _opts, done) => {
@@ -11,13 +11,13 @@ export function fileRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
 
     scope.get("/api/projects/:id/files", (req) => {
       const { id } = req.params as { id: string };
-      getProject(db, id);
+      getProject(db, besitzer(req), id);
       return { items: listFiles(db, id) };
     });
 
     scope.post("/api/projects/:id/files", async (req, reply) => {
       const { id } = req.params as { id: string };
-      getProject(db, id);
+      getProject(db, besitzer(req), id);
 
       const part = await req.file();
       if (part === undefined) throw badRequest("datei-fehlt", "A file is required.");
@@ -44,6 +44,9 @@ export function fileRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
 
     scope.get("/api/projects/:id/files/:fileId", (req, reply) => {
       const { id, fileId } = req.params as { id: string; fileId: string };
+      // Ohne diesen Aufruf pruefte hier nur die Datei gegen ihr Projekt, nicht das Projekt
+      // gegen seinen Besitzer: wer eine Anhangskennung kennt, laedt sonst fremde Bytes.
+      getProject(db, besitzer(req), id);
       const { info, bytes } = readFile(db, env, id, fileId);
       void reply.header("content-type", info.contentType);
       void reply.header("content-length", String(info.size));
@@ -52,6 +55,7 @@ export function fileRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
 
     scope.delete("/api/projects/:id/files/:fileId", (req, reply) => {
       const { id, fileId } = req.params as { id: string; fileId: string };
+      getProject(db, besitzer(req), id);
       deleteFile(db, id, fileId);
       void reply.code(204);
       return null;
