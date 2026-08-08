@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 
-import { Datenband } from "@/components/Keyvisual/Datenband";
 import { DeleteProjectDialog } from "@/components/Projects/DeleteProjectDialog";
 import { Detailleiste } from "@/components/Projects/Detailleiste";
-import { EinstellungenDialog } from "@/components/Projects/EinstellungenDialog";
 import { ExportProjectDialog } from "@/components/Projects/ExportProjectDialog";
 import { Kopfzeile } from "@/components/Projects/Kopfzeile";
 import { NewProjectDialog } from "@/components/Projects/NewProjectDialog";
 import { Projektliste } from "@/components/Projects/Projektliste";
-import { Seitenleiste } from "@/components/Projects/Seitenleiste";
+import { SettingsDialog } from "@/components/Shell/SettingsDialog";
+import { Titelzeile } from "@/components/Shell/Titelzeile";
 import { useProjects } from "@/store/projects";
 
 /**
@@ -19,9 +18,10 @@ import { useProjects } from "@/store/projects";
  * erst beim Oeffnen eines Projekts geladen. Auch der Export der Liste haelt sich daran, er
  * laedt den Kern ueber einen dynamischen Import (siehe `lib/projektExport.ts`).
  *
- * Die Route traegt `szene-axon` wie die Anmeldung. Damit ist sie eine Markenflaeche und
- * folgt bewusst **nicht** der hellen oder dunklen Erscheinung des Editors: zwischen
- * Anmeldung und Einstieg soll kein Bruch stehen.
+ * Bis zum 08.08.2026 war die Route eine eigene Markenflaeche (`szene-axon`) mit linker
+ * Leiste, eigenen Knoepfen und eigenen Dialogen. Sie traegt jetzt denselben Rahmen wie der
+ * Editor: Kopfleiste mit Marke und Konto, darunter die Arbeitszeile, dann Liste und Detail.
+ * Auch der Einstellungsdialog ist derselbe.
  */
 export function ProjectsRoute() {
   const navigate = useNavigate();
@@ -37,20 +37,17 @@ export function ProjectsRoute() {
   }, [laden]);
 
   return (
-    <main
-      className="szene-axon relative flex h-screen overflow-hidden"
-      style={{ background: "var(--axon-buehne)" }}
-    >
-      <Datenband />
+    <main className="flex h-screen flex-col overflow-hidden bg-background">
+      <Titelzeile onEinstellungen={() => setEinstellungenOffen(true)} />
 
-      <Seitenleiste onEinstellungen={() => setEinstellungenOffen(true)} />
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Kopfzeile onNeu={() => setNeuOffen(true)} />
+          <Projektliste />
+        </div>
 
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <Kopfzeile onNeu={() => setNeuOffen(true)} />
-        <Projektliste />
+        <Detailleiste onExport={setZuExportieren} onLoeschen={setZuLoeschen} />
       </div>
-
-      <Detailleiste onExport={setZuExportieren} onLoeschen={setZuLoeschen} />
 
       <NewProjectDialog
         offen={neuOffen}
@@ -59,10 +56,7 @@ export function ProjectsRoute() {
       />
       <ExportProjectDialog projekt={zuExportieren} onClose={() => setZuExportieren(null)} />
       <DeleteProjectDialog projekt={zuLoeschen} onClose={() => setZuLoeschen(null)} />
-      <EinstellungenDialog
-        offen={einstellungenOffen}
-        onClose={() => setEinstellungenOffen(false)}
-      />
+      <SettingsDialog offen={einstellungenOffen} onClose={() => setEinstellungenOffen(false)} />
     </main>
   );
 }

@@ -15,21 +15,20 @@ import { anwenden, useAnsicht } from "@/store/ansicht";
  * einen Routenwechsel ueberleben, etwa beim Anlegen eines Projekts, das gleich in den
  * Editor springt.
  *
- * Erscheinung, Dichte und Sprache werden hier angewandt, nicht im Editor-Rahmen. Sonst
- * gaelten sie nur dort, und die Projektliste waere immer hell und immer deutsch.
+ * Die Sprache wird hier angewandt, nicht im Editor-Rahmen. Sonst gaelte sie nur dort, und
+ * die Projektliste waere immer deutsch.
  *
  * Der Sprachwechsel steht hier und nicht im Speicher: `store/ansicht.ts` haengt an nichts,
  * damit `i18n/index.ts` beim Start die abgelegte Sprache lesen kann, ohne einen Kreis zu
  * bilden.
  */
 export function App() {
-  const density = useAnsicht((state) => state.density);
   const language = useAnsicht((state) => state.language);
 
   useEffect(() => {
-    anwenden({ density, language });
+    anwenden({ language });
     if (i18n.language !== language) void i18n.changeLanguage(language);
-  }, [density, language]);
+  }, [language]);
 
   return (
     <TooltipProvider delayDuration={400}>

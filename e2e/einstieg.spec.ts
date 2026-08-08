@@ -45,16 +45,15 @@ test.describe("Einstieg", () => {
     await expect(page.locator("[data-projekt]")).toHaveCount(1, { timeout: 10000 });
     await expect(page.getByText(/1–1 von 1|1–1 of 1/)).toBeVisible();
 
-    // Suche und Zeitraum greifen zusammen, beide im Server. Beide Projekte sind eben
-    // angelegt worden, "Heute" darf sie also nicht aussortieren.
     // Die Marke steht am Ende beider Namen, nicht am Anfang: gesucht wird nach ihr allein.
+    // Der Zeitraumfilter ist am 08.08.2026 mit der linken Leiste entfallen, die Suche ist
+    // der einzige Filter geblieben.
     await page.getByRole("searchbox").fill(marke);
     await expect(page.locator("[data-projekt]")).toHaveCount(2, { timeout: 10000 });
-    await page.getByRole("radio", { name: "Heute" }).click();
     await expect(page.getByText(/1–2 von 2|1–2 of 2/)).toBeVisible({ timeout: 10000 });
 
-    await page.getByRole("button", { name: "Zurücksetzen" }).first().click();
-    await expect(page.locator("[data-projekt]")).toHaveCount(2, { timeout: 10000 });
+    await page.getByRole("searchbox").fill("");
+    await expect(page.getByText(/1–\d+ von|1–\d+ of/)).toBeVisible({ timeout: 10000 });
   });
 
   test("springt ueber die Doppelpfeile auf die erste und letzte Seite", async ({ page }) => {
@@ -75,21 +74,24 @@ test.describe("Einstieg", () => {
   });
 
   /**
-   * Der Umschalter sitzt unten in der Seitenleiste, nicht mehr in den Einstellungen: dort
-   * stand er doppelt, neben Anmeldung und Befehlspalette.
+   * Der Umschalter sitzt seit dem 08.08.2026 in der Titelzeile, auf dem Einstieg wie im
+   * Editor. Er zeigt die **geltende** Sprache und nennt im Namen die Zielsprache.
    */
-  test("stellt die Sprache ueber die Seitenleiste um", async ({ page }) => {
+  test("stellt die Sprache ueber die Titelzeile um", async ({ page }) => {
     await page.goto("/projekte");
     await zeilenBereit(page);
 
-    // Nicht ueber die Gruppe: deren Name ist selbst uebersetzt und heisst nach dem
-    // Umschalten "Language". Die beiden Kuerzel sind auf der Seite eindeutig.
-    await page.getByRole("button", { name: "EN", exact: true }).click();
+    const knopf = page.getByRole("button", { name: /English|Deutsch/ });
+    // Der Knopf traegt das Kuerzel der geltenden Sprache, nicht beide nebeneinander.
+    await expect(knopf).toHaveText("DE");
+
+    await knopf.click();
     await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /English|Deutsch/ })).toHaveText("EN");
 
     // Zurueckstellen, sonst laufen die uebrigen Pruefungen auf Englisch: die Sprache
-    // ueberdauert das Neuladen, sie liegt im selben Speicher wie die Dichte.
-    await page.getByRole("button", { name: "DE", exact: true }).click();
+    // ueberdauert das Neuladen.
+    await page.getByRole("button", { name: /English|Deutsch/ }).click();
     await expect(page.getByRole("heading", { name: "Projekte" })).toBeVisible();
   });
 
@@ -149,7 +151,9 @@ test.describe("Einstieg", () => {
     expect(datei.suggestedFilename()).toBe(`${name}.xml`);
   });
 
-  test("zeichnet das Datenband, ohne Konsolenfehler", async ({ page }) => {
+  test("traegt keine Hintergrundanimation, ohne Konsolenfehler", async ({ page }) => {
+    // Das Datenband ist am 08.08. aus Einstieg und Editor entfernt worden. Der Einstieg
+    // zeigt nur noch den Verlauf, also darf hier kein Canvas mehr stehen.
     const fehler: string[] = [];
     page.on("pageerror", (e) => fehler.push(e.message));
     page.on("console", (m) => {
@@ -159,42 +163,9 @@ test.describe("Einstieg", () => {
     });
 
     await page.goto("/projekte");
-    await expect(page.locator("canvas")).toBeVisible();
-    await page.waitForTimeout(700);
+    await page.getByRole("button", { name: "Neues Projekt" }).first().waitFor();
 
-    const gemalt = await page.evaluate(() => {
-      const flaeche = document.querySelector("canvas");
-      const ctx = flaeche?.getContext("2d");
-      if (!flaeche || !ctx) return false;
-      // Irgendein Pixel muss eine Deckkraft ueber null tragen, sonst lief die Schleife nie.
-      const daten = ctx.getImageData(0, 0, flaeche.width, flaeche.height).data;
-      for (let i = 3; i < daten.length; i += 4) if (daten[i]! > 0) return true;
-      return false;
-    });
-
-    expect(gemalt).toBe(true);
+    await expect(page.locator("canvas")).toHaveCount(0);
     expect(fehler).toEqual([]);
-  });
-
-  test("steht bei reduzierter Bewegung still", async ({ browser }) => {
-    // Der Block in tokens.css daempft nur CSS-Dauern. Eine rAF-Schleife muss selbst
-    // nachsehen, sonst laeuft sie genau bei denen weiter, die sie abbestellt haben.
-    const kontext = await browser.newContext({
-      reducedMotion: "reduce",
-      storageState: "e2e/.auth/sitzung.json",
-    });
-    const seite = await kontext.newPage();
-    await seite.goto("/projekte");
-    await seite.waitForTimeout(500);
-
-    const erst = await seite.evaluate(() => document.querySelector("canvas")?.toDataURL());
-    await seite.waitForTimeout(600);
-    const dann = await seite.evaluate(() => document.querySelector("canvas")?.toDataURL());
-
-    expect(erst).toBeDefined();
-    expect(erst!.length).toBeGreaterThan(2000);
-    expect(dann).toBe(erst);
-
-    await kontext.close();
   });
 });

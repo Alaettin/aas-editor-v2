@@ -5,8 +5,6 @@ import {
   FolderOpen,
   ListTree,
   Redo2,
-  Rows2,
-  Rows3,
   Languages,
   ShieldAlert,
   Workflow,
@@ -55,8 +53,6 @@ export function CommandPalette() {
   const exportAs = useEditor((state) => state.exportAs);
   const undo = useEditor((state) => state.undo);
   const redo = useEditor((state) => state.redo);
-  const density = useAnsicht((state) => state.density);
-  const setDensity = useAnsicht((state) => state.setDensity);
   const language = useAnsicht((state) => state.language);
   const setLanguage = useAnsicht((state) => state.setLanguage);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
@@ -212,14 +208,6 @@ export function CommandPalette() {
             >
               <ShieldAlert />
               {issuePanelOpen ? t("palette.panelZu") : t("palette.panelAuf")}
-            </CommandItem>
-
-            <CommandItem
-              value={stichwort("dichte")}
-              onSelect={() => ausfuehren(() => setDensity(density === "cozy" ? "compact" : "cozy"))}
-            >
-              {density === "cozy" ? <Rows3 /> : <Rows2 />}
-              {density === "cozy" ? t("app.dichteKompakt") : t("app.dichteKomfortabel")}
             </CommandItem>
 
             <CommandItem

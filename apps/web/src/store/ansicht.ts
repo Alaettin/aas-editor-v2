@@ -1,16 +1,17 @@
 import { create } from "zustand";
 
 /**
- * Dichte und Sprache, getrennt vom Editor.
+ * Die Sprache, getrennt vom Editor.
  *
- * Bis Phase 9 lagen sie in `store/editor.ts`, und nur `AppShell` schrieb sie an das
+ * Bis Phase 9 lag sie in `store/editor.ts`, und nur `AppShell` schrieb sie an das
  * Wurzelelement. Wer direkt auf `/projekte` einstieg, bekam sie deshalb nie zu sehen: die
  * Liste importiert bewusst nichts aus dem Editor-Speicher, damit der Editor nicht im
  * Startbundle landet.
  *
- * **Die Erscheinung stand bis zum 06.08.2026 hier mit drin.** Seit die Anwendung
- * durchgaengig auf der AXON-Flaeche steht, gibt es nur noch eine, und damit nichts mehr
- * umzuschalten.
+ * **Die Erscheinung stand bis zum 06.08.2026 hier mit drin**, seit die Anwendung
+ * durchgaengig auf der AXON-Flaeche steht, gibt es nur noch eine. **Die Dichte stand bis
+ * zum 08.08.2026 hier**, sie liegt jetzt fest auf kompakt und wird in `tokens.css`
+ * gesetzt.
  *
  * Dieser Speicher ist winzig, haengt an **nichts** und darf deshalb ueberall gelesen
  * werden, auch von `i18n/index.ts`. Umgekehrt importiert er i18next bewusst nicht: das
@@ -18,23 +19,20 @@ import { create } from "zustand";
  * loest deshalb das Wurzelbauteil aus, siehe `App.tsx`.
  *
  * Geschrieben wird zusaetzlich in den lokalen Speicher, und `index.html` liest ihn vor
- * dem ersten Bild. Ohne das springt die Dichte bei jedem Laden kurz, und die Seite traege
- * einen Wimpernschlag lang die falsche Sprachauszeichnung.
+ * dem ersten Bild. Ohne das traege die Seite einen Wimpernschlag lang die falsche
+ * Sprachauszeichnung.
  */
 
-export type Density = "compact" | "cozy";
 export type Language = "de" | "en";
 
 /** Der Schluessel steht auch im Vorabskript in index.html. Aendert er sich, dort mit. */
 export const ANSICHT_SCHLUESSEL = "aas-editor-ansicht";
 
 export interface Ansicht {
-  density: Density;
   language: Language;
 }
 
 interface AnsichtState extends Ansicht {
-  setDensity: (density: Density) => void;
   setLanguage: (language: Language) => void;
 }
 
@@ -45,17 +43,13 @@ function gelesen(): Ansicht {
     typeof navigator === "object" && navigator.language.toLowerCase().startsWith("en")
       ? "en"
       : "de";
-  const vorgabe: Ansicht = {
-    density: "cozy",
-    language: spracheVorgabe,
-  };
+  const vorgabe: Ansicht = { language: spracheVorgabe };
 
   try {
     const roh = localStorage.getItem(ANSICHT_SCHLUESSEL);
     if (!roh) return vorgabe;
     const wert = JSON.parse(roh) as Partial<Ansicht>;
     return {
-      density: wert.density === "compact" ? "compact" : "cozy",
       // Nur ein abgelegter Wert ueberschreibt die Systemsprache. Ein leeres oder
       // unbekanntes Feld heisst "nie gewaehlt", nicht "Deutsch".
       language: wert.language === "de" || wert.language === "en" ? wert.language : vorgabe.language,
@@ -68,39 +62,28 @@ function gelesen(): Ansicht {
 
 function abgelegt(ansicht: Ansicht): void {
   try {
-    localStorage.setItem(
-      ANSICHT_SCHLUESSEL,
-      JSON.stringify({
-        density: ansicht.density,
-        language: ansicht.language,
-      }),
-    );
+    localStorage.setItem(ANSICHT_SCHLUESSEL, JSON.stringify({ language: ansicht.language }));
   } catch {
     // siehe oben
   }
 }
 
-export const useAnsicht = create<AnsichtState>()((set, get) => ({
+export const useAnsicht = create<AnsichtState>()((set) => ({
   ...gelesen(),
-  setDensity: (density) => {
-    set({ density });
-    abgelegt({ ...get(), density });
-  },
   setLanguage: (language) => {
     set({ language });
-    abgelegt({ ...get(), language });
+    abgelegt({ language });
   },
 }));
 
 /**
- * Schreibt Dichte und Sprache an das Wurzelelement.
+ * Schreibt die Sprache an das Wurzelelement.
  * Genau eine Stelle, und sie haengt ueber dem Router.
  *
  * `documentElement.lang` ist nicht Zierrat: davon haengt ab, wie ein Bildschirmleser die
  * Seite ausspricht und welche Trennregeln der Browser anwendet.
  */
-export function anwenden({ density, language }: Ansicht): void {
-  document.documentElement.dataset["density"] = density;
+export function anwenden({ language }: Ansicht): void {
   document.documentElement.lang = language;
 }
 

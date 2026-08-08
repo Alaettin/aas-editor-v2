@@ -38,7 +38,6 @@ export function AssistentEinstellungAbschnitt() {
   return (
     <div className="flex flex-col gap-2">
       <SectionLabel>{t("assistentEinstellung.titel")}</SectionLabel>
-      <p className="text-2xs text-foreground-faint">{t("assistentEinstellung.beschreibung")}</p>
 
       {offen ? (
         <div className="flex gap-2">

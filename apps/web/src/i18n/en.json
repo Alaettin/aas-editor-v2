@@ -5,11 +5,9 @@
     "exportieren": "Export",
     "rueckgaengig": "Undo",
     "wiederholen": "Redo",
-    "dichte": "Density",
-    "dichteKompakt": "Compact",
-    "dichteKomfortabel": "Comfortable",
     "deutsch": "Deutsch",
     "englisch": "English",
+    "spracheWechseln": "Switch language to {{sprache}}",
     "palette": "Command palette ({{tasten}})",
     "zumInhalt": "Skip to content"
   },
@@ -283,7 +281,6 @@
       "rueckgaengig": "undo back",
       "wiederholen": "redo forward",
       "befunde": "findings panel errors warnings",
-      "dichte": "density compact comfortable",
       "sprache": "language german english deutsch"
     }
   },
@@ -342,9 +339,6 @@
     "anmelden": "Sign in",
     "laeuft": "Checking ...",
     "abmelden": "Sign out",
-    "titel": "AXON Editor",
-    "sprache": "Language",
-    "marke": "Neoception, Pepperl+Fuchs",
     "ueberHub": "Sign in with AXON Studio",
     "hubHinweis": "Sign-in goes through AXON Studio. You will be taken there and returned here afterwards.",
     "hubFehler": {
@@ -360,10 +354,6 @@
   },
   "projekte": {
     "titel": "Projects",
-    "arbeitsbereich": "Workspace",
-    "marke": "AXON Editor",
-    "navProjekte": "Projects",
-    "navRepository": "Repository",
     "suche": "Search projects",
     "neu": "New project",
     "neuTitel": "New project",
@@ -380,12 +370,6 @@
     "leerText": "Create a new project or take over an AAS file.",
     "keineTreffer": "No project matches the search and filters.",
     "filterLeeren": "Reset filters",
-    "filterZeitraum": "Period",
-    "zeitAlle": "Any time",
-    "zeitHeute": "Today",
-    "zeitWoche": "This week",
-    "zeitMonat": "This month",
-    "zuruecksetzen": "Reset",
     "spalteProjekt": "Project",
     "spalteElemente": "Elements",
     "spalteSubmodelle": "Submodels",
@@ -419,9 +403,7 @@
     "sortiertAuf": "Sorted by {{spalte}}, ascending",
     "sortiertAb": "Sorted by {{spalte}}, descending",
     "befunde": "Findings",
-    "einstellungen": "Settings",
-    "einstellungenHinweis": "Appearance and density apply to the editor, not to this screen.",
-    "schliessen": "Close",
+    "konto": "Account",
     "seiteErste": "First page",
     "seiteLetzte": "Last page"
   },
@@ -445,9 +427,6 @@
   },
   "explorer": {
     "titel": "Explorer"
-  },
-  "einstellungen": {
-    "text": "Appearance, density and language. Everything else lives in the menu bar."
   },
   "hilfe": {
     "palette": "Open the command palette",
@@ -491,7 +470,6 @@
   },
   "assistentEinstellung": {
     "titel": "Assistant",
-    "beschreibung": "The assistant runs on the OpenAI API. The key stays on the server and is stored encrypted.",
     "schluessel": "OpenAI key",
     "schluesselPlatzhalter": "Paste the key",
     "preis": "${{eingabe}} / ${{ausgabe}} per million tokens",

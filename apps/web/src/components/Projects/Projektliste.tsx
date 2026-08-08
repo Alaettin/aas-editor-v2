@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import type { SortFeld } from "@/api/projects";
+import { Button } from "@/components/ui/button";
 import { PRO_SEITE, useProjects } from "@/store/projects";
 
 /**
@@ -18,6 +19,9 @@ import { PRO_SEITE, useProjects } from "@/store/projects";
  * Auswahl und Oeffnen sind getrennt: ein Klick fuellt das Detailpanel rechts, ein
  * Doppelklick oder der Knopf "Oeffnen" geht in den Editor. Wer die Liste nur durchsieht,
  * soll nicht bei jedem Klick den Editor laden.
+ *
+ * Seit dem 08.08.2026 in der Erscheinung des Editors: Sortierkoepfe und Blaetterschalter
+ * sind `ui/button.tsx`, die Farben kommen aus der Rampe des Editors.
  */
 
 interface Spalte {
@@ -43,16 +47,10 @@ const SPALTEN: readonly Spalte[] = [
  */
 const RASTER = "grid grid-cols-[2.6fr_1fr_1.2fr_1.9fr] items-center gap-3";
 
-/** Die vier gleich aussehenden Schalter der Blaetterleiste. */
-const SCHALTER =
-  "flex size-(--h-einstiegsschalter) items-center justify-center border border-axon-feld-rand " +
-  "text-axon-schrift-leise transition-colors duration-(--duration-quick) hover:border-axon-fokus " +
-  "hover:text-axon-schrift disabled:pointer-events-none disabled:opacity-40";
-
 const FORMAT_FARBE: Record<string, string> = {
-  json: "var(--axon-format-json)",
-  xml: "var(--axon-format-xml)",
-  aasx: "var(--axon-format-aasx)",
+  json: "var(--type-aas)",
+  xml: "var(--type-cd)",
+  aasx: "var(--type-sm)",
 };
 
 export function Projektliste() {
@@ -90,12 +88,13 @@ export function Projektliste() {
           statt `aria-sort` der Name der Schaltflaeche.
         */}
         <div
-          className={`${RASTER} min-w-(--min-w-einstiegstabelle) border-b border-axon-linie-fein px-8.5 py-3.5`}
+          className={`${RASTER} min-w-(--min-w-einstiegstabelle) border-b border-border px-4 py-2`}
         >
           {SPALTEN.map((spalte) => (
-            <button
+            <Button
               key={spalte.feld}
-              type="button"
+              variant="ghost"
+              size="xs"
               onClick={() => sortiereNach(spalte.feld)}
               aria-pressed={sort === spalte.feld}
               aria-label={
@@ -106,36 +105,36 @@ export function Projektliste() {
                   : t("projekte.sortierenNach", { spalte: t(spalte.schluessel) })
               }
               className={
-                "flex min-w-0 items-center gap-1 truncate font-mono text-3xs tracking-(--tracking-etikett) uppercase transition-colors duration-(--duration-quick) hover:text-axon-schrift " +
-                (sort === spalte.feld ? "text-axon-schrift" : "text-axon-schrift-still") +
-                (spalte.rechts ? " justify-end" : "")
+                "min-w-0 font-mono text-3xs tracking-(--tracking-etikett) uppercase " +
+                (sort === spalte.feld ? "text-foreground" : "text-mono-foreground") +
+                (spalte.rechts ? " justify-end" : " justify-start")
               }
             >
-              {t(spalte.schluessel)}
+              <span className="truncate">{t(spalte.schluessel)}</span>
               {sort === spalte.feld ? (
                 dir === "asc" ? (
-                  <ChevronUp aria-hidden className="size-3" />
+                  <ChevronUp aria-hidden />
                 ) : (
-                  <ChevronDown aria-hidden className="size-3" />
+                  <ChevronDown aria-hidden />
                 )
               ) : null}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="min-h-0 min-w-(--min-w-einstiegstabelle) flex-1 overflow-y-auto">
           {fehler ? (
-            <p role="alert" className="px-8.5 py-6 text-sm text-axon-fehler">
+            <p role="alert" className="px-4 py-6 text-sm text-destructive">
               {fehler}
             </p>
           ) : null}
 
           {status === "bereit" && projekte.length === 0 ? (
-            <div className="flex flex-col items-center gap-1.5 px-8.5 py-16 text-center">
-              <p className="text-md text-axon-schrift">
+            <div className="flex flex-col items-center gap-1.5 px-4 py-16 text-center">
+              <p className="text-md text-foreground">
                 {total === 0 ? t("projekte.leerTitel") : t("projekte.keineTreffer")}
               </p>
-              <p className="text-sm text-axon-schrift-still">
+              <p className="text-sm text-foreground-faint">
                 {total === 0 ? t("projekte.leerText") : t("projekte.filterLeeren")}
               </p>
             </div>
@@ -158,8 +157,10 @@ export function Projektliste() {
                 }
               }}
               className={
-                `${RASTER} cursor-pointer border-b border-axon-linie-fein px-8.5 py-3.75 transition-colors duration-(--duration-quick) ` +
-                (auswahlId === projekt.id ? "bg-axon-zeile-aktiv" : "hover:bg-axon-zeile-hover")
+                `${RASTER} cursor-pointer border-b border-border-row px-4 py-2.5 transition-colors duration-(--duration-quick) ` +
+                (auswahlId === projekt.id
+                  ? "bg-selected text-selected-foreground"
+                  : "hover:bg-muted")
               }
             >
               <div className="flex min-w-0 items-center gap-3">
@@ -174,27 +175,18 @@ export function Projektliste() {
                   title={projekt.sourceFormat.toUpperCase()}
                   className="size-1.5 shrink-0 rounded-full"
                   style={{
-                    background: FORMAT_FARBE[projekt.sourceFormat] ?? "var(--axon-schrift-fein)",
+                    background: FORMAT_FARBE[projekt.sourceFormat] ?? "var(--foreground-faint)",
                   }}
                 />
-                <span className="truncate text-sm text-axon-schrift">{projekt.name}</span>
+                <span className="truncate text-base">{projekt.name}</span>
               </div>
-              <span
-                className="truncate text-right font-mono text-2xs text-axon-schrift-leise"
-                data-numeric
-              >
+              <span className="truncate text-right font-mono text-2xs text-mono-foreground" data-numeric>
                 {projekt.nodeCount}
               </span>
-              <span
-                className="truncate text-right font-mono text-2xs text-axon-schrift-leise"
-                data-numeric
-              >
+              <span className="truncate text-right font-mono text-2xs text-mono-foreground" data-numeric>
                 {projekt.submodelCount}
               </span>
-              <span
-                className="truncate text-right font-mono text-2xs text-axon-schrift-still"
-                data-numeric
-              >
+              <span className="truncate text-right font-mono text-2xs text-foreground-faint" data-numeric>
                 {datum.format(projekt.updatedAt)}
               </span>
             </div>
@@ -202,30 +194,30 @@ export function Projektliste() {
         </div>
       </div>
 
-      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3 border-t border-axon-linie bg-axon-flaeche-leise px-8.5 py-4">
-        <span className="font-mono text-2xs text-axon-schrift-still" data-numeric>
+      <div className="flex h-(--h-statusbar) shrink-0 items-center gap-x-5 border-t border-border bg-card px-4">
+        <span className="font-mono text-xs text-mono-foreground" data-numeric>
           {t("projekte.bereich", { von, bis, gesamt: total })}
         </span>
 
-        <div className="ml-auto flex items-center gap-1.5">
-          <button
-            type="button"
+        <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={t("projekte.seiteErste")}
             disabled={seite <= 1}
             onClick={() => geheZuSeite(1)}
-            className={SCHALTER}
           >
-            <ChevronsLeft aria-hidden className="size-4" />
-          </button>
-          <button
-            type="button"
+            <ChevronsLeft aria-hidden />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={t("projekte.seiteZurueck")}
             disabled={seite <= 1}
             onClick={() => geheZuSeite(seite - 1)}
-            className={SCHALTER}
           >
-            <ChevronLeft aria-hidden className="size-4" />
-          </button>
+            <ChevronLeft aria-hidden />
+          </Button>
 
           {/*
             Bei vielen Seiten waeren alle Zahlen eine Bleiwueste. Gezeigt wird ein Fenster
@@ -234,41 +226,37 @@ export function Projektliste() {
           {seiten
             .filter((nummer) => Math.abs(nummer - seite) <= 2)
             .map((nummer) => (
-              <button
+              <Button
                 key={nummer}
-                type="button"
+                variant={nummer === seite ? "default" : "ghost"}
+                size="icon-xs"
                 aria-label={t("projekte.seiteNummer", { nummer })}
                 aria-current={nummer === seite ? "page" : undefined}
                 onClick={() => geheZuSeite(nummer)}
-                className={
-                  "flex h-(--h-einstiegsschalter) min-w-(--h-einstiegsschalter) items-center justify-center border px-2 font-mono text-2xs transition-colors duration-(--duration-quick) " +
-                  (nummer === seite
-                    ? "border-axon-fokus bg-axon-fokus text-axon-grund"
-                    : "border-axon-feld-rand text-axon-schrift-leise hover:border-axon-fokus hover:text-axon-schrift")
-                }
+                className="font-mono"
               >
                 {nummer}
-              </button>
+              </Button>
             ))}
 
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={t("projekte.seiteVor")}
             disabled={seite >= seitenzahl}
             onClick={() => geheZuSeite(seite + 1)}
-            className={SCHALTER}
           >
-            <ChevronRight aria-hidden className="size-4" />
-          </button>
-          <button
-            type="button"
+            <ChevronRight aria-hidden />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={t("projekte.seiteLetzte")}
             disabled={seite >= seitenzahl}
             onClick={() => geheZuSeite(seitenzahl)}
-            className={SCHALTER}
           >
-            <ChevronsRight aria-hidden className="size-4" />
-          </button>
+            <ChevronsRight aria-hidden />
+          </Button>
         </div>
       </div>
     </div>

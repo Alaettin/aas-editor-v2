@@ -81,7 +81,11 @@
   --type-cd-border: rgb(224 176 224 / 0.28);
   --type-cd-card: rgb(136 56 192 / 0.12);
 
-  /* Die Buehne selbst ist ein Verlauf, siehe --axon-buehne. Dies ist ihr Grundton. */
+  /*
+   * Die Flaeche aller drei Bildschirme. Bis zum 08.08.2026 lagen Anmeldung und Einstieg
+   * auf einer eigenen Markenflaeche mit eigenem Blau, eigenen Knoepfen
+   * und eigenen Dialogen. Es gibt nur noch diese eine.
+   */
   --background: #0a2450;
   --foreground: #ffffff;
 
@@ -162,115 +166,6 @@
   --shadow-overlay: 0 24px 64px -12px rgb(0 0 0 / 0.6);
 }
 
-/* --- Die AXON-Buehne der Anmeldung ----------------------------------------------- */
-
-/*
- * Markenbild, kein Oberflaechenchrom.
- *
- * Die Anmeldung steht auf einem flachen Blau, die Anwendung auf einem Verlauf. Deshalb
- * bleibt die Buehne ein eigener Block und wandert nicht in die Rampe: sie traegt zudem
- * die Kanaltripel fuer den Canvas, die als Oberflaechenfarben nichts zu suchen haetten.
- * Gemeinsam sind beiden die Markenfarben; darauf achtet ein Waechter in tokens.test.ts.
- */
-.szene-axon {
-  --axon-grund: #1858b0;
-
-  /* Die Stroeme links, das Eigene und Ungeordnete */
-  --axon-strom-pink: #e0b0e0;
-  --axon-strom-violett: #8838c0;
-  --axon-strom-cyan: #00fdfd;
-  --axon-strom-orange: #f06a38;
-  /* Die Schienen rechts, das Standardisierte */
-  --axon-schiene-a: #00a386;
-  --axon-schiene-b: #1eb095;
-  --axon-knoten: #ffffff;
-
-  /*
-   * Werte, die im Canvas zusammengesetzt werden, stehen als Kanaltripel da. Nur so kann
-   * das Zeichnen die Deckkraft je Verwendung waehlen, ohne selbst eine Farbe zu kennen.
-   */
-  --axon-wolke-1: 20 110 205;
-  --axon-wolke-2: 10 58 132;
-  --axon-wolke-3: 34 124 220;
-  --axon-ring: 150 205 255;
-  --axon-halo: 200 240 255;
-  --axon-vignette: 6 24 60;
-
-  /*
-   * Zwei Glasstaerken, und das hat einen Grund. Die Anmeldeleiste liegt ueber dem
-   * Keyvisual, das dort ruhig ist: sie darf duenner sein und ein wenig davon durchlassen.
-   * Die Dialoge des Einstiegs liegen ueber einer Tabelle voller Text, dort waere dasselbe
-   * Glas unruhig.
-   */
-  --axon-anmeldung: rgb(6 30 72 / 0.6);
-  --axon-karte: rgb(6 30 72 / 0.72);
-  --axon-karte-rand: rgb(255 255 255 / 0.1);
-  --axon-feld-rand: rgb(255 255 255 / 0.24);
-  --axon-platzhalter: rgb(255 255 255 / 0.3);
-  --axon-fokus: #00fdfd;
-  /* Dasselbe Cyan als Kanaltripel, fuer Schein und Verlauf mit eigener Deckkraft. */
-  --axon-fokus-kanaele: 0 253 253;
-  --axon-aktion: #00a386;
-  --axon-aktion-hover: #1eb095;
-  --axon-schrift: #ffffff;
-  --axon-schrift-leise: rgb(255 255 255 / 0.62);
-  --axon-schrift-still: rgb(255 255 255 / 0.5);
-  --axon-schrift-fein: rgb(255 255 255 / 0.4);
-  --axon-fehler: #ffb08a;
-
-  /*
-   * Der Einstieg (Projektauswahl) steht auf derselben Buehne, ist aber Flaeche und nicht
-   * Karte: er braucht einen Verlauf, zwei ruhige Seitenflaechen und Trennlinien.
-   *
-   * Die Vorlage setzt ihre feinen Mono-Etiketten auf Weiss 0,38 bis 0,40. Auf diesem Blau
-   * sind das rund 3:1 und damit unter der Schwelle. Deshalb hoert die Rampe der Etiketten
-   * bei --axon-schrift-still (0,5) auf; --axon-schrift-fein bleibt reiner Zierde
-   * vorbehalten, die auch ohne Lesbarkeit auskommt.
-   */
-  --axon-buehne: linear-gradient(135deg, #0a2450 0%, #10366f 55%, #0a2450 100%);
-  --axon-flaeche: rgb(5 22 52 / 0.5);
-  --axon-flaeche-leise: rgb(5 22 52 / 0.35);
-  --axon-linie: rgb(255 255 255 / 0.12);
-  --axon-linie-fein: rgb(255 255 255 / 0.07);
-  --axon-zeile-hover: rgb(255 255 255 / 0.06);
-  --axon-zeile-aktiv: rgb(0 253 253 / 0.09);
-  --axon-kachel: #0c2c5f;
-  --axon-feld: #0b2a5e;
-  --axon-fehler-kraeftig: #e24a3a;
-  /*
-   * Beschriftung auf gefuelltem Gruen. Die Vorlage setzt dort Weiss, das sind auf #00a386
-   * nur 3,1:1. Das tiefe Buehnenblau kommt auf 5,1:1, und die Marke bleibt das Gruen.
-   */
-  --axon-aktion-schrift: #06203f;
-  /* Die Punkte vor dem Projektnamen, je Quellformat */
-  --axon-format-json: #00fdfd;
-  --axon-format-xml: #e0b0e0;
-  --axon-format-aasx: #00a386;
-
-  /* Die Lichtkante links an der Karte: cyan oben, gruen unten, an den Enden auslaufend */
-  --axon-kante: linear-gradient(
-    to bottom,
-    rgb(var(--axon-fokus-kanaele) / 0) 0%,
-    var(--axon-fokus) 28%,
-    #00a386 72%,
-    rgb(0 163 134 / 0) 100%
-  );
-
-  /*
-   * Der Blitz: erreicht ein Datenpaket das Ende einer Schiene, schreibt das Keyvisual hier
-   * einen Wert zwischen 0 und 1 hinein. Rand und Schein der Karte leiten sich daraus ab,
-   * damit React nicht sechzig Mal je Sekunde rendern muss.
-   */
-  --axon-blitz: 0;
-
-  /*
-   * Der globale Fokusring nimmt `--ring`. Core Blue auf Core Blue waere unsichtbar, hier
-   * gilt deshalb das Cyan der Vorgabe. Kein Override im Komponentencode noetig, die
-   * Basisregeln greifen unveraendert.
-   */
-  --ring: var(--axon-fokus);
-}
-
 /* --- Was Tailwind daraus an Utilities macht -------------------------------------- */
 
 @theme inline {
@@ -342,32 +237,6 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-
-  /* Die Buehne der Anmeldung, aufgeloest im Geltungsbereich von .szene-axon */
-  --color-axon-grund: var(--axon-grund);
-  --color-axon-anmeldung: var(--axon-anmeldung);
-  --color-axon-karte: var(--axon-karte);
-  --color-axon-karte-rand: var(--axon-karte-rand);
-  --color-axon-feld-rand: var(--axon-feld-rand);
-  --color-axon-platzhalter: var(--axon-platzhalter);
-  --color-axon-fokus: var(--axon-fokus);
-  --color-axon-aktion: var(--axon-aktion);
-  --color-axon-aktion-hover: var(--axon-aktion-hover);
-  --color-axon-schrift: var(--axon-schrift);
-  --color-axon-schrift-leise: var(--axon-schrift-leise);
-  --color-axon-schrift-still: var(--axon-schrift-still);
-  --color-axon-schrift-fein: var(--axon-schrift-fein);
-  --color-axon-fehler: var(--axon-fehler);
-  --color-axon-flaeche: var(--axon-flaeche);
-  --color-axon-flaeche-leise: var(--axon-flaeche-leise);
-  --color-axon-linie: var(--axon-linie);
-  --color-axon-linie-fein: var(--axon-linie-fein);
-  --color-axon-zeile-hover: var(--axon-zeile-hover);
-  --color-axon-zeile-aktiv: var(--axon-zeile-aktiv);
-  --color-axon-kachel: var(--axon-kachel);
-  --color-axon-feld: var(--axon-feld);
-  --color-axon-fehler-kraeftig: var(--axon-fehler-kraeftig);
-  --color-axon-aktion-schrift: var(--axon-aktion-schrift);
 }
 
 @theme {
@@ -444,55 +313,34 @@
   :root {
     color-scheme: dark;
     /*
-     * Dichte: umgeschaltet ueber data-density am Wurzelelement. In px, damit die
-     * Haarlinien der Einrueckungsfuehrung auf ganze Geraetepixel fallen.
+     * Die Dichte stand bis zum 08.08.2026 auf zwei Stufen, umgeschaltet ueber
+     * data-density. Es gibt nur noch die kompakte. In px, damit die Haarlinien der
+     * Einrueckungsfuehrung auf ganze Geraetepixel fallen.
      */
-    --row-height: 27px;
-    --tree-indent: 19px;
-  }
-
-  [data-density="compact"] {
     --row-height: 24px;
     --tree-indent: 16px;
-  }
-
-  [data-density="cozy"] {
-    --row-height: 27px;
-    --tree-indent: 19px;
   }
 
   /* Feste Hoehen des Rahmens, damit kein Layoutwert im TSX steht */
   :root {
     --h-titelzeile: 60px;
-    --w-titellogo: 104px;
+    /* Das Markenbild. Es traegt Zeichen, Wortmarke und Produktnamen in einem Stueck und
+       ist rund 5,3 zu 1 breit; die Titelzeile ist 60px hoch. */
+    --w-kopflogo: 176px;
     --h-toolbar: 46px;
     --h-statusbar: 32px;
     --h-panel-header: 32px;
     --h-chat-header: 40px;
 
-    /* Masse der Anmeldebuehne, aus der Vorgabe */
-    --w-anmeldelogo: 200px;
-    /* Auf schmalen Fenstern bleibt die Anmeldung eine Karte, ab 48rem wird sie die Leiste
-       aus Vorlage v4: volle Hoehe am rechten Rand. Ein 38-Prozent-Streifen mit 420px
-       Mindestbreite ergibt auf einem Telefon keinen Sinn. */
+    /* Masse der Anmeldung: das grosse Markenbild und die Karte darunter. Die Leistenform
+       aus Vorlage v4 samt ihren fuenf Massen ist am 08.08.2026 entfallen. */
+    --w-anmeldelogo: 300px;
     --w-anmeldekarte: 356px;
-    --w-anmeldeleiste: 38%;
-    --min-w-anmeldeleiste: 420px;
-    --pl-anmeldeleiste: 6%;
-    --pr-anmeldeleiste: 8%;
-    --h-anmeldebuehne: 520px;
-    --h-anmeldefeld: 30px;
-    --h-anmeldeknopf: 52px;
 
-    /* Masse des Einstiegs, aus der Vorlage */
-    --w-einstiegslogo: 128px;
-    --w-einstiegsleiste: 236px;
+    /* Masse des Einstiegs */
     --w-einstiegsdetail: 330px;
     --w-einstiegssuche: 340px;
     --min-w-einstiegstabelle: 900px;
-    --h-einstiegsfeld: 40px;
-    --h-einstiegsknopf: 46px;
-    --h-einstiegsschalter: 32px;
   }
 
   * {
@@ -560,24 +408,11 @@
 
 @layer components {
   /*
-   * Die zwei Bewegungen der Anmeldekarte: ein Lichtpunkt wandert die Kante hinab, der
-   * Punkt der Augenbraue atmet. Beide klemmt der prefers-reduced-motion-Block oben auf
-   * 0,01 ms, dann stehen sie still. Das ist richtig so.
+   * Die Anmeldung trug bis zum 08.08.2026 zwei eigene Bewegungen, einen Lichtpunkt an der
+   * Kartenkante und einen atmenden Punkt am Titel. Beide sind mit der Markenflaeche
+   * entfallen. Was hier steht, gehoert zum Editor; der prefers-reduced-motion-Block oben
+   * klemmt es auf 0,01 ms, dann steht es still.
    */
-  @keyframes axon-kante {
-    0% {
-      top: -8%;
-      opacity: 0;
-    }
-    12%,
-    88% {
-      opacity: 1;
-    }
-    100% {
-      top: 104%;
-      opacity: 0;
-    }
-  }
 
   /* Der gewaehlte Graphknoten atmet, statt einen dicken Ring zu tragen. */
   @keyframes axon-knoten {

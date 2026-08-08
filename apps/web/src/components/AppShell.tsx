@@ -10,7 +10,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
-import { Datenband } from "@/components/Keyvisual/Datenband";
 import { Tree } from "@/components/Tree/Tree";
 import { Inspector } from "@/components/Inspector/Inspector";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -109,8 +108,7 @@ export function AppShell() {
 
   return (
     <div
-      className="relative flex h-screen flex-col overflow-hidden"
-      style={{ background: "var(--axon-buehne)" }}
+      className="relative flex h-screen flex-col overflow-hidden bg-background"
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -118,14 +116,6 @@ export function AppShell() {
         if (file) void openFile(file);
       }}
     >
-      {/*
-        Das Datenband liegt hinter dem ganzen Rahmen. Am 05.08. stand hier noch die
-        Entscheidung "Keyvisual nur fuer die Anmeldung"; die Vorlage `AAS Editor AXON`
-        kehrt sie um. Der Bauteil bringt sein eigenes `matchMedia` mit und zeichnet bei
-        reduzierter Bewegung genau ein Bild.
-      */}
-      <Datenband />
-
       {/*
         Sprunglink: die Menuezeile und die Werkzeugleiste stehen vor dem Inhalt. Ohne
         diesen Weg tabbt man sich bei jedem Seitenaufruf erst durch beide.
@@ -137,12 +127,11 @@ export function AppShell() {
         {t("app.zumInhalt")}
       </a>
 
-      <Titelzeile />
+      <Titelzeile onEinstellungen={() => setEinstellungenOffen(true)} />
 
       <Toolbar
         onOeffnen={() => inputRef.current?.click()}
         onExport={() => setFormatwahlOffen(true)}
-        onEinstellungen={() => setEinstellungenOffen(true)}
       />
 
       <div className="flex min-h-0 flex-1">

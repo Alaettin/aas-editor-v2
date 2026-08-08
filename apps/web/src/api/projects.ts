@@ -24,8 +24,6 @@ export interface ProjectQuery {
   readonly limit: number;
   readonly offset: number;
   readonly q: string;
-  /** Untergrenze auf `updatedAt`, hier gerechnet: nur der Klient kennt seine Zeitzone. */
-  readonly seit: number | null;
   readonly sort: SortFeld;
   readonly dir: "asc" | "desc";
 }
@@ -41,8 +39,9 @@ function suchpfad(query: ProjectQuery): string {
   params.set("offset", String(query.offset));
   params.set("sort", query.sort);
   params.set("dir", query.dir);
+  // Der Server kennt zusaetzlich `seit`. Der Einstieg bietet seit dem 08.08.2026 keinen
+  // Zeitraumfilter mehr an und setzt den Parameter deshalb nicht.
   if (query.q !== "") params.set("q", query.q);
-  if (query.seit !== null) params.set("seit", String(query.seit));
   return `/api/projects?${params.toString()}`;
 }
 
@@ -93,7 +92,7 @@ export const projectsApi = {
    */
   nameVergeben: async (name: string, ausserId?: string) => {
     const seite = await api<ProjectPage>(
-      suchpfad({ limit: 5, offset: 0, q: name, seit: null, sort: "name", dir: "asc" }),
+      suchpfad({ limit: 5, offset: 0, q: name, sort: "name", dir: "asc" }),
     );
     // Die Suche trifft Teilzeichenfolgen, gemeint ist der genaue Name.
     return seite.items.some((projekt) => projekt.name === name && projekt.id !== ausserId);

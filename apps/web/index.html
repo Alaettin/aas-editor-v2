@@ -6,11 +6,11 @@
     <title>AXON Editor</title>
     <script>
       /*
-        Dichte und Sprache vor dem ersten Bild setzen.
+        Die Sprache vor dem ersten Bild setzen.
 
-        Ohne diese Zeilen laeuft erst React an, und der Nutzer sieht die Dichte bei jedem
-        Laden kurz springen. Der Schluessel und die Vorgaben stehen ebenso in
-        `store/ansicht.ts`; das ist die eine bewusste Wiederholung, denn hier darf noch
+        Ohne diese Zeilen laeuft erst React an, und die Seite traegt einen Wimpernschlag
+        lang die falsche Sprachauszeichnung. Der Schluessel und die Vorgaben stehen ebenso
+        in `store/ansicht.ts`; das ist die eine bewusste Wiederholung, denn hier darf noch
         kein Modul geladen sein.
 
         Die Klasse `dark` steht bedingungslos: es gibt nur eine Erscheinung. Sie bleibt
@@ -21,8 +21,6 @@
         try {
           var roh = localStorage.getItem("aas-editor-ansicht");
           var wert = roh ? JSON.parse(roh) : null;
-          document.documentElement.dataset.density =
-            wert && wert.density === "compact" ? "compact" : "cozy";
           var sprache =
             wert && (wert.language === "de" || wert.language === "en")
               ? wert.language

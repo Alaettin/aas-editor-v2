@@ -1,32 +1,34 @@
 #!/usr/bin/env node
 /**
- * Bereitet das Neoception-Logo fuer die dunkle Buehne der Anmeldung auf.
+ * Bereitet ein Logo fuer die dunkle Flaeche der Anwendung auf.
  *
- * Die Vorlage ist freigestellt und traegt drei Farben: das gruene Viereck, das
- * ausgesparte "NEO" in Weiss und den uebrigen Schriftzug in Schwarz. Auf Blau muss das
- * Schwarz zu Weiss werden, sonst verschwindet der halbe Schriftzug. Dazu hat die Vorlage
- * viel Luft, die hier abgeschnitten wird.
+ * Die Vorlagen sind freigestellt und tragen ihre Marke teils in Schwarz. Auf Blau muss das
+ * Schwarz zu Weiss werden, sonst verschwindet der halbe Schriftzug; die uebrigen Farben
+ * (das Tuerkis von "Neoception", das Violett von "Editor") bleiben unberuehrt. Dazu haben
+ * die Vorlagen viel Luft, die hier abgeschnitten wird.
  *
- *   node scripts/make-logo-weiss.mjs <pfad-zur-vorlage.png>
+ *   node scripts/make-logo-weiss.mjs <pfad-zur-vorlage.png> [ziel.png]
  *
  * Gerechnet wird im Browser auf einem Canvas: Playwright liegt ohnehin im Projekt, und
  * eine Bildbibliothek fuer einen einmaligen Schnitt waere eine Abhaengigkeit zu viel.
- * Das Ergebnis liegt als `apps/web/src/assets/neoception-weiss.png` im Repo; dieses
- * Skript steht daneben, damit der Schritt nachvollziehbar und wiederholbar ist.
+ * Das Ergebnis liegt unter `apps/web/src/assets/` im Repo; dieses Skript steht daneben,
+ * damit der Schritt nachvollziehbar und wiederholbar ist.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
 const WURZEL = join(dirname(fileURLToPath(import.meta.url)), "..");
-const ZIEL = join(WURZEL, "apps/web/src/assets/neoception-weiss.png");
 
 const quelle = process.argv[2];
 if (!quelle) {
-  console.error("Aufruf: node scripts/make-logo-weiss.mjs <vorlage.png>");
+  console.error("Aufruf: node scripts/make-logo-weiss.mjs <vorlage.png> [ziel.png]");
   process.exit(1);
 }
+
+const zielArg = process.argv[3] ?? "apps/web/src/assets/axon-editor-weiss.png";
+const ZIEL = isAbsolute(zielArg) ? zielArg : join(WURZEL, zielArg);
 
 const daten = `data:image/png;base64,${readFileSync(quelle).toString("base64")}`;
 
@@ -58,7 +60,7 @@ const ergebnis = await seite.evaluate(async (quelldaten) => {
   for (let i = 0; i < c.width * c.height; i += 1) {
     if (px[i * 4 + 3] < 16) continue;
 
-    // Schwarz wird Weiss. Gruen und das ausgesparte NEO bleiben unberuehrt. Die Schwelle
+    // Schwarz wird Weiss. Tuerkis, Violett und das ausgesparte NEO bleiben. Die Schwelle
     // liegt hoch genug, dass auch die weichen Kanten der Buchstaben mitwandern.
     if (px[i * 4] < 130 && px[i * 4 + 1] < 130 && px[i * 4 + 2] < 130) {
       px[i * 4] = 255;

@@ -60,12 +60,20 @@ test.describe("Leistung", () => {
     await page.goto("/login");
     await page.locator("form").waitFor();
 
-    const fcp = await page.evaluate(
-      () => performance.getEntriesByName("first-contentful-paint")[0]?.startTime ?? -1,
-    );
-    console.log(`  erster Bildaufbau: ${fcp.toFixed(0)} ms`);
+    /*
+     * Auf den Eintrag warten, statt ihn einmal abzufragen. Im DOM zu stehen heisst noch
+     * nicht, gemalt zu sein: seit die Anmeldung ohne Canvas auskommt, ist das Formular so
+     * frueh da, dass die Messung sonst regelmaessig vor dem ersten Bild liegt und -1
+     * liest.
+     */
+    const lies = () =>
+      page.evaluate(
+        () => performance.getEntriesByName("first-contentful-paint")[0]?.startTime ?? -1,
+      );
+    await expect.poll(lies, { timeout: 10000 }).toBeGreaterThan(0);
 
-    expect(fcp).toBeGreaterThan(0);
+    const fcp = await lies();
+    console.log(`  erster Bildaufbau: ${fcp.toFixed(0)} ms`);
     expect(fcp).toBeLessThan(1500);
   });
 

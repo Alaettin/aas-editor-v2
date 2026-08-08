@@ -22,42 +22,19 @@ import { meldeErfolg, meldeFehler } from "@/lib/melden";
  * Filterleiste werden aus `total` und `facetten` abgeleitet, nicht mitgefuehrt.
  */
 
-/** Zeitfenster der Filterleiste. Die Grenze rechnet der Klient, nur er kennt seine Zone. */
-export type Zeitfenster = "alle" | "heute" | "woche" | "monat";
-
 /** Feste Seitengroesse. Ein Umschalter dafuer war eine Einstellung ohne Entscheidung. */
 export const PRO_SEITE = 50;
 
+/**
+ * Bis zum 08.08.2026 stand hier zusaetzlich ein Zeitraumfilter (heute, Woche, Monat) samt
+ * der Umrechnung in eine Ortszeitgrenze. Er sass in der linken Leiste des Einstiegs, und
+ * die gibt es nicht mehr. Der Server kann den Parameter weiterhin.
+ */
 export interface Filter {
   readonly suche: string;
-  readonly zeitfenster: Zeitfenster;
 }
 
-export const LEERER_FILTER: Filter = { suche: "", zeitfenster: "alle" };
-
-/**
- * Anfang des Zeitfensters in Ortszeit. `new Date(...)` mit Jahr, Monat und Tag trifft die
- * lokale Mitternacht, `setDate` mit einem negativen Wert rutscht korrekt ueber Monats- und
- * Jahresgrenzen.
- */
-export function grenzeVon(fenster: Zeitfenster, jetzt = new Date()): number | null {
-  const mitternacht = new Date(jetzt.getFullYear(), jetzt.getMonth(), jetzt.getDate());
-  switch (fenster) {
-    case "alle":
-      return null;
-    case "heute":
-      return mitternacht.getTime();
-    case "woche": {
-      // Montag als Wochenanfang, wie im deutschen Kalender.
-      const versatz = (mitternacht.getDay() + 6) % 7;
-      const montag = new Date(mitternacht);
-      montag.setDate(montag.getDate() - versatz);
-      return montag.getTime();
-    }
-    case "monat":
-      return new Date(jetzt.getFullYear(), jetzt.getMonth(), 1).getTime();
-  }
-}
+export const LEERER_FILTER: Filter = { suche: "" };
 
 interface ProjectsState {
   readonly projekte: readonly ProjectSummary[];
@@ -80,7 +57,6 @@ interface ProjectsState {
 
   laden: () => Promise<void>;
   setzeSuche: (suche: string) => void;
-  setzeZeitfenster: (fenster: Zeitfenster) => void;
   sortiereNach: (feld: SortFeld) => void;
   geheZuSeite: (seite: number) => void;
   waehle: (id: string | null) => Promise<void>;
@@ -104,7 +80,6 @@ function alsQuery(state: ProjectsState): ProjectQuery {
     limit: PRO_SEITE,
     offset: (state.seite - 1) * PRO_SEITE,
     q: state.filter.suche,
-    seit: grenzeVon(state.filter.zeitfenster),
     sort: state.sort,
     dir: state.dir,
   };
@@ -145,10 +120,6 @@ export const useProjects = create<ProjectsState>()((set, get) => {
 
     setzeSuche(suche) {
       neuLaden({ filter: { ...get().filter, suche } });
-    },
-
-    setzeZeitfenster(zeitfenster) {
-      neuLaden({ filter: { ...get().filter, zeitfenster } });
     },
 
     sortiereNach(feld) {

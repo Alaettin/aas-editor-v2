@@ -5,13 +5,11 @@
     "exportieren": "Exportieren",
     "rueckgaengig": "Rückgängig",
     "wiederholen": "Wiederholen",
-    "dichte": "Dichte",
-    "dichteKompakt": "Kompakt",
-    "dichteKomfortabel": "Komfortabel",
     "palette": "Kommando-Palette ({{tasten}})",
     "zumInhalt": "Zum Inhalt springen",
     "deutsch": "Deutsch",
-    "englisch": "English"
+    "englisch": "English",
+    "spracheWechseln": "Sprache wechseln zu {{sprache}}"
   },
   "status": {
     "anhaenge": "{{count}} Anhänge",
@@ -283,7 +281,6 @@
       "rueckgaengig": "rückgängig zurück",
       "wiederholen": "wiederholen vorwärts",
       "befunde": "Befunde Panel Fehler Warnungen",
-      "dichte": "Dichte kompakt komfortabel",
       "sprache": "Sprache Deutsch Englisch"
     }
   },
@@ -342,9 +339,6 @@
     "anmelden": "Anmelden",
     "laeuft": "Wird geprüft ...",
     "abmelden": "Abmelden",
-    "titel": "AXON Editor",
-    "sprache": "Sprache",
-    "marke": "Neoception, Pepperl+Fuchs",
     "ueberHub": "Mit AXON Studio anmelden",
     "hubHinweis": "Die Anmeldung läuft über AXON Studio. Du wirst dorthin geleitet und kommst danach zurück.",
     "hubFehler": {
@@ -360,10 +354,6 @@
   },
   "projekte": {
     "titel": "Projekte",
-    "arbeitsbereich": "Arbeitsbereich",
-    "marke": "AXON Editor",
-    "navProjekte": "Projekte",
-    "navRepository": "Repository",
     "suche": "Projekt suchen",
     "neu": "Neues Projekt",
     "neuTitel": "Neues Projekt",
@@ -380,12 +370,6 @@
     "leerText": "Ein neues Projekt anlegen oder eine AAS-Datei übernehmen.",
     "keineTreffer": "Kein Projekt passt zu Suche und Filtern.",
     "filterLeeren": "Filter zurücksetzen",
-    "filterZeitraum": "Zeitraum",
-    "zeitAlle": "Ohne Einschränkung",
-    "zeitHeute": "Heute",
-    "zeitWoche": "Diese Woche",
-    "zeitMonat": "Dieser Monat",
-    "zuruecksetzen": "Zurücksetzen",
     "spalteProjekt": "Projekt",
     "spalteElemente": "Elemente",
     "spalteSubmodelle": "Submodelle",
@@ -419,9 +403,7 @@
     "sortiertAuf": "Nach {{spalte}} aufsteigend sortiert",
     "sortiertAb": "Nach {{spalte}} absteigend sortiert",
     "befunde": "Befunde",
-    "einstellungen": "Einstellungen",
-    "einstellungenHinweis": "Erscheinung und Dichte gelten für den Editor, nicht für diesen Einstieg.",
-    "schliessen": "Schließen",
+    "konto": "Konto",
     "seiteErste": "Erste Seite",
     "seiteLetzte": "Letzte Seite"
   },
@@ -445,9 +427,6 @@
   },
   "explorer": {
     "titel": "Explorer"
-  },
-  "einstellungen": {
-    "text": "Erscheinung und Dichte. Alles Weitere steht in der Menüzeile."
   },
   "hilfe": {
     "palette": "Kommando-Palette öffnen",
@@ -491,7 +470,6 @@
   },
   "assistentEinstellung": {
     "titel": "Assistent",
-    "beschreibung": "Der Assistent arbeitet über die OpenAI-API. Der Schlüssel bleibt auf dem Server und wird verschlüsselt abgelegt.",
     "schluessel": "OpenAI-Schlüssel",
     "schluesselPlatzhalter": "Schlüssel einfügen",
     "preis": "{{eingabe}} $ / {{ausgabe}} $ je Mio. Token",

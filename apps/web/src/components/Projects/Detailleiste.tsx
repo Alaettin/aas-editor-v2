@@ -2,6 +2,8 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { ArrowRight, Loader2 } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 import { useProjects } from "@/store/projects";
 
 /**
@@ -12,6 +14,9 @@ import { useProjects } from "@/store/projects";
  * die Teilmodell-Liste, und zwar ueber `/uebersicht` und nicht ueber die Detailroute: die
  * lieferte das ganze Environment, also bei einem grossen Modell einige Megabyte fuer eine
  * Handvoll Namen.
+ *
+ * Seit dem 08.08.2026 in der Erscheinung des Editors. Die drei Aktionen tragen dieselben
+ * drei Knopfarten wie dort: gefuellt, umrandet, warnfarben.
  */
 
 interface Props {
@@ -30,13 +35,12 @@ function Kennzahl({
   readonly auffaellig?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between bg-axon-kachel px-4 py-3.5">
-      <span className="font-mono text-3xs tracking-(--tracking-etikett) text-axon-schrift-still uppercase">
+    <div className="flex items-baseline justify-between bg-card px-3 py-2.5">
+      <span className="font-mono text-3xs tracking-(--tracking-etikett) text-mono-foreground uppercase">
         {titel}
       </span>
       <span
-        className="text-2xl"
-        style={{ color: auffaellig ? "var(--axon-strom-orange)" : "var(--axon-schrift)" }}
+        className={"text-2xl " + (auffaellig ? "text-warning-text" : "text-foreground")}
         data-numeric
       >
         {wert}
@@ -60,25 +64,23 @@ export function Detailleiste({ onExport, onLoeschen }: Props) {
   const datum = new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" });
 
   return (
-    <aside className="relative z-10 flex w-(--w-einstiegsdetail) shrink-0 flex-col gap-6.5 border-l border-axon-linie bg-axon-flaeche px-6 py-6.5">
+    <aside className="flex w-(--w-einstiegsdetail) shrink-0 flex-col gap-5 border-l border-border bg-sidebar px-4 py-5">
       {projekt === null ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-1.5 text-center">
-          <p className="text-md text-axon-schrift-leise">{t("projekte.nichtsGewaehlt")}</p>
-          <p className="text-sm text-axon-schrift-still">{t("projekte.nichtsGewaehltText")}</p>
+          <p className="text-md text-secondary-foreground">{t("projekte.nichtsGewaehlt")}</p>
+          <p className="text-sm text-foreground-faint">{t("projekte.nichtsGewaehltText")}</p>
         </div>
       ) : (
         <>
-          <div className="flex flex-col gap-2.5">
-            <span className="font-mono text-3xs tracking-(--tracking-etikett) text-axon-schrift-still uppercase">
-              {t("projekte.ausgewaehlt")}
-            </span>
-            <h2 className="text-xl leading-tight text-axon-schrift">{projekt.name}</h2>
-            <span className="font-mono text-2xs text-axon-schrift-still" data-numeric>
+          <div className="flex flex-col gap-2">
+            <SectionLabel>{t("projekte.ausgewaehlt")}</SectionLabel>
+            <h2 className="text-xl leading-tight text-foreground">{projekt.name}</h2>
+            <span className="font-mono text-2xs text-foreground-faint" data-numeric>
               {t("projekte.spalteGeaendert")} {datum.format(projekt.updatedAt)}
             </span>
           </div>
 
-          <div className="flex flex-col gap-px bg-axon-linie">
+          <div className="flex flex-col gap-px bg-border">
             <Kennzahl titel={t("projekte.spalteSubmodelle")} wert={projekt.submodelCount} />
             <Kennzahl titel={t("projekte.spalteElemente")} wert={projekt.nodeCount} />
             {/*
@@ -93,28 +95,26 @@ export function Detailleiste({ onExport, onLoeschen }: Props) {
             />
           </div>
 
-          <div className="flex min-h-0 flex-col gap-2.5">
-            <span className="font-mono text-3xs tracking-(--tracking-etikett) text-axon-schrift-still uppercase">
-              {t("projekte.submodelle")}
-            </span>
+          <div className="flex min-h-0 flex-col gap-2">
+            <SectionLabel>{t("projekte.submodelle")}</SectionLabel>
 
             {detailLaedt ? (
-              <Loader2 aria-hidden className="size-4 animate-spin text-axon-schrift-still" />
+              <Loader2 aria-hidden className="size-4 animate-spin text-foreground-faint" />
             ) : detail && detail.submodelle.length === 0 ? (
-              <p className="text-sm text-axon-schrift-still">{t("projekte.ohneSubmodelle")}</p>
+              <p className="text-sm text-foreground-faint">{t("projekte.ohneSubmodelle")}</p>
             ) : (
               <ul className="flex min-h-0 flex-col overflow-y-auto">
                 {(detail?.submodelle ?? []).map((submodel) => (
                   <li
                     key={submodel.id}
-                    className="flex items-center gap-2.5 border-b border-axon-linie-fein py-2.5"
+                    className="flex items-center gap-2.5 border-b border-border-row py-2"
                   >
-                    <span aria-hidden className="size-1.25 shrink-0 rounded-full bg-axon-aktion" />
-                    <span className="truncate font-mono text-2xs text-axon-schrift">
+                    <span aria-hidden className="size-1.25 shrink-0 rounded-full bg-type-sm" />
+                    <span className="truncate font-mono text-2xs">
                       {submodel.idShort ?? t("projekte.ohneIdShort")}
                     </span>
                     <span
-                      className="ml-auto shrink-0 font-mono text-2xs text-axon-schrift-still"
+                      className="ml-auto shrink-0 font-mono text-2xs text-mono-foreground"
                       data-numeric
                     >
                       {submodel.elementCount} {t("projekte.elementeKurz")}
@@ -125,31 +125,27 @@ export function Detailleiste({ onExport, onLoeschen }: Props) {
             )}
           </div>
 
-          <div className="mt-auto flex flex-col gap-2.5">
-            <button
-              type="button"
-              onClick={() => void navigate(`/editor/${projekt.id}`)}
-              className="flex h-(--h-einstiegsknopf) items-center justify-between bg-axon-aktion px-4.5 text-2xs tracking-(--tracking-aktion) text-axon-aktion-schrift uppercase transition-colors duration-(--duration-calm) hover:bg-axon-aktion-hover"
-            >
-              <span>{t("projekte.oeffnen")}</span>
-              <ArrowRight aria-hidden className="size-4" />
-            </button>
+          <div className="mt-auto flex flex-col gap-2">
+            <Button size="lg" onClick={() => void navigate(`/editor/${projekt.id}`)}>
+              {t("projekte.oeffnen")}
+              <ArrowRight aria-hidden data-icon="inline-end" />
+            </Button>
 
-            <div className="flex gap-2.5">
-              <button
-                type="button"
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
                 onClick={() => onExport({ id: projekt.id, name: projekt.name })}
-                className="h-(--h-einstiegsfeld) flex-1 border border-axon-feld-rand text-2xs text-axon-schrift-leise transition-colors duration-(--duration-calm) hover:border-axon-fokus hover:text-axon-schrift"
               >
                 {t("projekte.exportieren")}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
                 onClick={() => onLoeschen({ id: projekt.id, name: projekt.name })}
-                className="h-(--h-einstiegsfeld) flex-1 border border-axon-fehler-kraeftig text-2xs text-axon-fehler transition-colors duration-(--duration-calm) hover:bg-axon-fehler-kraeftig hover:text-axon-schrift"
               >
                 {t("projekte.loeschen")}
-              </button>
+              </Button>
             </div>
           </div>
         </>

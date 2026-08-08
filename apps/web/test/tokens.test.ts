@@ -6,10 +6,11 @@ import { describe, expect, it } from "vitest";
 /**
  * Wachen ueber die Farbordnung.
  *
- * Bis zum 06.08.2026 stand hier vor allem der Abgleich zweier Rampen. Es gibt nur noch
- * eine, und die Gefahr hat sich verschoben: die Markenfarben stehen jetzt an **zwei**
- * Orten, in der Rampe und in `.szene-axon`. Laufen sie auseinander, sieht die Anmeldung
- * anders aus als der Rest, und niemand merkt es beim Arbeiten an einer der beiden Stellen.
+ * Bis zum 06.08.2026 stand hier der Abgleich zweier Rampen, bis zum 08.08.2026 der
+ * Abgleich der Rampe mit der Markenflaeche `.szene-axon`. Beides ist weg: es gibt genau
+ * eine Rampe, und Anmeldung, Einstieg und Editor stehen darauf. Was bleibt, ist die Wache
+ * gegen den Rueckfall: keine zweite Erscheinung, keine zweite Markenflaeche, keine
+ * Farbwerte im Programmcode.
  */
 
 const QUELLE = readFileSync(
@@ -40,20 +41,11 @@ describe("Design-Tokens", () => {
     expect(QUELLE).toContain("--warning: #f06a38;");
   });
 
-  it("sagt in Rampe und Anmeldebuehne dasselbe ueber die Marke", () => {
-    expect(QUELLE).toContain(".szene-axon {");
-    expect(QUELLE).toContain("--axon-grund: #1858b0;");
-
-    // Cyan und Gruen stehen an zwei Orten. Weichen sie voneinander ab, sieht die Anmeldung
-    // anders aus als die Anwendung, und beim Arbeiten an einer Stelle faellt es nie auf.
-    const wert = (name: string) => QUELLE.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6});`))?.[1];
-    expect(wert("--axon-fokus")).toBe(wert("--type-aas"));
-    expect(wert("--axon-aktion")).toBe(wert("--type-sm"));
-    expect(wert("--axon-strom-pink")).toBe(wert("--type-cd"));
-    expect(wert("--axon-strom-orange")).toBe(wert("--warning"));
-
-    // Die Buehnenwerte duerfen trotzdem nicht in die Rampe wandern: sie tragen die
-    // Kanaltripel des Canvas, die als Oberflaechenfarben nichts zu suchen haetten.
+  it("fuehrt keine zweite Markenflaeche mehr", () => {
+    // `.szene-axon` war die eigene Flaeche von Anmeldung und Einstieg, mit eigenem Blau,
+    // eigenen Schriftfarben und eigenen Knopfformen. Kommt sie zurueck, stehen die
+    // Markenfarben wieder an zwei Orten, und beim Arbeiten an einer faellt es nie auf.
+    expect(QUELLE).not.toMatch(/\.szene-axon\s*\{/);
     const inRampe = [...eigenschaften(":root")].filter((name) => name.startsWith("--axon-"));
     expect(inRampe).toEqual([]);
   });

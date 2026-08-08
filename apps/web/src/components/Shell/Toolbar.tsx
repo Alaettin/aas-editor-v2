@@ -11,7 +11,6 @@ import {
   Plus,
   Redo2,
   Save,
-  SlidersHorizontal,
   Trash2,
   Undo2,
 } from "lucide-react";
@@ -48,14 +47,13 @@ import { ersteTasteFuer } from "@/lib/shortcuts";
 interface Props {
   readonly onOeffnen: () => void;
   readonly onExport: () => void;
-  readonly onEinstellungen: () => void;
 }
 
 function Trenner() {
   return <span aria-hidden className="mx-1.5 h-[18px] w-px shrink-0 bg-border-subtle" />;
 }
 
-export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
+export function Toolbar({ onOeffnen, onExport }: Props) {
   const { t } = useTranslation();
   const serverStatus = useEditor((state) => state.serverStatus);
   const dirty = useEditor((state) => state.dirty);
@@ -159,8 +157,9 @@ export function Toolbar({ onOeffnen, onExport, onEinstellungen }: Props) {
         ersteTasteFuer("hilfe.speichern"),
       )}
       {knopf(t("app.oeffnen"), <FolderOpen />, onOeffnen)}
+      {/* Die Einstellungen sitzen seit dem 08.08.2026 in der Titelzeile, bei Sprache und
+          Konto. Eine Einstellung ist kein Werkzeug am Modell. */}
       {knopf(t("app.exportieren"), <Download />, onExport, !model)}
-      {knopf(t("werkzeug.einstellungen"), <SlidersHorizontal />, onEinstellungen)}
 
       <Trenner />
 

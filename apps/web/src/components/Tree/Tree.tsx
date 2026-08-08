@@ -8,8 +8,6 @@ import { ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { useCssPx } from "@/lib/useCssPx";
-import { useAnsicht } from "@/store/ansicht";
-import { useAuth } from "@/store/auth";
 import { buildCensus } from "@/store/census";
 import { useEditor } from "@/store/editor";
 import { buildIssueCounts } from "@/store/issueCounts";
@@ -81,11 +79,6 @@ export function Tree() {
 
   /** Steht schon jede Zeile mit Kindern offen? Danach richtet sich der Umschalter oben. */
   const allesOffen = rows.every((row) => !row.hasChildren || row.expanded);
-
-  const benutzer = useAuth((state) => state.benutzer);
-  const abmelden = useAuth((state) => state.abmelden);
-  const language = useAnsicht((state) => state.language);
-  const setLanguage = useAnsicht((state) => state.setLanguage);
 
   /**
    * Der Pfad zur Auswahl, in derselben Rechnung wie im Formular. Er steht ueber dem Baum
@@ -429,54 +422,9 @@ export function Tree() {
       </TreeContextMenu>
 
       {/*
-        Fussbereich wie im Einstieg. Der Editor hatte bis zum 06.08.2026 gar keinen
-        Abmeldeweg; wer im Editor sass, musste erst zurueck zur Projektliste.
+        Bis zum 08.08.2026 stand hier ein Fussbereich mit Kuerzel, Abmeldeweg und
+        Sprachwahl. Beides sitzt jetzt in der Titelzeile, auf dem Einstieg wie im Editor.
       */}
-      <div className="flex shrink-0 items-center gap-2.5 border-t border-border-subtle px-3 py-2.5">
-        <span
-          aria-hidden
-          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-type-sm-border bg-type-sm-surface text-2xs"
-        >
-          {(benutzer?.name ?? "").slice(0, 2).toUpperCase()}
-        </span>
-        <div className="flex min-w-0 flex-col">
-          <span className="truncate text-2xs">{benutzer?.name}</span>
-          <button
-            type="button"
-            onClick={() => void abmelden()}
-            className="text-left font-mono text-3xs tracking-(--tracking-fein) text-muted-foreground hover:text-foreground"
-          >
-            {t("anmeldung.abmelden")}
-          </button>
-        </div>
-
-        <div
-          role="group"
-          aria-label={t("anmeldung.sprache")}
-          className="ml-auto flex items-center font-mono text-2xs text-muted-foreground"
-        >
-          {(["de", "en"] as const).map((wert, i) => (
-            <span key={wert} className="flex items-center">
-              {i > 0 ? (
-                <span aria-hidden className="text-border">
-                  /
-                </span>
-              ) : null}
-              <button
-                type="button"
-                aria-pressed={language === wert}
-                onClick={() => setLanguage(wert)}
-                className={
-                  "px-1 transition-colors duration-(--duration-calm) " +
-                  (language === wert ? "text-foreground" : "hover:text-foreground")
-                }
-              >
-                {wert.toUpperCase()}
-              </button>
-            </span>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

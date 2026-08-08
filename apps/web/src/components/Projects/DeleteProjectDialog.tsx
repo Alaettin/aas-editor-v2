@@ -1,15 +1,25 @@
 import { useTranslation } from "react-i18next";
-import { AlertDialog } from "radix-ui";
 import { Loader2 } from "lucide-react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useProjects } from "@/store/projects";
-import { ABBRECHEN, aktionsKnopf, INHALT, TEXT, TITEL, UEBERLAGERUNG } from "./markenDialog";
 
 /**
- * Die Rueckfrage vor dem Loeschen, im Stil der Seite.
+ * Die Rueckfrage vor dem Loeschen.
  *
  * `AlertDialog` und nicht `Dialog`: das Loeschen ist endgueltig, und die Rolle
  * `alertdialog` sagt einem Screenreader genau das. Der Abbruch ist die Vorgabe.
+ *
+ * Seit dem 08.08.2026 derselbe Bauteil wie im Editor, nicht mehr die eigene Markenfassung.
  */
 export function DeleteProjectDialog({
   projekt,
@@ -24,38 +34,35 @@ export function DeleteProjectDialog({
   const laeuft = loeschtId !== null;
 
   return (
-    <AlertDialog.Root open={projekt !== null} onOpenChange={(offen) => !offen && onClose()}>
-      <AlertDialog.Portal>
-        <AlertDialog.Overlay className={UEBERLAGERUNG} />
-        <AlertDialog.Content className={INHALT}>
-          <AlertDialog.Title className={TITEL}>{t("projekte.loeschenTitel")}</AlertDialog.Title>
-          <AlertDialog.Description className={TEXT}>
+    <AlertDialog open={projekt !== null} onOpenChange={(offen) => !offen && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{t("projekte.loeschenTitel")}</AlertDialogTitle>
+          <AlertDialogDescription>
             {t("projekte.loeschenText", { name: projekt?.name ?? "" })}
-          </AlertDialog.Description>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-          <div className="flex justify-end gap-2">
-            <AlertDialog.Cancel disabled={laeuft} className={ABBRECHEN}>
-              {t("projekte.abbrechen")}
-            </AlertDialog.Cancel>
-            <AlertDialog.Action
-              disabled={laeuft}
-              className={aktionsKnopf("zerstoerend")}
-              onClick={(event) => {
-                // Die Rueckfrage bleibt offen, bis der Server geantwortet hat: sonst
-                // verschwindet sie, und ein Fehlschlag hat nirgends mehr einen Ort.
-                event.preventDefault();
-                if (!projekt) return;
-                void loeschen(projekt.id).then((geklappt) => {
-                  if (geklappt) onClose();
-                });
-              }}
-            >
-              {laeuft ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : null}
-              {t("projekte.loeschen")}
-            </AlertDialog.Action>
-          </div>
-        </AlertDialog.Content>
-      </AlertDialog.Portal>
-    </AlertDialog.Root>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={laeuft}>{t("projekte.abbrechen")}</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            disabled={laeuft}
+            onClick={(event) => {
+              // Die Rueckfrage bleibt offen, bis der Server geantwortet hat: sonst
+              // verschwindet sie, und ein Fehlschlag hat nirgends mehr einen Ort.
+              event.preventDefault();
+              if (!projekt) return;
+              void loeschen(projekt.id).then((geklappt) => {
+                if (geklappt) onClose();
+              });
+            }}
+          >
+            {laeuft ? <Loader2 aria-hidden className="animate-spin" /> : null}
+            {t("projekte.loeschen")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

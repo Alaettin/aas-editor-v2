@@ -1,24 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { Dialog } from "radix-ui";
 import { FolderOpen, Loader2 } from "lucide-react";
 
 import { ApiError } from "@/api/client";
 import { projectsApi } from "@/api/projects";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { SectionLabel } from "@/components/ui/section-label";
 import { meldeErfolg, meldeFehler } from "@/lib/melden";
 import { legeDateiAb } from "@/store/pendingFile";
 import { useProjects } from "@/store/projects";
-import {
-  ABBRECHEN,
-  aktionsKnopf,
-  ETIKETT,
-  FELD,
-  INHALT,
-  TEXT,
-  TITEL,
-  UEBERLAGERUNG,
-} from "./markenDialog";
 
 /**
  * Neues Projekt, leer oder aus einer Datei.
@@ -123,97 +123,89 @@ export function NewProjectDialog({ offen, onClose, onAngelegt }: Props) {
   };
 
   return (
-    <Dialog.Root
+    <Dialog
       open={offen}
       onOpenChange={(naechster) => {
         if (!naechster && !laeuft) schliessen();
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className={UEBERLAGERUNG} />
-        <Dialog.Content className={INHALT}>
-          <Dialog.Title className={TITEL}>{t("projekte.neuTitel")}</Dialog.Title>
-          <Dialog.Description className={TEXT}>{t("projekte.neuText")}</Dialog.Description>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("projekte.neuTitel")}</DialogTitle>
+          <DialogDescription>{t("projekte.neuText")}</DialogDescription>
+        </DialogHeader>
 
-          <label className="flex flex-col gap-2.25" htmlFor="projektname">
-            <span className={ETIKETT}>{t("projekte.name")}</span>
-            <input
-              id="projektname"
-              autoFocus
-              value={name}
-              aria-invalid={vergeben}
-              aria-describedby={vergeben ? "projektname-fehler" : undefined}
-              placeholder={t("projekte.namePlatzhalter")}
-              onChange={(event) => setName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") void absenden();
-              }}
-              className={FELD + (vergeben ? " border-axon-fehler-kraeftig" : "")}
-            />
-            <span className="min-h-4 font-mono text-3xs tracking-(--tracking-fein)">
-              {vergeben ? (
-                <span id="projektname-fehler" role="alert" className="text-axon-fehler">
-                  {t("projekte.nameVergeben")}
-                </span>
-              ) : prueftName ? (
-                <span className="text-axon-schrift-still">{t("projekte.namePruefen")}</span>
-              ) : null}
-            </span>
-          </label>
-
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => dateiRef.current?.click()}
-              className="flex h-(--h-einstiegsschalter) items-center gap-2 border border-axon-feld-rand px-3.5 text-2xs text-axon-schrift-leise transition-colors duration-(--duration-calm) hover:border-axon-fokus hover:text-axon-schrift"
-            >
-              <FolderOpen aria-hidden className="size-3.5" />
-              {t("projekte.ausDatei")}
-            </button>
-            <span className="truncate text-2xs text-axon-schrift-still">
-              {datei?.name ?? t("projekte.ohneDatei")}
-            </span>
-          </div>
-
-          {fehler ? (
-            <p role="alert" className="text-sm text-axon-fehler">
-              {fehler}
-            </p>
-          ) : null}
-
-          <div className="flex justify-end gap-2">
-            <Dialog.Close disabled={laeuft} className={ABBRECHEN}>
-              {t("projekte.abbrechen")}
-            </Dialog.Close>
-            <button
-              type="button"
-              disabled={laeuft || getrimmt === "" || vergeben}
-              onClick={() => void absenden()}
-              className={aktionsKnopf()}
-            >
-              {laeuft ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : null}
-              {t("projekte.anlegen")}
-            </button>
-          </div>
-
-          <input
-            ref={dateiRef}
-            type="file"
-            accept=".json,.xml,.aasx"
-            className="hidden"
-            onChange={(event) => {
-              const gewaehlt = event.target.files?.[0] ?? null;
-              setDatei(gewaehlt);
-              // Der Dateiname als Vorschlag, aber nur solange nichts eingetippt ist. Er
-              // ersetzt den Namen nicht mehr still, der ist jetzt Pflicht und eindeutig.
-              if (gewaehlt && name.trim() === "") {
-                setName(gewaehlt.name.replace(/\.(json|xml|aasx)$/i, ""));
-              }
-              event.target.value = "";
+        <label className="flex flex-col gap-2" htmlFor="projektname">
+          <SectionLabel>{t("projekte.name")}</SectionLabel>
+          <Input
+            id="projektname"
+            autoFocus
+            value={name}
+            aria-invalid={vergeben}
+            aria-describedby={vergeben ? "projektname-fehler" : undefined}
+            placeholder={t("projekte.namePlatzhalter")}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") void absenden();
             }}
           />
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          <span className="min-h-4 font-mono text-3xs tracking-(--tracking-fein)">
+            {vergeben ? (
+              <span id="projektname-fehler" role="alert" className="text-warning-text">
+                {t("projekte.nameVergeben")}
+              </span>
+            ) : prueftName ? (
+              <span className="text-foreground-faint">{t("projekte.namePruefen")}</span>
+            ) : null}
+          </span>
+        </label>
+
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={() => dateiRef.current?.click()}>
+            <FolderOpen aria-hidden data-icon="inline-start" />
+            {t("projekte.ausDatei")}
+          </Button>
+          <span className="truncate text-2xs text-foreground-faint">
+            {datei?.name ?? t("projekte.ohneDatei")}
+          </span>
+        </div>
+
+        {fehler ? (
+          <p role="alert" className="text-sm text-destructive">
+            {fehler}
+          </p>
+        ) : null}
+
+        <DialogFooter>
+          <Button variant="ghost" disabled={laeuft} onClick={schliessen}>
+            {t("projekte.abbrechen")}
+          </Button>
+          <Button
+            disabled={laeuft || getrimmt === "" || vergeben}
+            onClick={() => void absenden()}
+          >
+            {laeuft ? <Loader2 aria-hidden className="animate-spin" /> : null}
+            {t("projekte.anlegen")}
+          </Button>
+        </DialogFooter>
+
+        <input
+          ref={dateiRef}
+          type="file"
+          accept=".json,.xml,.aasx"
+          className="hidden"
+          onChange={(event) => {
+            const gewaehlt = event.target.files?.[0] ?? null;
+            setDatei(gewaehlt);
+            // Der Dateiname als Vorschlag, aber nur solange nichts eingetippt ist. Er
+            // ersetzt den Namen nicht mehr still, der ist jetzt Pflicht und eindeutig.
+            if (gewaehlt && name.trim() === "") {
+              setName(gewaehlt.name.replace(/\.(json|xml|aasx)$/i, ""));
+            }
+            event.target.value = "";
+          }}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
