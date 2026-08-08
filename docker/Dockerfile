@@ -6,6 +6,12 @@
 # uebersetzt. Die Werkzeuge dafuer kommen deshalb je Stufe dazu, in der Laufzeitstufe in
 # derselben Schicht wieder weg.
 FROM node:22-bookworm-slim AS base
+# Corepack fragt vor dem Herunterladen einer Paketverwaltung nach: "Corepack is about to
+# download ... Do you want to continue? [Y/n]". Im Bau steht niemand am Terminal, und die
+# Frage haelt den Lauf an, bis der Bauserver nach einer Stunde abbricht. Genau das ist am
+# 08.08.2026 passiert. Vorher fiel es nie auf: die Schicht kam aus dem Cache, pnpm lag also
+# schon im Image.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /app
 
