@@ -6,13 +6,18 @@
 # uebersetzt. Die Werkzeuge dafuer kommen deshalb je Stufe dazu, in der Laufzeitstufe in
 # derselben Schicht wieder weg.
 FROM node:22-bookworm-slim AS base
+# pnpm fest installiert statt ueber Corepack.
+#
 # Corepack fragt vor dem Herunterladen einer Paketverwaltung nach: "Corepack is about to
 # download ... Do you want to continue? [Y/n]". Im Bau steht niemand am Terminal, und die
 # Frage haelt den Lauf an, bis der Bauserver nach einer Stunde abbricht. Genau das ist am
 # 08.08.2026 passiert. Vorher fiel es nie auf: die Schicht kam aus dem Cache, pnpm lag also
 # schon im Image.
+#
+# Die Fassung muss zu `packageManager` in der package.json passen. Weicht sie ab, bricht
+# `--frozen-lockfile` sofort und sichtbar ab, statt still etwas anderes zu bauen.
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable
+RUN npm install -g pnpm@10.30.3
 WORKDIR /app
 
 # --- Build ---
@@ -21,9 +26,24 @@ WORKDIR /app
 FROM base AS build
 # Wird mit der Stufe verworfen, deshalb ohne Aufraeumen.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++
+
+# Erst die Manifeste, dann installieren, dann der Quelltext.
+#
+# Bis zum 08.08.2026 stand hier `COPY . .` **vor** der Installation. Damit entwertete jede
+# Codeaenderung die Schicht, in der installiert und gebaut wird: aus einer Aenderung an
+# einer .tsx-Datei wurde ein Vollbau samt Uebersetzen von better-sqlite3. Solange der Cache
+# griff, fiel das nicht auf; beim ersten kalten Bau lief es in das Ein-Stunden-Limit.
+#
+# Kein Paket hat ein `prepare`-Skript, die Installation kommt also ohne den Quelltext aus.
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
+COPY packages/core/package.json packages/core/
+COPY apps/server/package.json apps/server/
+COPY apps/web/package.json apps/web/
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+  pnpm install --frozen-lockfile
+
 COPY . .
-RUN pnpm install --frozen-lockfile \
-  && pnpm --filter @aas-editor/web build \
+RUN pnpm --filter @aas-editor/web build \
   && pnpm --filter @aas-editor/server build \
   && node scripts/check-bundle-budget.mjs
 
