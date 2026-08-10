@@ -5,7 +5,8 @@ import type { JsonValue } from "@aas-editor/core";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { vorschlagsPfad } from "@/components/Inspector/Medien";
+import { normalisiere as normalize, zielPfad } from "@/lib/anhangspfade";
+import { meldeHinweis } from "@/lib/melden";
 import { useEditor, NO_ATTACHMENTS } from "@/store/editor";
 import type { FieldEditorProps } from "./Primitives";
 import { useEntwurf } from "./useEntwurf";
@@ -18,6 +19,7 @@ import { useEntwurf } from "./useEntwurf";
 export function AttachmentEditor({ value, onChange, id }: FieldEditorProps) {
   const { t } = useTranslation();
   const attachments = useEditor((state) => state.meta?.attachments ?? NO_ATTACHMENTS);
+  const model = useEditor((state) => state.model);
   const anhangSetzen = useEditor((state) => state.anhangSetzen);
   const anhangEntfernen = useEditor((state) => state.anhangEntfernen);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,11 +81,15 @@ export function AttachmentEditor({ value, onChange, id }: FieldEditorProps) {
            * auf nichts, und beim Export faende ihn niemand. Steht noch keiner da, wird er
            * aus dem Dateinamen gebildet und gleich mitgesetzt.
            */
-          const ziel = path === "" ? vorschlagsPfad(file.name) : normalize(path);
+          const { ziel, abgezweigt } = zielPfad(path, file.name, model, (kandidat) =>
+            attachments.some((eintrag) => eintrag.path === kandidat),
+          );
           const typ = file.type === "" ? "application/octet-stream" : file.type;
 
           await anhangSetzen(ziel, typ, new Uint8Array(await file.arrayBuffer()));
           if (ziel !== normalize(path)) onChange(ziel as JsonValue);
+          // Sonst aendert sich der Pfad im Feld darueber scheinbar von allein.
+          if (abgezweigt) meldeHinweis("inspektor.anhangAbgezweigt", { pfad: ziel });
         }}
       />
     </div>
@@ -136,10 +142,6 @@ export function BlobEditor({ value, onChange }: FieldEditorProps) {
       />
     </div>
   );
-}
-
-function normalize(path: string): string {
-  return path.startsWith("/") ? path : `/${path}`;
 }
 
 function formatSize(bytes: number): string {

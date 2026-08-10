@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { SectionLabel } from "@/components/ui/section-label";
+import { dateinameVon, normalisiere } from "@/lib/anhangspfade";
 import { NO_ATTACHMENTS, useEditor } from "@/store/editor";
 import { labelOf, pathTo } from "@/store/rows";
 import { aasWorker } from "@/worker/bridge";
@@ -38,9 +39,6 @@ import { aasWorker } from "@/worker/bridge";
  */
 const MAX_DATEIEN = 20;
 
-/** Der Ort, an dem ein neu hochgeladener Anhang landet, wenn noch kein Pfad dasteht. */
-const SUPPL = "/aasx/suppl";
-
 interface Eintrag {
   readonly pfad: string;
   /** Woher der Pfad stammt, fuer die Beschriftung. */
@@ -57,17 +55,8 @@ interface Eintrag {
 /** Externe Verweise sind kein Paketanhang, sie werden nicht angezeigt. */
 const IST_EXTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
 
-function normalisiere(pfad: string): string {
-  return pfad.startsWith("/") ? pfad : `/${pfad}`;
-}
-
 function alsText(wert: JsonValue | undefined): string | null {
   return typeof wert === "string" && wert !== "" ? wert : null;
-}
-
-/** Der Dateiname aus einem Paketpfad. Er, nicht der idShort, gehoert an den Download. */
-export function dateinameVon(pfad: string): string {
-  return pfad.split("/").pop() ?? "anhang";
 }
 
 /** Der Pfad aus `assetInformation.defaultThumbnail`, falls die Schale einen setzt. */
@@ -507,10 +496,4 @@ export function groesse(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** Der Paketpfad fuer eine neu gewaehlte Datei, wenn das File-Element noch keinen traegt. */
-export function vorschlagsPfad(dateiname: string): string {
-  const sauber = dateiname.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
-  return `${SUPPL}/${sauber === "" ? "anhang" : sauber}`;
 }

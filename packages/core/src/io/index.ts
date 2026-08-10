@@ -6,6 +6,7 @@ import { findMissingAttachments } from "./attachments.js";
 import { collectCollisionWarnings } from "./collisions.js";
 import { decodeText, detectFormat, detectVersion } from "./detect.js";
 import { exportJson, importJson } from "./json.js";
+import { vorschaubildFuer } from "./vorschaubild.js";
 import { exportXml, importXml } from "./xml.js";
 import type {
   AasFormat,
@@ -105,8 +106,13 @@ export async function exportFile(request: ExportRequest): Promise<ExportResult> 
       };
     case "aasx": {
       const options: Parameters<typeof exportAasx>[1] = {};
+      const attachments = request.attachments ?? new Map();
       if (request.attachments) Object.assign(options, { attachments: request.attachments });
-      if (request.thumbnail) Object.assign(options, { thumbnail: request.thumbnail });
+      // Abgeleitet, nicht durchgereicht: zeigt eine Schale mit `defaultThumbnail` auf einen
+      // Anhang, ist **dieser** das Vorschaubild des Pakets. Sonst bliebe im Container das
+      // Bild stehen, das beim Oeffnen darin lag.
+      const thumbnail = vorschaubildFuer(environment, attachments, request.thumbnail ?? null);
+      if (thumbnail) Object.assign(options, { thumbnail });
       return {
         bytes: await exportAasx(environment, options),
         fileName: "environment.aasx",
@@ -123,6 +129,7 @@ export * from "./types.js";
 export * from "./detect.js";
 export * from "./attachments.js";
 export * from "./collisions.js";
+export * from "./vorschaubild.js";
 export { importAasx, exportAasx } from "./aasx.js";
 export { importJson, exportJson } from "./json.js";
 export { importXml, exportXml } from "./xml.js";

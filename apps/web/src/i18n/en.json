@@ -77,7 +77,8 @@
     "schluesselWert": "Value",
     "dateiWaehlen": "Choose file",
     "dateiErsetzen": "Replace",
-    "keinAnhang": "No attachment in the package under this path."
+    "keinAnhang": "No attachment in the package under this path.",
+    "anhangAbgezweigt": "The file was shared with other elements. The new one is stored at {{pfad}} and belongs to this element only."
   },
   "gruppe": {
     "allgemein": "General",

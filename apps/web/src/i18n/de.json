@@ -77,7 +77,8 @@
     "schluesselWert": "Wert",
     "dateiWaehlen": "Datei wählen",
     "dateiErsetzen": "Ersetzen",
-    "keinAnhang": "Kein Anhang im Paket unter diesem Pfad."
+    "keinAnhang": "Kein Anhang im Paket unter diesem Pfad.",
+    "anhangAbgezweigt": "Die Datei war mit anderen Elementen geteilt. Die neue liegt unter {{pfad}} und gehört nur zu diesem Element."
   },
   "gruppe": {
     "allgemein": "Allgemein",

@@ -36,6 +36,17 @@ export interface FileReference {
   readonly path: string;
   /** aas-core-Pfad des Elements, fuer den Sprung aus der Warnung */
   readonly aasPath: string;
+  /** Woher der Verweis stammt: ein File-Element oder das Vorschaubild einer Schale. */
+  readonly art: "datei" | "vorschaubild";
+}
+
+/** Externe Verweise sind kein Paketanhang und werden nirgends geprueft. */
+const IST_EXTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+function alsPaketpfad(wert: unknown): string | null {
+  if (typeof wert !== "string" || wert.length === 0) return null;
+  if (IST_EXTERN.test(wert)) return null;
+  return normalizePath(wert);
 }
 
 /** Alle File-Elemente des Modells mit ihrem Paketpfad. */
@@ -45,19 +56,59 @@ export function collectFileReferences(model: EditorModel): FileReference[] {
 
   for (const node of walk(model)) {
     if (node.kind !== "File") continue;
-    const value = node.data["value"];
-    if (typeof value !== "string" || value.length === 0) continue;
-    // Externe Verweise sind kein Paketanhang und werden nicht geprueft.
-    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(value)) continue;
+    const path = alsPaketpfad(node.data["value"]);
+    if (path === null) continue;
 
     out.push({
       nodeId: node.nodeId,
-      path: normalizePath(value),
+      path,
       aasPath: index.byNode.get(node.nodeId) ?? "",
+      art: "datei",
     });
   }
 
   return out;
+}
+
+/**
+ * Das `defaultThumbnail` jeder Schale, sofern es in den Paketcontainer zeigt.
+ *
+ * Die zweite Quelle neben den File-Elementen. Sie zu uebersehen war der Grund, aus dem ein
+ * ersetztes Produktbild am 10.08.2026 stillschweigend auch das Vorschaubild aenderte: in
+ * echten Herstellerdateien zeigen beide auf **dieselbe** Datei.
+ */
+export function collectThumbnailReferences(model: EditorModel): FileReference[] {
+  const index = buildPathIndex(model);
+  const out: FileReference[] = [];
+
+  for (const node of walk(model)) {
+    if (node.kind !== "AssetAdministrationShell") continue;
+    const info = node.data["assetInformation"];
+    if (typeof info !== "object" || info === null || Array.isArray(info)) continue;
+    const thumb = (info as Record<string, unknown>)["defaultThumbnail"];
+    if (typeof thumb !== "object" || thumb === null || Array.isArray(thumb)) continue;
+    const path = alsPaketpfad((thumb as Record<string, unknown>)["path"]);
+    if (path === null) continue;
+
+    out.push({
+      nodeId: node.nodeId,
+      path,
+      aasPath: index.byNode.get(node.nodeId) ?? "",
+      art: "vorschaubild",
+    });
+  }
+
+  return out;
+}
+
+/**
+ * Alles, was auf eine Datei im Paket zeigt.
+ *
+ * Die Grundlage der Frage "teilen sich mehrere Stellen diese Datei?". Ein Pfad kann hier
+ * mehrfach vorkommen, genau das ist der interessante Fall.
+ */
+export function collectPackageReferences(model: EditorModel): FileReference[] {
+  return [...collectFileReferences(model), ...collectThumbnailReferences(model)];
 }
 
 /**

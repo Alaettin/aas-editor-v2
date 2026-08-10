@@ -35,6 +35,12 @@ import { Medien } from "./Medien";
  * Logos und Vorschaubildern, und die waren im Editor bisher ueberhaupt nicht zu sehen. Ein
  * File-Element zeigte nur seinen Pfad.
  */
+
+/** Welche Gruppen ohne Zutun offen stehen: die erste und WERT. */
+function istVorgabe(titel: string, index: number): boolean {
+  return index === 0 || titel === "gruppe.wert";
+}
+
 export function Inspector() {
   const { t } = useTranslation();
   const model = useEditor((state) => state.model);
@@ -59,19 +65,23 @@ export function Inspector() {
    * Orten gebraucht (Zuruecksetzen beim Elementwechsel, der Umschalter, das Rendern), und
    * drei Kopien derselben Regel laufen frueher oder spaeter auseinander.
    *
-   * Vorgabe ist die **erste** Gruppe, der Rest zu. Der Rueckfall ist noetig, weil
-   * `openGroups` vor dem ersten Lauf des Effekts leer ist; ohne ihn stuende im ersten
-   * Bild alles zugeklappt und klappte danach auf.
+   * Vorgabe sind die **erste** Gruppe und WERT, der Rest zu. WERT ist bei einer Property
+   * das, weswegen man das Element ueberhaupt geoeffnet hat, steht aber nie an erster
+   * Stelle. Verglichen wird der i18n-Schluessel, nicht die Beschriftung: der Titel in
+   * `FieldGroupSpec` ist bereits einer, und die Regel darf nicht an der Sprache haengen.
+   *
+   * Der Rueckfall ist noetig, weil `openGroups` vor dem ersten Lauf des Effekts leer ist;
+   * ohne ihn stuende im ersten Bild alles zugeklappt und klappte danach auf.
    */
   const istOffen = (titel: string, index: number): boolean =>
-    openGroups[titel] ?? index === 0;
+    openGroups[titel] ?? istVorgabe(titel, index);
 
-  // Beim Wechsel des Elements steht wieder nur die erste Gruppe offen.
+  // Beim Wechsel des Elements steht wieder die Vorgabe.
   useEffect(() => {
     if (!spec) return;
     const next: Record<string, boolean> = {};
     spec.groups.forEach((group, index) => {
-      next[group.title] = index === 0;
+      next[group.title] = istVorgabe(group.title, index);
     });
     setOpenGroups(next);
   }, [spec, selection]);
