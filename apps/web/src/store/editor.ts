@@ -54,12 +54,6 @@ import { submodelsJeShell } from "@aas-editor/core";
  */
 export const NO_ATTACHMENTS: readonly AttachmentInfo[] = [];
 
-/**
- * Die drei Sichten aus Plan Abschnitt 8. Der Baum bleibt in allen dreien links stehen,
- * gewechselt wird nur die rechte Flaeche: es ist ein Perspektivwechsel, kein Ortswechsel.
- */
-export type View = "formular" | "graph";
-
 export type Status = "leer" | "laedt" | "bereit" | "fehler";
 /**
  * Verhaeltnis zum Serverstand. "ohneProjekt" heisst: aus einer Datei geoeffnet und noch
@@ -100,8 +94,6 @@ interface EditorState {
   filter: string;
   /** Die zuletzt kopierten oder ausgeschnittenen Elemente */
   clipboard: Fragment | null;
-
-  view: View;
 
   openFile: (file: File) => Promise<void>;
   exportAs: (format: "json" | "xml" | "aasx") => Promise<void>;
@@ -162,6 +154,24 @@ interface EditorState {
   setIssuePanelOpen: (open: boolean) => void;
   setFilter: (filter: string) => void;
 
+  /**
+   * Anhaenge bearbeiten.
+   *
+   * Die Bytes liegen im Worker, nicht hier. Hochgeladen wird beim Speichern:
+   * `anhaengeHochladen` gleicht ab, was der Worker fuehrt, es ist dafuer nichts
+   * zusaetzlich zu tun.
+   */
+  anhangSetzen: (pfad: string, contentType: string, bytes: Uint8Array) => Promise<void>;
+  anhangEntfernen: (pfad: string) => Promise<void>;
+  /**
+   * Zaehler, der sich bei jeder Anhangsaenderung bewegt.
+   *
+   * Die Vorschau haengt am Paketpfad, und der bleibt beim Ersetzen derselbe: ohne diesen
+   * Zaehler zeigte sie weiter das alte Bild, obwohl im Worker laengst das neue liegt.
+   * Die Bytes selbst gehoeren nicht hierher, sie liegen im Worker.
+   */
+  anhangStand: number;
+
   /** Zwischenablage: kopieren, ausschneiden, einfuegen */
   copyNode: (nodeId: NodeId) => void;
   cutNode: (nodeId: NodeId) => void;
@@ -171,8 +181,6 @@ interface EditorState {
     fragment: Fragment,
     strategy?: PasteStrategy,
   ) => PasteResult | null;
-
-  setView: (view: View) => void;
 
   /**
    * Zwei Rueckfragen, die von mehreren Stellen ausgeloest werden koennen: aus dem Baum,
@@ -188,12 +196,6 @@ interface EditorState {
   pasteTargetId: NodeId | null;
   requestDelete: (nodeIds: readonly NodeId[]) => void;
   requestPaste: (nodeId: NodeId | null) => void;
-
-  /** Validierung sofort anstossen, statt auf die Entprellung zu warten. */
-
-  /** Zoomstufe des Graphen, fuer die Statusleiste ausserhalb des ReactFlowProvider. */
-  graphZoom: number;
-  setGraphZoom: (zoom: number) => void;
 }
 
 /**
@@ -313,8 +315,6 @@ export const useEditor = create<EditorState>()((set, get) => {
     revision: 0,
     serverStatus: "ohneProjekt",
     anhaengeBereit: true,
-
-    view: "formular",
 
     async openFile(file) {
       // Wird im Editor eines Projekts geoeffnet, ersetzt die Datei dessen Inhalt und das
@@ -764,6 +764,18 @@ export const useEditor = create<EditorState>()((set, get) => {
     setIssuePanelOpen: (open) => set({ issuePanelOpen: open }),
     setFilter: (filter) => set({ filter }),
 
+    anhangStand: 0,
+
+    anhangSetzen: async (pfad, contentType, bytes) => {
+      await aasWorker().putAttachment(pfad, contentType, bytes);
+      await anhaengeNachziehen(set, get);
+    },
+
+    anhangEntfernen: async (pfad) => {
+      await aasWorker().removeAttachment(pfad);
+      await anhaengeNachziehen(set, get);
+    },
+
     copyNode: (nodeId) => {
       const { model } = get();
       if (!model) return;
@@ -807,15 +819,10 @@ export const useEditor = create<EditorState>()((set, get) => {
       return result;
     },
 
-    setView: (view) => set({ view }),
-
     pendingDelete: [],
     pasteTargetId: null,
     requestDelete: (nodeIds) => set({ pendingDelete: nodeIds }),
     requestPaste: (nodeId) => set({ pasteTargetId: nodeId }),
-
-    graphZoom: 1,
-    setGraphZoom: (graphZoom) => set({ graphZoom }),
   };
 });
 
@@ -856,6 +863,30 @@ async function inGruppen<T>(
     }
   });
   await Promise.all(laeufer);
+}
+
+/**
+ * Zieht die Anhangsliste aus dem Worker nach, nachdem sich dort etwas geaendert hat.
+ *
+ * Drei Dinge gehoeren dazu, und keines davon ist Beiwerk: die Liste in `meta`, damit das
+ * Formular und die Dateiflaeche den neuen Stand sehen; `dirty` und `serverStatus`, sonst
+ * bliebe der Speichern-Knopf tot und die neue Datei ginge beim Verlassen verloren; und
+ * die Pruefung, damit die Warnung "kein Anhang" sofort verschwindet statt erst bei der
+ * naechsten Modellaenderung.
+ */
+async function anhaengeNachziehen(
+  set: (partial: Partial<EditorState>) => void,
+  get: () => EditorState,
+): Promise<void> {
+  const liste = await aasWorker().listAttachments();
+  const meta = get().meta;
+  set({
+    ...(meta ? { meta: { ...meta, attachments: liste } } : {}),
+    anhangStand: get().anhangStand + 1,
+    dirty: true,
+    serverStatus: get().projektId === null ? "ohneProjekt" : "geaendert",
+  });
+  scheduleValidation(set);
 }
 
 /**

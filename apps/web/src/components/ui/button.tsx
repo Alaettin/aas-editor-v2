@@ -18,12 +18,12 @@ const buttonVariants = cva(
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
-        /* Umrandet und warnfarben: der Loeschen-Knopf im Formularkopf */
-        "danger-outline":
-          "border-warning/40 bg-card text-warning-text hover:bg-warning-muted focus-visible:border-warning focus-visible:ring-warning/20",
-        /* Umrandet und akzentfarben: der Gruppen-Umschalter im Formularkopf */
-        "accent-outline":
-          "border-type-aas/40 bg-card text-type-aas-text hover:bg-type-aas-surface focus-visible:border-type-aas focus-visible:ring-type-aas/20",
+        /*
+         * `danger-outline` und `accent-outline` standen hier bis zum 10.08.2026, eigens
+         * fuer die drei Knoepfe des Formularkopfs. Sie sind entfallen: derselbe Knopf soll
+         * im Editor aussehen wie auf der Projektseite, und dort tun es `outline` und
+         * `destructive`. Zwei Varianten, die niemand mehr benutzt, sind toter Stil.
+         */
         /* Geisterknopf fuer "+ Hinzufuegen" und "+ Sprache" */
         ghostAccent: "bg-type-aas-surface text-type-aas-text hover:bg-type-aas-surface/70",
         link: "text-primary underline-offset-4 hover:underline",

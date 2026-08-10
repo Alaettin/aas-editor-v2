@@ -19,7 +19,6 @@
     "warnungen": "{{count}} warnings",
     "keineBefunde": "No findings",
     "anhaengeLaden": "Loading attachments ...",
-    "zoom": "Zoom {{prozent}} %",
     "gespeichert": "saved",
     "ungespeichert": "unsaved",
     "prueft": "Checking ..."
@@ -269,9 +268,6 @@
     "befehle": "Commands",
     "panelAuf": "Show findings",
     "panelZu": "Hide findings",
-    "sichten": "Views",
-    "zuFormular": "Switch to the form",
-    "zuGraph": "Switch to the graph",
     "stichwort": {
       "sicht": "view",
       "formular": "form properties fields",
@@ -309,29 +305,6 @@
     "ohneAnhaenge_other": "The {{count}} attachments themselves are not stored, only their paths. Open the file again for a complete AASX export.",
     "fortsetzen": "Resume",
     "verwerfen": "Discard"
-  },
-  "sicht": {
-    "abgeschaltet": "The graph is being reworked.",
-    "formular": "Form",
-    "graph": "Graph",
-    "titel": "View"
-  },
-  "graph": {
-    "leerTitel": "Nothing to show",
-    "leerText": "The map shows shells, submodels and concept descriptions with their references. This environment has none.",
-    "umfang": "{{knoten}} nodes, {{kanten}} edges",
-    "dauer": "Layout {{ms}} ms",
-    "allesZeigen": "Show all {{count}}",
-    "submodels_one": "{{count}} submodel",
-    "submodels_other": "{{count}} submodels",
-    "elemente_one": "{{count}} element",
-    "elemente_other": "{{count}} elements",
-    "befunde_one": "{{count}} finding",
-    "befunde_other": "{{count}} findings",
-    "zoomRein": "Zoom in",
-    "zoomRaus": "Zoom out",
-    "einpassen": "Fit to view",
-    "erneut": "Try again"
   },
   "anmeldung": {
     "benutzer": "Username",
@@ -417,7 +390,6 @@
   "menu": {
     "zurListe": "To the project list",
     "neu": "New",
-    "duplizieren": "Duplicate",
     "loeschen": "Delete",
     "allesAufklappen": "Expand all",
     "allesZuklappen": "Collapse all"
@@ -492,6 +464,17 @@
     "befundeImElement_other": "{{count}} in this element",
     "aufklappen": "Expand findings",
     "zuklappen": "Collapse findings"
+  },
+  "medien": {
+    "titel": "Files",
+    "laedt": "Loading attachments …",
+    "leer": "No files",
+    "leerText": "There is no File element with a package attachment below this element.",
+    "vorschaubild": "Thumbnail",
+    "herunterladen": "Download",
+    "weitere_one": "One more file is not shown.",
+    "weitere_other": "{{count}} more files are not shown.",
+    "imBaum": "Show in tree"
   },
   "melden": {
     "gespeichert": "Project saved.",

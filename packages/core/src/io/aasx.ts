@@ -17,7 +17,16 @@ import { ImportError, type Attachment, type AttachmentMap } from "./types.js";
  * Die Bibliothek wird dynamisch geladen, sie wird nur bei AASX gebraucht.
  */
 
-const SPEC_URI = "/aasx/aas-spec.xml";
+/**
+ * Der Name der Spec-Datei folgt der Konvention aus IDTA-01005-3-2: "aasx/data.<extension>
+ * should be the target of the aas-spec relationship". Bis zum 10.08.2026 stand hier
+ * `aas-spec.xml`.
+ *
+ * Der Name ist fuer einen Leser ohnehin nicht tragend: gefunden wird die Datei ueber die
+ * Beziehung, nicht ueber ihren Pfad. Genau deshalb ist die Umbenennung gefahrlos, und
+ * genau deshalb ist sie eine Empfehlung und keine Pflicht.
+ */
+const SPEC_URI = "/aasx/data.xml";
 const ORIGIN_CONTENT_TYPE = "text/plain";
 const XML_CONTENT_TYPE = "application/xml";
 const JSON_CONTENT_TYPE = "application/json";

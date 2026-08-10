@@ -4,8 +4,8 @@ import { expect, test, type Page } from "@playwright/test";
 /**
  * Die Oberflaeche im Browser, Phase 8.
  *
- * Gepruefte Zusagen: der Rahmen haelt seine Hoehen, beide Sichten lassen sich ohne
- * Konsolenfehler oeffnen, die Einrueckung im Baum entspricht der Tiefe, und der Assistent
+ * Gepruefte Zusagen: der Rahmen haelt seine Hoehen, der Editor oeffnet ohne
+ * Konsolenfehler, die Einrueckung im Baum entspricht der Tiefe, und der Assistent
  * sagt ohne Anbindung, dass er nichts kann.
  */
 
@@ -42,7 +42,6 @@ interface KnownStore {
   getState: () => {
     status: string;
     model: { nodes: Record<string, { data: Record<string, unknown>; nodeId: string }> };
-    setView: (view: string) => void;
     goToNode: (nodeId: string) => void;
   };
 }
@@ -63,7 +62,7 @@ test.describe("Oberflaeche", () => {
     expect(ueberlauf).toBe(false);
   });
 
-  test("jede Sicht oeffnet ohne Konsolenfehler", async ({ page }) => {
+  test("der Editor oeffnet ohne Konsolenfehler", async ({ page }) => {
     const fehler: string[] = [];
     page.on("pageerror", (e) => fehler.push(e.message));
     page.on("console", (m) => {
@@ -72,11 +71,10 @@ test.describe("Oberflaeche", () => {
       }
     });
 
-    await anmeldenUndOeffnen(page, `Sichten ${String(Date.now())}`);
+    await anmeldenUndOeffnen(page, `Oeffnen ${String(Date.now())}`);
 
-    // Der Graph ist seit dem 06.08.2026 abgeschaltet, er wird ueberarbeitet.
-    await expect(page.locator('[data-view="graph"]')).toBeDisabled();
-    await expect(page.locator('[data-view="formular"][aria-selected="true"]')).toBeVisible();
+    // Seit dem 10.08.2026 gibt es nur noch das Formular, der Graph ist entfallen.
+    await expect(page.getByRole("tree")).toBeVisible();
 
     expect(fehler).toEqual([]);
   });
@@ -397,6 +395,80 @@ test.describe("Oberflaeche", () => {
         .setLanguage("de"),
     );
     await expect(page.locator("html")).toHaveAttribute("lang", "de");
+  });
+
+  /*
+   * Das Kontextmenue haengt am ganzen Baumcontainer, nicht an jeder Zeile: bei zehntausend
+   * Zeilen waere alles andere zehntausendfacher Aufwand. Der Preis ist, dass ein
+   * Rechtsklick **neben** eine Zeile ohne Zutun kein Ziel hat. Bis zum 10.08.2026 kam
+   * dabei zweierlei heraus, und der zweite Fall war der gefaehrlichere.
+   *
+   * Geprueft wird im Browser und nicht als Unit-Test: Radix, die Treffererkennung im DOM
+   * und die Reihenfolge der Ereignisse gibt es nur hier wirklich.
+   */
+  test.describe("Rechtsklick im Baum", () => {
+    /** Die leere Flaeche unter der letzten Zeile, in Fensterkoordinaten. */
+    async function leereFlaeche(page: Page): Promise<{ x: number; y: number }> {
+      const baum = await page.getByRole("tree").boundingBox();
+      const zeilen = await page.getByRole("treeitem").all();
+      const letzte = await zeilen[zeilen.length - 1]?.boundingBox();
+      if (!baum || !letzte) throw new Error("Baum oder Zeilen nicht gefunden.");
+
+      const y = letzte.y + letzte.height + 40;
+      // Waere die Flaeche voll, gaebe es nichts zu pruefen; die Probe ist klein genug.
+      expect(y, "der Baum fuellt seine ganze Hoehe, es gibt keine leere Flaeche").toBeLessThan(
+        baum.y + baum.height - 10,
+      );
+      return { x: baum.x + baum.width / 2, y };
+    }
+
+    test("zeigt neben einer Zeile das Menue der Wurzel, nicht ein leeres", async ({ page }) => {
+      await anmeldenUndOeffnen(page, `Kontext leer ${String(Date.now())}`);
+
+      // Ohne vorherigen Rechtsklick: genau der gemeldete Fall, das Menue war leer.
+      const ort = await leereFlaeche(page);
+      await page.mouse.click(ort.x, ort.y, { button: "right" });
+
+      /*
+       * Ueber die Rolle und nicht ueber den Text: ein Eintrag traegt neben seinem Namen
+       * sein Tastenkuerzel, sein Textinhalt lautet also "EinfuegenStrg+V". Ein
+       * `getByText(..., { exact: true })` findet ihn deshalb nie, und die Pruefung waere
+       * gruen gewesen, ohne je etwas zu treffen.
+       */
+      const menue = page.getByRole("menu");
+      await expect(menue).toBeVisible();
+      await expect(menue.getByRole("menuitem", { name: /^Neu/ })).toBeVisible();
+      await expect(menue.getByRole("menuitem", { name: /^Einfügen/ })).toBeVisible();
+      // Die Wurzel ist kein Element: was sie zerstoeren wuerde, darf nicht dastehen.
+      await expect(menue.getByRole("menuitem", { name: /^Löschen/ })).toHaveCount(0);
+    });
+
+    test("uebernimmt neben einer Zeile nicht das Menue der zuletzt geklickten", async ({
+      page,
+    }) => {
+      await anmeldenUndOeffnen(page, `Kontext alt ${String(Date.now())}`);
+
+      // Erst eine echte Zeile: die hat Loeschen, und das gehoert auch dorthin. Zugleich
+      // die Nagelprobe, dass der Zaun nicht zu weit greift.
+      const zeile = page.getByRole("treeitem").nth(1);
+      await zeile.click({ button: "right" });
+      await expect(
+        page.getByRole("menu").getByRole("menuitem", { name: /^Löschen/ }),
+      ).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("menu")).toHaveCount(0);
+
+      // Jetzt daneben. Bis zum 10.08.2026 stand hier weiter das Menue der Zeile von
+      // vorhin, samt Ausschneiden und Loeschen fuer ein Element, das gar nicht unter dem
+      // Zeiger lag. Das sah richtig aus und war es nicht.
+      const ort = await leereFlaeche(page);
+      await page.mouse.click(ort.x, ort.y, { button: "right" });
+
+      const menue = page.getByRole("menu");
+      await expect(menue).toBeVisible();
+      await expect(menue.getByRole("menuitem", { name: /^Neu/ })).toBeVisible();
+      await expect(menue.getByRole("menuitem", { name: /^Löschen/ })).toHaveCount(0);
+    });
   });
 
   test("sagt beim Speichern, dass es geklappt hat", async ({ page }) => {

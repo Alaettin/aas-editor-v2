@@ -65,7 +65,8 @@ export async function exportiereProjekt(
       specFormat: "json",
       attachments: await ladeAnhaenge(projektId),
     }),
-    contentType: "application/asset-administration-shell-package",
+    // Der bei der IANA registrierte Typ aus IDTA-01005-3-2, siehe `core/io/index.ts`.
+    contentType: "application/aas+zip",
     dateiname,
   };
 }

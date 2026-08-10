@@ -44,7 +44,7 @@ export function ConceptCard({
         <Chip tone="cd" mono>
           CD
         </Chip>
-        <span className="truncate text-base font-semibold">
+        <span className="min-w-0 truncate text-base font-semibold">
           {info.preferredName ?? labelOf(info.conceptDescription)}
         </span>
         <button

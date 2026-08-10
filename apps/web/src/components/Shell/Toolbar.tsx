@@ -28,7 +28,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { useAssistant } from "@/store/assistant";
 import { useEditor } from "@/store/editor";
-import { ViewSwitch } from "./ViewSwitch";
 import { ersteTasteFuer } from "@/lib/shortcuts";
 
 /**
@@ -246,10 +245,6 @@ export function Toolbar({ onOeffnen, onExport }: Props) {
         istWurzel,
         ersteTasteFuer("hilfe.loeschen"),
       )}
-
-      <Trenner />
-
-      <ViewSwitch />
 
       <div className="ml-auto flex items-center gap-1.5">
         <Button

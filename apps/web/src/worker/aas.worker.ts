@@ -1,13 +1,5 @@
 import * as Comlink from "comlink";
-import {
-  applyPatches,
-  countNodes,
-  nodeSize,
-  type EditorModel,
-  type Graph,
-  type LayoutResult,
-  type Patch,
-} from "@aas-editor/core";
+import { applyPatches, countNodes, type EditorModel, type Patch } from "@aas-editor/core";
 import {
   exportFile,
   importFile,
@@ -17,15 +9,6 @@ import {
 import { validate } from "@aas-editor/core/validation";
 
 import type { AasWorkerApi, ExportedFile, OpenResult } from "./protocol.js";
-
-/**
- * Die Adresse des elkjs-Rechenkerns als eigenstaendige Datei.
- *
- * `?url` laesst Vite die Datei als Asset ablegen und gibt nur ihre Adresse zurueck. Der
- * 456-KB-Brocken wird damit **erst geladen, wenn das erste Layout laeuft**, und liegt
- * weder im Startbundle noch im Worker-Chunk.
- */
-const ELK_KERN_URL = new URL("elkjs/lib/elk-worker.min.js", import.meta.url).href;
 
 /**
  * Der AAS-Kern laeuft vollstaendig hier. Moeglich, weil weder die SDKs noch
@@ -96,61 +79,6 @@ const api: AasWorkerApi = {
     return Comlink.transfer(exported, [result.bytes.buffer as ArrayBuffer]);
   },
 
-  async layoutGraph(graph: Graph): Promise<LayoutResult> {
-    // elkjs ist mit 456 KB gzip der groesste Brocken im Projekt.
-    //
-    // Stolperfalle: `elk.bundled.js` sucht seinen Rechenkern intern ueber `require` und
-    // scheitert unter Vite mit "_Worker is not a constructor", auch mit Vorbuendelung.
-    // Der von elkjs fuer den Browser vorgesehene Weg ist die schlanke `elk-api` (2,9 KB)
-    // plus die Adresse des Rechenkerns. ELK startet ihn dann selbst als eigenen Worker.
-    // Wir sind zwar schon im Worker, aber verschachtelte Worker sind zulaessig, und der
-    // Hauptthread bleibt so erst recht frei.
-    const { default: ELK } = await import("elkjs/lib/elk-api.js");
-    const elk = new ELK({ workerUrl: ELK_KERN_URL });
-
-    const begonnen = performance.now();
-    const ergebnis = await elk.layout({
-      id: "root",
-      layoutOptions: {
-        "elk.algorithm": "layered",
-        "elk.direction": "RIGHT",
-        "elk.layered.spacing.nodeNodeBetweenLayers": "80",
-        "elk.spacing.nodeNode": "28",
-        "elk.layered.crossingMinimization.semiInteractive": "true",
-      },
-      children: graph.nodes.map((node) => ({
-        id: node.id,
-        ...nodeSize(node.kind),
-      })),
-      edges: graph.edges.map((edge) => ({
-        id: edge.id,
-        sources: [edge.source],
-        targets: [edge.target],
-      })),
-    });
-    const dauer = performance.now() - begonnen;
-
-    const positionen = new Map(
-      (ergebnis.children ?? []).map((kind) => [kind.id, { x: kind.x ?? 0, y: kind.y ?? 0 }]),
-    );
-
-    const nodes = graph.nodes.map((node) => ({
-      ...node,
-      x: positionen.get(node.id)?.x ?? 0,
-      y: positionen.get(node.id)?.y ?? 0,
-      ...nodeSize(node.kind),
-    }));
-
-    // Die Ausdehnung aus den Knoten ableiten statt aus der Wurzel: ELK gibt sie nicht
-    // zuverlaessig zurueck, und so stimmt sie in jedem Fall.
-    return {
-      nodes,
-      width: nodes.reduce((max, node) => Math.max(max, node.x + node.width), 0),
-      height: nodes.reduce((max, node) => Math.max(max, node.y + node.height), 0),
-      durationMs: dauer,
-    };
-  },
-
   async listAttachments() {
     return [...attachments.values()].map((a) => ({
       path: a.path,
@@ -167,6 +95,18 @@ const api: AasWorkerApi = {
     const bytes = found.bytes.slice();
     return Comlink.transfer(
       { path: found.path, contentType: found.contentType, bytes },
+      [bytes.buffer as ArrayBuffer],
+    );
+  },
+
+  async getThumbnail() {
+    if (!thumbnail) return null;
+    // Dieselbe Kopierdisziplin wie bei `getAttachment`, aus demselben Grund: der
+    // uebertragene Puffer waere hier sonst geleert und das Thumbnail beim naechsten
+    // Export weg.
+    const bytes = thumbnail.bytes.slice();
+    return Comlink.transfer(
+      { path: thumbnail.path, contentType: thumbnail.contentType, bytes },
       [bytes.buffer as ArrayBuffer],
     );
   },

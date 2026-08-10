@@ -46,7 +46,22 @@ describe("Geheimnis", () => {
 
   it("erkennt eine Manipulation des Geheimtexts", () => {
     const gespeichert = verschluesseln(SCHLUESSEL, "geheim");
-    const verbogen = `${gespeichert.slice(0, -2)}xy`;
+
+    /*
+     * Verbogen wird ein **Byte**, nicht ein Zeichen der Kodierung.
+     *
+     * Bis zum 10.08.2026 ersetzte der Test die letzten zwei Zeichen durch "xy" und fiel
+     * dabei etwa bei jedem zehnten Lauf um. Der Grund ist base64: je nach Laenge traegt
+     * das letzte Zeichen nur zwei bedeutsame Bits, die uebrigen vier sind Fuellung.
+     * Mehrere verschiedene Zeichen kodieren dann dieselben Bytes, die Manipulation ging
+     * ins Leere, und GCM hatte zu Recht nichts zu beanstanden.
+     */
+    const [iv, marke, geheim] = gespeichert.split(".");
+    const bytes = Buffer.from(geheim as string, "base64url");
+    bytes[0] = (bytes[0] as number) ^ 0xff;
+    const verbogen = [iv, marke, bytes.toString("base64url")].join(".");
+
+    expect(verbogen).not.toBe(gespeichert);
     expect(entschluesseln(verbogen, "geheim")).toBeNull();
   });
 });

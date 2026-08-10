@@ -5,6 +5,7 @@ import type { JsonValue } from "@aas-editor/core";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { vorschlagsPfad } from "@/components/Inspector/Medien";
 import { useEditor, NO_ATTACHMENTS } from "@/store/editor";
 import type { FieldEditorProps } from "./Primitives";
 import { useEntwurf } from "./useEntwurf";
@@ -17,6 +18,10 @@ import { useEntwurf } from "./useEntwurf";
 export function AttachmentEditor({ value, onChange, id }: FieldEditorProps) {
   const { t } = useTranslation();
   const attachments = useEditor((state) => state.meta?.attachments ?? NO_ATTACHMENTS);
+  const anhangSetzen = useEditor((state) => state.anhangSetzen);
+  const anhangEntfernen = useEditor((state) => state.anhangEntfernen);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const path = typeof value === "string" ? value : "";
   const found = attachments.find((entry) => entry.path === normalize(path));
   const entwurf = useEntwurf(path, (naechster) =>
@@ -42,6 +47,45 @@ export function AttachmentEditor({ value, onChange, id }: FieldEditorProps) {
       ) : (
         <p className="text-xs text-warning">{t("inspektor.keinAnhang")}</p>
       )}
+
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>
+          {found ? t("inspektor.dateiErsetzen") : t("inspektor.dateiWaehlen")}
+        </Button>
+        {found ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void anhangEntfernen(normalize(path))}
+          >
+            <X data-icon="inline-start" />
+            {t("inspektor.entfernen")}
+          </Button>
+        ) : null}
+      </div>
+
+      <input
+        ref={inputRef}
+        type="file"
+        className="hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+
+          /*
+           * Ohne Pfad ist der Anhang fuer das Modell unsichtbar: das File-Element zeigt
+           * auf nichts, und beim Export faende ihn niemand. Steht noch keiner da, wird er
+           * aus dem Dateinamen gebildet und gleich mitgesetzt.
+           */
+          const ziel = path === "" ? vorschlagsPfad(file.name) : normalize(path);
+          const typ = file.type === "" ? "application/octet-stream" : file.type;
+
+          await anhangSetzen(ziel, typ, new Uint8Array(await file.arrayBuffer()));
+          if (ziel !== normalize(path)) onChange(ziel as JsonValue);
+        }}
+      />
     </div>
   );
 }

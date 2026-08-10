@@ -7,6 +7,19 @@ import { useEditor } from "@/store/editor";
  * Constraints offen sind. Der Befundzaehler ist zugleich der Weg ins Befundpanel,
  * `data-issues-toggle` bleibt deshalb erhalten.
  */
+/**
+ * Trenner zwischen zwei Angaben der Statusleiste.
+ *
+ * Eine Haarlinie, kein Mittelpunkt: der Punkt stand bis zum 10.08.2026 **im Text** der
+ * ersten Angabe, war deshalb vor "8 Anhaenge" schlicht nicht da, und bei dieser
+ * Schriftgroesse in einer Monoschrift ohnehin kaum von einem Satzzeichen zu unterscheiden.
+ * Als eigenes Element steht er zwischen allen Angaben gleich und ist als Trenner zu
+ * erkennen.
+ */
+function Trenner() {
+  return <span aria-hidden className="h-3.5 w-px shrink-0 bg-border" />;
+}
+
 export function StatusBar() {
   const { t, i18n } = useTranslation();
 
@@ -14,8 +27,6 @@ export function StatusBar() {
   const meta = useEditor((state) => state.meta);
   const issues = useEditor((state) => state.issues);
   const pruefung = useEditor((state) => state.pruefung);
-  const view = useEditor((state) => state.view);
-  const graphZoom = useEditor((state) => state.graphZoom);
   const anhaengeBereit = useEditor((state) => state.anhaengeBereit);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
@@ -39,10 +50,10 @@ export function StatusBar() {
         Anhangsanzeigen warnen vor einem unvollstaendigen AASX-Export, und der Befund-Knopf
         ist der Weg ins Befundpanel.
       */}
-      <span data-numeric>
-        {t("status.fassung", { nummer: __APP_VERSION__ })} · {heute}
-        {projekt ? " · " : ""}
-      </span>
+      <span data-numeric>{t("status.fassung", { nummer: __APP_VERSION__ })}</span>
+      <Trenner />
+      <span data-numeric>{heute}</span>
+      {projekt ? <Trenner /> : null}
       {projekt ? (
         <span className="flex min-w-0 items-center gap-2">
           {/*
@@ -56,26 +67,37 @@ export function StatusBar() {
               aria-label={t("status.ungespeichert")}
             />
           )}
-          <span className="truncate text-foreground">{projekt}</span>
+          {/* min-w-0, sonst greift truncate nicht: ein Flex-Kind schrumpft von sich aus
+              nicht unter seine Inhaltsbreite. */}
+          <span className="min-w-0 truncate text-foreground" title={projekt}>
+            {projekt}
+          </span>
         </span>
       ) : null}
 
       {meta ? (
         <>
           {meta.attachments.length > 0 ? (
-            <span data-numeric>{t("status.anhaenge", { count: meta.attachments.length })}</span>
+            <>
+              <Trenner />
+              <span data-numeric>{t("status.anhaenge", { count: meta.attachments.length })}</span>
+            </>
           ) : null}
-          {!anhaengeBereit ? <span>{t("status.anhaengeLaden")}</span> : null}
+          {!anhaengeBereit ? (
+            <>
+              <Trenner />
+              <span>{t("status.anhaengeLaden")}</span>
+            </>
+          ) : null}
         </>
       ) : (
-        <span>{t("status.keineDatei")}</span>
+        <>
+          <Trenner />
+          <span>{t("status.keineDatei")}</span>
+        </>
       )}
 
       <span className="ml-auto flex items-center gap-3">
-        {view === "graph" && model ? (
-          <span data-numeric>{t("status.zoom", { prozent: Math.round(graphZoom * 100) })}</span>
-        ) : null}
-
         <button
           type="button"
           data-issues-toggle

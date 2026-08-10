@@ -110,7 +110,10 @@ export function Detailleiste({ onExport, onLoeschen }: Props) {
                     className="flex items-center gap-2.5 border-b border-border-row py-2"
                   >
                     <span aria-hidden className="size-1.25 shrink-0 rounded-full bg-type-sm" />
-                    <span className="truncate font-mono text-2xs">
+                    <span
+                      className="min-w-0 truncate font-mono text-2xs"
+                      title={submodel.idShort ?? undefined}
+                    >
                       {submodel.idShort ?? t("projekte.ohneIdShort")}
                     </span>
                     <span

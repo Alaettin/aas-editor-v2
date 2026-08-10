@@ -39,13 +39,11 @@ const SEMANTIK_GROUP: FieldGroupSpec = { title: "gruppe.semantik", fields: HAS_S
 
 const QUALIFIER_GROUP: FieldGroupSpec = {
   title: "gruppe.qualifier",
-  collapsed: true,
   fields: [{ key: "qualifiers", kind: "qualifierList" }],
 };
 
 const EXTENSION_GROUP: FieldGroupSpec = {
   title: "gruppe.erweiterungen",
-  collapsed: true,
   fields: [
     { key: "extensions", kind: "extensionList" },
     { key: "embeddedDataSpecifications", kind: "dataSpecificationList" },
@@ -54,7 +52,6 @@ const EXTENSION_GROUP: FieldGroupSpec = {
 
 const VERWALTUNG_GROUP: FieldGroupSpec = {
   title: "gruppe.verwaltung",
-  collapsed: true,
   fields: [{ key: "administration", kind: "administration" }],
 };
 
@@ -243,7 +240,19 @@ export const NESTED_SPECS: Readonly<Record<string, readonly FieldSpec[]>> = {
     { key: "globalAssetId", kind: "text", hint: "feld.globalAssetId" },
     { key: "assetType", kind: "text" },
     { key: "specificAssetIds", kind: "specificAssetIdList" },
-    { key: "defaultThumbnail", kind: "attachment" },
+    { key: "defaultThumbnail", kind: "resource" },
+  ],
+
+  /**
+   * `Resource`: ein Paketpfad und sein Typ. Bisher nur unter `defaultThumbnail` im
+   * Einsatz.
+   *
+   * `path` traegt die Art `attachment`, denn es **ist** ein Paketpfad: damit bekommt es
+   * dieselbe Bedienung wie ein File-Element, samt Datei waehlen und ersetzen.
+   */
+  Resource: [
+    { key: "path", kind: "attachment", required: true },
+    { key: "contentType", kind: "text", required: true },
   ],
 
   Reference: [

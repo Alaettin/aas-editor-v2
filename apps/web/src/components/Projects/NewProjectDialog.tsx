@@ -160,12 +160,27 @@ export function NewProjectDialog({ offen, onClose, onAngelegt }: Props) {
           </span>
         </label>
 
+        {/*
+         * `min-w-0` am Textfeld und `shrink-0` am Knopf sind hier tragend, nicht Zierde:
+         * ein Flex-Kind hat `min-width: auto` und schrumpft deshalb **nicht** unter seine
+         * Inhaltsbreite. Ohne die beiden Klassen greift `truncate` nie, und ein langer
+         * Dateiname wie "IDTA 02006-3-0-1_Template_Digital Nameplate.aasx" laeuft rechts
+         * aus dem Dialog heraus, statt gekuerzt zu werden.
+         */}
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={() => dateiRef.current?.click()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => dateiRef.current?.click()}
+          >
             <FolderOpen aria-hidden data-icon="inline-start" />
             {t("projekte.ausDatei")}
           </Button>
-          <span className="truncate text-2xs text-foreground-faint">
+          <span
+            className="min-w-0 truncate text-2xs text-foreground-faint"
+            title={datei?.name ?? undefined}
+          >
             {datei?.name ?? t("projekte.ohneDatei")}
           </span>
         </div>

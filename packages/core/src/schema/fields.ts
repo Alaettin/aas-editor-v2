@@ -35,6 +35,15 @@ export type FieldKind =
   | "assetInformation"
   /** File: Paketpfad plus Anhang aus der Pfad-auf-Bytes-Map */
   | "attachment"
+  /**
+   * `Resource` als eingebettetes Objekt: `path` und `contentType`.
+   *
+   * `defaultThumbnail` stand bis zum 10.08.2026 als `attachment` hier, also als blosser
+   * Pfad. Das ist falsch: im Metamodell ist es eine **Resource**, und der Editor zeigte
+   * deshalb ein leeres Feld an und haette beim Schreiben eine Zeichenkette an die Stelle
+   * eines Objekts gesetzt.
+   */
+  | "resource"
   /** Blob: Inhalt im Modell selbst, base64 */
   | "blob"
   /** EmbeddedDataSpecification-Liste, samt DataSpecificationIec61360 */
@@ -70,8 +79,6 @@ export interface FieldSpec {
 export interface FieldGroupSpec {
   /** i18n-Schluessel der Ueberschrift */
   readonly title: string;
-  /** Standardmaessig eingeklappt, fuer selten gebrauchte Bloecke */
-  readonly collapsed?: boolean;
   readonly fields: readonly FieldSpec[];
 }
 

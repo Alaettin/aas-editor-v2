@@ -7,8 +7,6 @@ import {
   Redo2,
   Languages,
   ShieldAlert,
-  Workflow,
-  FileText,
   Undo2,
 } from "lucide-react";
 import { search } from "@aas-editor/core";
@@ -56,7 +54,6 @@ export function CommandPalette() {
   const language = useAnsicht((state) => state.language);
   const setLanguage = useAnsicht((state) => state.setLanguage);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
-  const setView = useEditor((state) => state.setView);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
 
   useEffect(() => {
@@ -143,28 +140,6 @@ export function CommandPalette() {
           ) : null}
 
           {treffer.length > 0 ? <CommandSeparator /> : null}
-
-          <CommandGroup heading={t("palette.sichten")}>
-            <CommandItem
-              value={stichwort("sicht", "formular")}
-              disabled={!model}
-              onSelect={() => ausfuehren(() => setView("formular"))}
-            >
-              <FileText />
-              {t("palette.zuFormular")}
-            </CommandItem>
-            <CommandItem
-              value={stichwort("sicht", "graph")}
-              // Der Graph wird ueberarbeitet, siehe ViewSwitch.
-              disabled
-              onSelect={() => ausfuehren(() => setView("graph"))}
-            >
-              <Workflow />
-              {t("palette.zuGraph")}
-            </CommandItem>
-          </CommandGroup>
-
-          <CommandSeparator />
 
           <CommandGroup heading={t("palette.befehle")}>
             <CommandItem

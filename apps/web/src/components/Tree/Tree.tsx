@@ -299,6 +299,38 @@ export function Tree() {
     [select],
   );
 
+  /**
+   * Rechtsklick **neben** eine Zeile, also in die leere Flaeche darunter.
+   *
+   * Ohne diesen Rueckruf setzte niemand ein Ziel, und das Menue haengt am ganzen
+   * Container: entweder erschien es leer (nichts war je gewaehlt) oder, schlimmer, mit
+   * den Aktionen der zuletzt angeklickten Zeile, samt Ausschneiden und Loeschen fuer ein
+   * Element, das gar nicht unter dem Zeiger liegt.
+   *
+   * Die leere Flaeche gehoert zum Environment, also bekommt sie dessen Menue. Anlegen und
+   * Einfuegen stehen darin, Kopieren und Loeschen nicht: `TreeContextMenu` blendet sie
+   * fuer die Wurzel von selbst aus, weil sie kein Element ist.
+   */
+  const onContextMenuFlaeche = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      // Kam das Ereignis aus einer Zeile, hat deren eigener Rueckruf das Ziel bereits
+      // gesetzt; es blubbert nur noch hier vorbei.
+      if ((event.target as HTMLElement).closest("[data-node-id]")) return;
+
+      const wurzel = model ? rows.find((zeile) => zeile.nodeId === model.rootId) : undefined;
+      if (!wurzel) {
+        // Kein Modell, oder ein Filter blendet die Wurzel aus. Dann gibt es nichts
+        // anzubieten, und ein leeres Menue ist schlechter als keines: Radix ueberspringt
+        // seinen eigenen Rueckruf, sobald das Ereignis abgewehrt ist.
+        setMenuRow(null);
+        event.preventDefault();
+        return;
+      }
+      setMenuRow(wurzel);
+    },
+    [model, rows],
+  );
+
   if (!model) return null;
 
   return (
@@ -379,6 +411,7 @@ export function Tree() {
           aria-activedescendant={selection ? `baumzeile-${selection}` : undefined}
           tabIndex={0}
           onKeyDown={onKeyDown}
+          onContextMenu={onContextMenuFlaeche}
           className="h-full flex-1 overflow-auto p-1 outline-none"
         >
           <div className="relative w-full" style={{ height: `${virtualizer.getTotalSize()}px` }}>

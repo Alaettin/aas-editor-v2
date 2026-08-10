@@ -19,7 +19,6 @@ const PROBE = fileURLToPath(new URL("./probe.json", import.meta.url));
 interface KnownStore {
   getState: () => {
     status: string;
-    setView: (view: string) => void;
   };
 }
 
@@ -79,15 +78,11 @@ test.describe("Barrierefreiheit", () => {
   test("Editor im Formular", async ({ page }) => {
     await anmeldenUndOeffnen(page, `Barrierefrei ${String(Date.now())}`);
 
-    // Nur das Formular: der Graph ist abgeschaltet und wird ueberarbeitet.
-    for (const sicht of ["formular"]) {
-      await expect(page.locator(`[data-view="${sicht}"][aria-selected="true"]`)).toBeVisible();
-      // Die Farbuebergaenge ausklingen lassen. Sonst misst axe eine Zwischenfarbe und
-      // meldet einen Kontrast, den es in keinem Ruhezustand gibt.
-      await page.waitForTimeout(500);
+    await expect(page.getByRole("tree")).toBeVisible();
+    // Die Farbuebergaenge ausklingen lassen. Sonst misst axe eine Zwischenfarbe und
+    // meldet einen Kontrast, den es in keinem Ruhezustand gibt.
+    await page.waitForTimeout(500);
 
-      const gefunden = await verstoesse(page);
-      expect(gefunden, sicht).toEqual([]);
-    }
+    expect(await verstoesse(page)).toEqual([]);
   });
 });

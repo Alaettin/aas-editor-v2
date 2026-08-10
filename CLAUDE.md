@@ -61,6 +61,11 @@ haelt nur fest, was beim Schreiben von Code taeglich greift.
 - `aas-package3-typescript` wird **ohne** `@aas-core-works/`-Praefix installiert.
 - `File`-Elemente tragen nur einen Paketpfad, nicht den Inhalt. Ohne die zweite
   Pfad-auf-Bytes-Map gehen beim AASX-Roundtrip alle Anhaenge verloren.
+- **Das AASX-Paket schreibt eine fremde Bibliothek, die Konformitaet haelt ein eigener
+  Test.** `packages/core/test/aasx-konformitaet.test.ts` prueft IDTA-01005-3-2 an den
+  ausgepackten Bytes: jede Beziehung samt ihrer Quelle, den Origin-Inhalt, die
+  Content-Types und den MIME-Typ `application/aas+zip`. Wer `io/aasx.ts` anfasst, faellt
+  dort auf.
 
 ## Befehle
 

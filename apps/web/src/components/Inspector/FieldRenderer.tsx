@@ -218,6 +218,18 @@ function renderControl(
         />
       );
 
+    // `Resource`, bisher nur `defaultThumbnail`. Der Pfad darin ist ein Paketpfad und
+    // bekommt deshalb den Anhangs-Editor, samt Datei waehlen und ersetzen.
+    case "resource":
+      return (
+        <NestedObjectEditor
+          value={value}
+          onChange={set}
+          nested="Resource"
+          template={{ path: "", contentType: "" }}
+        />
+      );
+
     case "attachment":
       return <AttachmentEditor id={id} value={value} onChange={set} />;
 

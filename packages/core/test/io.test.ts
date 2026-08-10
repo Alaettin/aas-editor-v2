@@ -12,7 +12,7 @@ import { findDuplicateIdShorts, findDuplicateIds, planMerge } from "../src/io/co
 import { normalize } from "../src/model/normalize.js";
 import type { Attachment } from "../src/io/types.js";
 import { loadCorpus, testDataRoot } from "./corpus.js";
-import { wirftSchluessel } from "./schluessel.js";
+import { wirftSchluessel, wirftSchluesselAsync } from "./schluessel.js";
 
 /**
  * Abnahme Phase 2: alle drei Formate in beide Richtungen, AASX inklusive Anhaengen
@@ -191,6 +191,51 @@ describe("Import einer 3.0-Datei", () => {
       expect(imported.format, entry.name).toBe("json");
       expect(imported.sourceVersion, entry.name).toBe("unbekannt");
     }
+  });
+});
+
+/*
+ * Der Prolog eines XML-Dokuments.
+ *
+ * Der Leser der SDK erwartet als erstes Token ein Startelement und lehnt eine
+ * XML-Deklaration ab, weil sie eine Processing Instruction ist. Aufgefallen ist das erst
+ * an zwei echten Herstellerdateien (10.08.2026): jede eigene Datei lief durch, denn
+ * `toXmlString` schreibt **keine** Deklaration, und die offiziellen Testdaten tun es auch
+ * nicht. Fremde Werkzeuge schreiben sie praktisch immer.
+ */
+describe("XML-Prolog", () => {
+  const kern =
+    '<environment xmlns="https://admin-shell.io/aas/3/1">' +
+    "<submodels><submodel><id>https://example.com/sm/1</id>" +
+    "<idShort>Typenschild</idShort></submodel></submodels>" +
+    "</environment>";
+
+  const faelle: readonly (readonly [string, string])[] = [
+    ["nackt", kern],
+    ["mit Deklaration", `<?xml version="1.0" encoding="utf-8"?>${kern}`],
+    ["Deklaration mit Zeilenumbruch", `<?xml version="1.0" encoding="UTF-8"?>\n${kern}`],
+    ["BOM und Deklaration", `\uFEFF<?xml version="1.0"?>${kern}`],
+    ["Kommentar davor", `<!-- erzeugt von irgendwem -->${kern}`],
+    ["DOCTYPE davor", `<?xml version="1.0"?><!DOCTYPE environment>${kern}`],
+    ["mehrere Anweisungen", `<?xml version="1.0"?><?xml-stylesheet href="a.xsl"?>${kern}`],
+  ];
+
+  for (const [name, xml] of faelle) {
+    it(`liest ein Dokument ${name}`, async () => {
+      const imported = await importFile(encoder.encode(xml), "geraet.xml");
+      expect(imported.format).toBe("xml");
+      const submodels = imported.model.nodes[imported.model.rootId]?.children["submodels"];
+      expect(submodels?.length, name).toBe(1);
+    });
+  }
+
+  it("laesst kaputtes XML von der SDK melden, statt es selbst zu verschlucken", async () => {
+    // Ein unabgeschlossener Prolog ist kein Prolog. Der Text bleibt, wie er ist, und die
+    // Meldung kommt aus der SDK: sie sagt genauer, was fehlt.
+    await wirftSchluesselAsync(
+      () => importFile(encoder.encode(`<?xml version="1.0"${kern}`), "kaputt.xml"),
+      "datei.xmlUnlesbar",
+    );
   });
 });
 

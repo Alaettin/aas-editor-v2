@@ -60,9 +60,67 @@ im Chat, ueber mehrere Runden, am Ende faellt eine Datei heraus.
 | Werkzeug | Was es tut |
 |---|---|
 | `aas_schema` | Felder einer Art samt Pflichtangaben, Aufzaehlungswerten und gueltigem Geruest |
-| `aas_pruefen` | Befunde aus `verification.verify()` samt Regelkennung und Pfad |
-| `aas_datei_erzeugen` | Schreibt JSON, XML oder AASX und gibt einen Link, der eine Stunde gilt |
-| `aas_datei_lesen` | Liest eine vorhandene AAS (auch 3.0) als Environment 3.1 zurueck |
+| `aas_vorlage` | Geruest eines IDTA-Teilmodells mit den korrekten semanticId-Werten |
+| `aas_pruefen` | Befunde aus `verification.verify()` samt Regelkennung und Pfad, dazu eine Bilanz der Anhaenge |
+| `aas_datei_erzeugen` | Schreibt JSON, XML oder AASX samt Anhaengen und gibt einen Link, der eine Stunde gilt |
+| `aas_datei_lesen` | Liest eine vorhandene AAS (auch 3.0) als Environment 3.1 zurueck, samt Anhaengen |
+
+### Anhaenge
+
+Ein AASX ohne seine Dateien ist fuer eine HandoverDocumentation wertlos. `aas_datei_erzeugen`
+nimmt deshalb `anhaenge` entgegen, je Eintrag einen Paketpfad und **genau eine** Quelle:
+
+| Quelle | Wofuer |
+|---|---|
+| `url` | der Regelfall bei Herstellerdokumenten, nur `https` |
+| `base64` | kleine Bilder aus dem Chat, bis 2 MB |
+| `token` | alles andere: zuvor ueber `POST /api/mcp/anhaenge` hochladen |
+
+```bash
+curl -s -X POST http://localhost:3200/api/mcp/anhaenge -F datei=@datenblatt.pdf
+```
+
+Zeigt `assetInformation.defaultThumbnail` auf einen dieser Pfade, landet die Vorschau
+zusaetzlich als Paket-Thumbnail in der Wurzel: der AASX Package Explorer sucht sie dort,
+ein Repository ueber `defaultThumbnail`, und beide Wege sollen bedient sein.
+
+Grenzen: 25 MB je Datei, 100 MB je Container, hoechstens 25 Anhaenge, Content-Type gegen
+eine Positivliste. Ein Abruf ueber `url` geht nur an oeffentliche Adressen; private,
+Loopback- und Link-local-Bereiche sind gesperrt, auch nach einer Weiterleitung
+(`src/mcp/netz.ts`).
+
+### AASX-Konformitaet
+
+Der Container folgt [IDTA-01005-3-2](https://industrialdigitaltwin.org/en/content-hub/aasspecifications)
+(Part 5, Package File Format): `aasx/aasx-origin` als Einstiegspunkt, dessen Beziehung an
+der Paketwurzel haengt, `aas-spec` von der Origin-Datei aus, `aas-suppl` von der
+Spec-Datei aus, Thumbnail ueber die OPC-Beziehung, MIME-Typ `application/aas+zip`,
+Spec-Datei als `aasx/data.xml` nach der Namenskonvention.
+
+Festgehalten wird das von `packages/core/test/aasx-konformitaet.test.ts`, und zwar an den
+**ausgepackten Bytes**, nicht ueber die API von `aas-package3-typescript`. Geschrieben
+wird das Paket naemlich von dieser fremden Bibliothek; ein Update koennte die Konformitaet
+sonst still brechen, und aufgefallen waere es erst beim Partner, der das Paket nicht mehr
+oeffnen kann.
+
+Nicht umgesetzt, weil in der Spezifikation bedingt oder optional: digitale Signaturen
+(„required if you need to sign files"), Core-Properties und mehrere Serialisierungen
+parallel im selben Paket.
+
+### IDTA-Vorlagen
+
+`aas_vorlage` liefert das Geruest eines Teilmodells nach IDTA. Die drei Vorlagen liegen
+unveraendert unter [apps/server/vorlagen/](apps/server/vorlagen/), Herkunft im README
+daneben. Gefiltert wird beim Lesen ueber den Qualifier `SMT/Cardinality`, den die Vorlagen
+selbst mitbringen: `umfang: "pflicht"` (Vorgabe) liefert nur One und OneToMany,
+`vollstaendig` die ganze Vorlage samt `conceptDescriptions`.
+
+```bash
+pnpm vorlagen     # meldet, wenn die IDTA eine neuere Fassung veroeffentlicht hat
+```
+
+Zur Laufzeit fragt der Server beim Herausgeber **nichts** nach. Die Pruefung ist ein
+Handgriff, kein Automatismus, und haengt bewusst nicht an der CI.
 
 Anbinden:
 
@@ -79,13 +137,14 @@ curl -s -X POST http://localhost:3200/api/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-**Der Zugang ist nicht abgesichert.** Wer die Adresse kennt, kann pruefen, umwandeln und
-Dateien erzeugen; Projekte, Anhaenge und Einstellungen sind nicht erreichbar, die
-Werkzeuge sehen `db` gar nicht. Solange das so ist, gehoert der Zugang nicht ins offene
-Netz. Fuer claude.ai braucht es ohnehin OAuth: feste Bearer-Token nimmt dort nur ein
-Beta-Feld entgegen, das nicht bei jedem freigeschaltet ist.
+**Der Zugang ist nicht abgesichert.** Wer die Adresse kennt, kann pruefen, umwandeln,
+Dateien erzeugen und Anhaenge hochladen; Projekte, deren Anhaenge und die Einstellungen
+sind nicht erreichbar, die Werkzeuge sehen `db` gar nicht. Fuer claude.ai braucht es
+ohnehin OAuth: feste Bearer-Token nimmt dort nur ein Beta-Feld entgegen, das nicht bei
+jedem freigeschaltet ist.
 
-Erzeugte Dateien liegen unter `DATA_DIR/mcp-ausgabe` und werden beim Start und bei jedem
+Erzeugte Dateien liegen unter `DATA_DIR/mcp-ausgabe`, hochgeladene unter
+`DATA_DIR/mcp-anhaenge`. Beide leben eine Stunde und werden beim Start und bei jedem
 Ablegen weggeraeumt.
 
 ## Pruefen

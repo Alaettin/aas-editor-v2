@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Copy, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronsDownUp, ChevronsUpDown, Trash2 } from "lucide-react";
 import { specOf } from "@aas-editor/core";
 import { topLevelField, type ValidationIssue } from "@aas-editor/core/validation";
 
@@ -9,21 +9,31 @@ import { Chip } from "@/components/ui/chip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { FieldGroup } from "@/components/ui/field";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
 import { SectionLabel } from "@/components/ui/section-label";
 import { toneOf } from "@/lib/typeOf";
 import { useEditor } from "@/store/editor";
-import { pathTo, shortenMiddle } from "@/store/rows";
+import { pathTo } from "@/store/rows";
 import { ConceptCard } from "./ConceptCard";
 import { ContextCard } from "./ContextCard";
 import { FieldRenderer } from "./FieldRenderer";
+import { Medien } from "./Medien";
 
 /**
  * Das Eigenschaftsformular. Es rendert nichts Typspezifisches selbst, sondern arbeitet
  * die Typbeschreibung aus `packages/core/src/schema` ab (Plan Abschnitt 5).
  *
- * Zwei Spalten: links die bearbeitbaren Gruppen als Karten, rechts nur Lesbares, naemlich
- * die Herkunft der Bedeutung (ConceptDescription) und der Ort im Modell. Damit steht die
- * Definition dort, wo der Wert eingetragen wird, statt eine Sicht weiter.
+ * Zwei Flaechen, verschiebbar, je zur Haelfte: links die bearbeitbaren Gruppen als Karten,
+ * darunter die Herkunft der Bedeutung (ConceptDescription) und der Ort im Modell; rechts
+ * die Dateien des gewaehlten Teilbaums.
+ *
+ * Die Aufteilung hat einen Grund: eine AAS besteht zu einem guten Teil aus Datenblaettern,
+ * Logos und Vorschaubildern, und die waren im Editor bisher ueberhaupt nicht zu sehen. Ein
+ * File-Element zeigte nur seinen Pfad.
  */
 export function Inspector() {
   const { t } = useTranslation();
@@ -34,7 +44,6 @@ export function Inspector() {
   const updateField = useEditor((state) => state.updateField);
   const clearFocusRequest = useEditor((state) => state.clearFocusRequest);
   const select = useEditor((state) => state.select);
-  const duplicateElement = useEditor((state) => state.duplicateElement);
   const requestDelete = useEditor((state) => state.requestDelete);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
   const setIssuePanelOpen = useEditor((state) => state.setIssuePanelOpen);
@@ -45,11 +54,25 @@ export function Inspector() {
   /** Welche Gruppen sind aufgeklappt. Gesteuert, damit ein Sprung sie oeffnen kann. */
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
-  // Beim Wechsel des Elements gilt wieder die Vorgabe des Deskriptors.
+  /**
+   * Ob eine Gruppe offen ist. **Eine** Stelle, an der die Vorgabe steht: sie wird an drei
+   * Orten gebraucht (Zuruecksetzen beim Elementwechsel, der Umschalter, das Rendern), und
+   * drei Kopien derselben Regel laufen frueher oder spaeter auseinander.
+   *
+   * Vorgabe ist die **erste** Gruppe, der Rest zu. Der Rueckfall ist noetig, weil
+   * `openGroups` vor dem ersten Lauf des Effekts leer ist; ohne ihn stuende im ersten
+   * Bild alles zugeklappt und klappte danach auf.
+   */
+  const istOffen = (titel: string, index: number): boolean =>
+    openGroups[titel] ?? index === 0;
+
+  // Beim Wechsel des Elements steht wieder nur die erste Gruppe offen.
   useEffect(() => {
     if (!spec) return;
     const next: Record<string, boolean> = {};
-    for (const group of spec.groups) next[group.title] = !group.collapsed;
+    spec.groups.forEach((group, index) => {
+      next[group.title] = index === 0;
+    });
     setOpenGroups(next);
   }, [spec, selection]);
 
@@ -118,7 +141,7 @@ export function Inspector() {
 
   // Umschalter fuer alle Gruppen, nach dem Muster aus dem Baumkopf: sind alle offen,
   // klappt der Knopf zu, sonst auf.
-  const alleOffen = spec.groups.every((group) => openGroups[group.title] ?? !group.collapsed);
+  const alleOffen = spec.groups.every((group, index) => istOffen(group.title, index));
   const gruppenUmschalten = () => {
     const naechste: Record<string, boolean> = {};
     for (const group of spec.groups) naechste[group.title] = !alleOffen;
@@ -156,51 +179,55 @@ export function Inspector() {
           <Chip tone={toneOf(node.kind)} size="sm" mono>
             {node.kind}
           </Chip>
-
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Button variant="accent-outline" size="sm" onClick={gruppenUmschalten}>
-              {alleOffen ? (
-                <ChevronsDownUp data-icon="inline-start" />
-              ) : (
-                <ChevronsUpDown data-icon="inline-start" />
-              )}
-              {alleOffen ? t("menu.allesZuklappen") : t("menu.allesAufklappen")}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={istWurzel}
-              onClick={() => duplicateElement(node.nodeId)}
-            >
-              <Copy data-icon="inline-start" />
-              {t("menu.duplizieren")}
-            </Button>
-            <Button
-              variant="danger-outline"
-              size="sm"
-              disabled={istWurzel}
-              onClick={() => requestDelete([node.nodeId])}
-            >
-              <Trash2 data-icon="inline-start" />
-              {t("menu.loeschen")}
-            </Button>
-          </div>
         </div>
 
-        {typeof node.data["id"] === "string" ? (
-          <p
-            className="mt-1 truncate font-mono text-2xs text-mono-foreground"
-            title={node.data["id"]}
-          >
-            {shortenMiddle(node.data["id"], 60)}
-          </p>
-        ) : null}
       </header>
 
-      <div className="flex flex-1 items-start gap-4 overflow-auto px-7 py-4">
-        {/* Linke Spalte: die Gruppen des Deskriptors, je Gruppe eine Karte. */}
-        <div className="flex max-w-[640px] flex-[1.35] flex-col gap-3.5">
-          {spec.groups.map((group) => {
+      {/*
+       * Zwei Flaechen, verschiebbar. **Nur die linke traegt eine Vorgabe**: Vorgaben in
+       * einer Gruppe normieren sich gegeneinander, zwei davon ergeben nicht 50 zu 50.
+       * Beide Werte sind Prozente, Pixel kommen in dieser Gruppe nicht vor.
+       */}
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel defaultSize="50" minSize="25">
+          <div className="flex h-full flex-col">
+            {/*
+             * Die Knoepfe wirken auf das **Formular**, nicht auf die Dateiflaeche. Sie
+             * standen bis zum 10.08.2026 im Kopf ueber der vollen Breite und schwebten
+             * dadurch ueber den Dateien. Hier stehen sie ueber der linken Flaeche und
+             * ausserhalb des Rollbereichs, bleiben beim Blaettern also stehen.
+             *
+             * Die Varianten sind die der Projektseite (`Detailleiste.tsx`): derselbe
+             * Knopf soll in beiden Ansichten gleich aussehen.
+             */}
+            <div className="flex shrink-0 items-center gap-2 px-7 pt-3.5">
+              <Button variant="outline" onClick={gruppenUmschalten}>
+                {alleOffen ? (
+                  <ChevronsDownUp data-icon="inline-start" />
+                ) : (
+                  <ChevronsUpDown data-icon="inline-start" />
+                )}
+                {alleOffen ? t("menu.allesZuklappen") : t("menu.allesAufklappen")}
+              </Button>
+              {/* Duplizieren steht in der Werkzeugleiste oben, ein zweites Mal braucht
+                  es den Knopf hier nicht. */}
+              <Button
+                variant="destructive"
+                disabled={istWurzel}
+                onClick={() => requestDelete([node.nodeId])}
+              >
+                <Trash2 data-icon="inline-start" />
+                {t("menu.loeschen")}
+              </Button>
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-7 py-4">
+              {/*
+               * Die Karten behalten ihre Breite, auch wenn die Flaeche waechst: ein
+               * Eingabefeld ueber die halbe Bildschirmbreite liest sich nicht besser.
+               */}
+              <div className="flex w-full max-w-[640px] flex-col gap-3.5">
+          {spec.groups.map((group, index) => {
             /*
              * Veraltetes bleibt weg, solange es leer ist. Gefiltert wird hier und nicht im
              * FieldRenderer: sonst bliebe eine leere Gruppe samt Befundzaehler stehen.
@@ -225,7 +252,7 @@ export function Inspector() {
                 className="rounded-4xl border border-border bg-card px-4.5 py-4"
               >
                 <Collapsible
-                  open={openGroups[group.title] ?? !group.collapsed}
+                  open={istOffen(group.title, index)}
                   onOpenChange={(open) =>
                     setOpenGroups((current) => ({ ...current, [group.title]: open }))
                   }
@@ -256,14 +283,28 @@ export function Inspector() {
               </section>
             );
           })}
-        </div>
 
-        {/* Rechte Spalte: nur Lesbares, Herkunft der Bedeutung und Ort im Modell. */}
-        <div className="flex min-w-[300px] flex-1 flex-col gap-3.5">
-          <ConceptCard model={model} node={node} />
-          <ContextCard model={model} node={node} />
-        </div>
-      </div>
+              {/*
+               * Herkunft der Bedeutung und Ort im Modell, unter den Gruppen. Sie standen
+               * bis zum 10.08.2026 rechts; dort steht jetzt, was eine AAS wirklich
+               * ausmacht, naemlich ihre Dateien.
+               */}
+              <ConceptCard model={model} node={node} />
+              <ContextCard model={model} node={node} />
+              </div>
+            </div>
+          </div>
+        </ResizablePanel>
+
+        <ResizableHandle withHandle />
+
+        {/* Ohne eigene Vorgabe: diese Flaeche bekommt, was die linke uebrig laesst. */}
+        <ResizablePanel minSize="25">
+          <div className="h-full border-l border-border">
+            <Medien model={model} node={node} />
+          </div>
+        </ResizablePanel>
+      </ResizablePanelGroup>
 
       {issues.length > 0 ? (
         <button

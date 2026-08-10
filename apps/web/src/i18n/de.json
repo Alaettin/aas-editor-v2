@@ -19,7 +19,6 @@
     "warnungen": "{{count}} Warnungen",
     "keineBefunde": "Keine Befunde",
     "anhaengeLaden": "Anhänge werden geladen ...",
-    "zoom": "Zoom {{prozent}} %",
     "gespeichert": "gespeichert",
     "ungespeichert": "ungespeichert",
     "prueft": "Prüft ..."
@@ -269,9 +268,6 @@
     "befehle": "Befehle",
     "panelAuf": "Befunde einblenden",
     "panelZu": "Befunde ausblenden",
-    "sichten": "Sichten",
-    "zuFormular": "Zum Formular wechseln",
-    "zuGraph": "Zum Graphen wechseln",
     "stichwort": {
       "sicht": "Sicht Ansicht",
       "formular": "Formular Eigenschaften Felder",
@@ -309,29 +305,6 @@
     "ohneAnhaenge_other": "Die {{count}} Anhänge sind nicht mitgespeichert, nur ihre Pfade. Für einen vollständigen AASX-Export die Datei erneut öffnen.",
     "fortsetzen": "Fortsetzen",
     "verwerfen": "Verwerfen"
-  },
-  "sicht": {
-    "abgeschaltet": "Der Graph wird überarbeitet.",
-    "formular": "Formular",
-    "graph": "Graph",
-    "titel": "Sicht"
-  },
-  "graph": {
-    "leerTitel": "Nichts zu zeigen",
-    "leerText": "Die Karte zeigt Shells, Submodels und ConceptDescriptions mit ihren Verweisen. In dieser Umgebung gibt es keine.",
-    "umfang": "{{knoten}} Knoten, {{kanten}} Kanten",
-    "dauer": "Layout {{ms}} ms",
-    "allesZeigen": "Alle {{count}} zeigen",
-    "submodels_one": "{{count}} Submodel",
-    "submodels_other": "{{count}} Submodels",
-    "elemente_one": "{{count}} Element",
-    "elemente_other": "{{count}} Elemente",
-    "befunde_one": "{{count}} Befund",
-    "befunde_other": "{{count}} Befunde",
-    "zoomRein": "Vergrößern",
-    "zoomRaus": "Verkleinern",
-    "einpassen": "Einpassen",
-    "erneut": "Erneut versuchen"
   },
   "anmeldung": {
     "benutzer": "Benutzername",
@@ -417,7 +390,6 @@
   "menu": {
     "zurListe": "Zur Projektliste",
     "neu": "Neu",
-    "duplizieren": "Duplizieren",
     "loeschen": "Löschen",
     "allesAufklappen": "Alles aufklappen",
     "allesZuklappen": "Alles zuklappen"
@@ -492,6 +464,17 @@
     "befundeImElement_other": "{{count}} in diesem Element",
     "aufklappen": "Befunde aufklappen",
     "zuklappen": "Befunde zuklappen"
+  },
+  "medien": {
+    "titel": "Dateien",
+    "laedt": "Anhänge werden geladen …",
+    "leer": "Keine Dateien",
+    "leerText": "Unter diesem Element liegt kein File-Element mit einem Anhang im Paket.",
+    "vorschaubild": "Vorschaubild",
+    "herunterladen": "Herunterladen",
+    "weitere_one": "Eine weitere Datei wird nicht angezeigt.",
+    "weitere_other": "{{count}} weitere Dateien werden nicht angezeigt.",
+    "imBaum": "Im Baum zeigen"
   },
   "melden": {
     "gespeichert": "Projekt gespeichert.",

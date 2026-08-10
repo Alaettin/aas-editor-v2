@@ -29,11 +29,9 @@ import { ersteTasteFuer, inEingabefeld } from "@/lib/shortcuts";
 import { useEditor } from "@/store/editor";
 
 /**
- * Graph und Assistent werden erst geladen, wenn man sie oeffnet. Der Graph allein wiegt
- * 60 KB gzip, dazu elkjs mit 456 KB im Worker. Im Startbundle haetten sie nichts zu
- * suchen, und `pnpm budget` wuerde es sofort melden.
+ * Der Assistent wird erst geladen, wenn man ihn oeffnet. Im Startbundle haette er nichts
+ * zu suchen, und `pnpm budget` wuerde es sofort melden.
  */
-const GraphView = lazy(() => import("@/components/Graph/GraphView"));
 const AssistantPanel = lazy(() =>
   import("@/components/Assistant/AssistantPanel").then((m) => ({ default: m.AssistantPanel })),
 );
@@ -58,7 +56,6 @@ export function AppShell() {
   const error = useEditor((state) => state.error);
   const issues = useEditor((state) => state.issues);
   const issuePanelOpen = useEditor((state) => state.issuePanelOpen);
-  const view = useEditor((state) => state.view);
 
   const openFile = useEditor((state) => state.openFile);
   const exportAs = useEditor((state) => state.exportAs);
@@ -152,15 +149,8 @@ export function AppShell() {
                   <ResizableHandle withHandle />
                   {/* Ohne eigene Vorgabe: die Sicht bekommt, was der Baum uebrig laesst. */}
                   <ResizablePanel minSize="30">
-                    {/*
-                      `key={view}` haengt den Inhalt beim Wechsel neu ein, sonst liefe die
-                      Einblendung nur beim ersten Mal.
-                    */}
-                    <div key={view} className="h-full animate-[axon-eintritt_240ms_ease-out]">
-                      <Suspense fallback={<SichtLaedt />}>
-                        {view === "formular" ? <Inspector /> : null}
-                        {view === "graph" ? <GraphView /> : null}
-                      </Suspense>
+                    <div className="h-full animate-[axon-eintritt_240ms_ease-out]">
+                      <Inspector />
                     </div>
                   </ResizablePanel>
                 </ResizablePanelGroup>
@@ -239,7 +229,7 @@ export function AppShell() {
   );
 }
 
-/** Platzhalter, waehrend Tabelle oder Graph nachgeladen werden. */
+/** Geruest, waehrend ein Modell geladen wird. */
 function SichtLaedt() {
   return (
     <div className="flex h-full flex-col gap-3 p-4">

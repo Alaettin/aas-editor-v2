@@ -1,4 +1,4 @@
-import type { EditorModel, Graph, LayoutResult, Patch, UpgradeNote } from "@aas-editor/core";
+import type { EditorModel, Patch, UpgradeNote } from "@aas-editor/core";
 import type { AasFormat, ImportWarning, MetamodelVersion } from "@aas-editor/core/io/types";
 import type { ValidationIssue } from "@aas-editor/core/validation";
 
@@ -65,11 +65,14 @@ export interface AasWorkerApi {
   removeAttachment(path: string): Promise<void>;
 
   /**
-   * Berechnet das Graph-Layout. elkjs (456 KB gzip) wird dabei erst geladen, wenn der
-   * Graph das erste Mal geoeffnet wird, und rechnet hier statt im Hauptthread
-   * (Plan Abschnitt 11).
+   * Das Paket-Thumbnail, falls die geoeffnete Datei eines mitgebracht hat.
+   *
+   * Es liegt **neben** den Anhaengen, nicht in ihnen: ein AASX fuehrt es als eigenen
+   * OPC-Teil in der Wurzel, nicht als Supplementary File. `OpenResult.hasThumbnail` sagt
+   * nur, ob es eines gibt; wer es anzeigen will, braucht die Bytes.
    */
-  layoutGraph(graph: Graph): Promise<LayoutResult>;
+  getThumbnail(): Promise<AttachmentBytes | null>;
+
   /** Nur fuer die Testseite und Diagnose */
   nodeCount(): Promise<number>;
 }

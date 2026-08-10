@@ -40,7 +40,17 @@ export function AssistentEinstellungAbschnitt() {
       <SectionLabel>{t("assistentEinstellung.titel")}</SectionLabel>
 
       {offen ? (
-        <div className="flex gap-2">
+        /*
+         * Der Anbieter steht **vor** der Eingabe da, nicht erst danach. Bis zum
+         * 10.08.2026 nannte ihn nur der Platzhalter "Schluessel einfuegen" nicht, und die
+         * Zeile "OpenAI-Schluessel" erschien erst, wenn schon einer hinterlegt war: wer
+         * zum ersten Mal hier stand, konnte nicht wissen, welcher Schluessel gemeint ist.
+         */
+        <div className="flex flex-col gap-2">
+          <span className="text-sm text-secondary-foreground">
+            {t("assistentEinstellung.schluessel")}
+          </span>
+          <div className="flex gap-2">
           <input
             type="password"
             autoFocus
@@ -68,6 +78,7 @@ export function AssistentEinstellungAbschnitt() {
               {t("assistentEinstellung.abbrechen")}
             </Button>
           )}
+          </div>
         </div>
       ) : (
         <div className="flex items-center gap-2">

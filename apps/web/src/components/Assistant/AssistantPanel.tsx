@@ -168,7 +168,7 @@ export function AssistantPanel() {
             {t("assistent.nichtVerbunden")}
           </Chip>
         )}
-        <span className="ml-auto truncate text-2xs text-foreground-faint">
+        <span className="ml-auto min-w-0 truncate text-2xs text-foreground-faint">
           {t("assistent.kontext", { name: kontext })}
         </span>
         <Button

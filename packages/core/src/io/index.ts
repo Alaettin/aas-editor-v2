@@ -110,7 +110,10 @@ export async function exportFile(request: ExportRequest): Promise<ExportResult> 
       return {
         bytes: await exportAasx(environment, options),
         fileName: "environment.aasx",
-        contentType: "application/asset-administration-shell-package",
+        // IDTA-01005-3-2: "MIME-type for the AASX format: application/aas+zip", bei der
+        // IANA registriert. Bis zum 10.08.2026 stand hier
+        // "application/asset-administration-shell-package", das ist nirgends registriert.
+        contentType: "application/aas+zip",
       };
     }
   }

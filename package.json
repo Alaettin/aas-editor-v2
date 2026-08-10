@@ -19,6 +19,7 @@
     "modell": "node scripts/make-large-model.mjs",
     "leistung": "pnpm --filter @aas-editor/web leistung",
     "budget": "node scripts/check-bundle-budget.mjs",
+    "vorlagen": "node scripts/check-vorlagen.mjs",
     "e2e": "playwright test"
   },
   "devDependencies": {
