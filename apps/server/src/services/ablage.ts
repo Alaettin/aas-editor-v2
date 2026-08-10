@@ -22,8 +22,14 @@ import type { ServerEnv } from "../env.js";
  * Bytes sind nicht zu raten.
  */
 
-/** Wie lange ein Eintrag abrufbar bleibt. */
-export const LEBENSDAUER_MS = 60 * 60 * 1000;
+/**
+ * Wie lange ein Eintrag abrufbar bleibt.
+ *
+ * Je Ablage verschieden, seit dem 10.08.2026: eine Stunde war fuer einen Download-Link zu
+ * knapp, wenn die Datei erst am naechsten Morgen abgeholt wird, und fuer einen Entwurf,
+ * an dem noch gearbeitet wird, erst recht.
+ */
+export const TAG_MS = 24 * 60 * 60 * 1000;
 
 export interface AblageInfo {
   readonly token: string;
@@ -39,9 +45,23 @@ export interface Abruf {
 }
 
 export interface Ablage {
+  /** Wie lange ein Eintrag dieser Ablage gilt. */
+  readonly lebensdauerMs: number;
   ablegen(datei: { bytes: Uint8Array; dateiname: string; contentType: string }): AblageInfo;
   /** Der Eintrag, oder `null` fuer unbekannt, abgelaufen und verunstaltet. */
   abrufen(token: string, jetzt?: number): Abruf | null;
+  /**
+   * Neue Bytes unter demselben Token, mit **frischer** Frist.
+   *
+   * Gleitende Haltbarkeit, und das ist hier keine Bequemlichkeit: ein Entwurf, an dem
+   * gerade gearbeitet wird, darf nicht mitten in der Arbeit ablaufen. `null` heisst, dass
+   * der Token unbekannt oder bereits abgelaufen war; dann entsteht auch keiner.
+   */
+  aktualisieren(
+    token: string,
+    bytes: Uint8Array,
+    jetzt?: number,
+  ): AblageInfo | null;
   raeumeAuf(jetzt?: number): number;
 }
 
@@ -80,7 +100,7 @@ function liesKopf(pfad: string, token: string): Kopf | null {
   }
 }
 
-function ablageIn(env: ServerEnv, verzeichnis: string): Ablage {
+function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): Ablage {
   const ordner = () => {
     const pfad = resolve(env.dataDir, verzeichnis);
     mkdirSync(pfad, { recursive: true });
@@ -99,7 +119,7 @@ function ablageIn(env: ServerEnv, verzeichnis: string): Ablage {
       if (!name.endsWith(".json")) continue;
       const token = name.slice(0, -".json".length);
       const kopf = liesKopf(pfad, token);
-      if (kopf !== null && jetzt - kopf.erstellt < LEBENSDAUER_MS) continue;
+      if (kopf !== null && jetzt - kopf.erstellt < lebensdauerMs) continue;
       rmSync(resolve(pfad, `${token}.json`), { force: true });
       rmSync(resolve(pfad, `${token}.bin`), { force: true });
       entfernt += 1;
@@ -108,6 +128,7 @@ function ablageIn(env: ServerEnv, verzeichnis: string): Ablage {
   };
 
   return {
+    lebensdauerMs,
     raeumeAuf,
 
     ablegen(datei) {
@@ -132,7 +153,7 @@ function ablageIn(env: ServerEnv, verzeichnis: string): Ablage {
       if (!istToken(token)) return null;
       const pfad = ordner();
       const kopf = liesKopf(pfad, token);
-      if (kopf === null || jetzt - kopf.erstellt >= LEBENSDAUER_MS) return null;
+      if (kopf === null || jetzt - kopf.erstellt >= lebensdauerMs) return null;
 
       const bytesPfad = resolve(pfad, `${token}.bin`);
       if (!existsSync(bytesPfad)) return null;
@@ -140,11 +161,36 @@ function ablageIn(env: ServerEnv, verzeichnis: string): Ablage {
 
       return { info: { token, ...kopf, groesse: bytes.byteLength }, bytes };
     },
+
+    aktualisieren(token, bytes, jetzt = Date.now()) {
+      if (!istToken(token)) return null;
+      const pfad = ordner();
+      const kopf = liesKopf(pfad, token);
+      // Ein abgelaufener Token wird nicht wiederbelebt: sonst brauchte es nur einen
+      // Patch, um einen Entwurf beliebig lange am Leben zu halten.
+      if (kopf === null || jetzt - kopf.erstellt >= lebensdauerMs) return null;
+
+      const neu: Kopf = { ...kopf, erstellt: jetzt };
+      writeFileSync(resolve(pfad, `${token}.bin`), bytes);
+      writeFileSync(resolve(pfad, `${token}.json`), JSON.stringify(neu), "utf8");
+
+      return { token, ...neu, groesse: bytes.byteLength };
+    },
   };
 }
 
 /** Erzeugte AAS-Dateien, die auf ihren Download warten. */
-export const ausgabe = (env: ServerEnv): Ablage => ablageIn(env, "mcp-ausgabe");
+export const ausgabe = (env: ServerEnv): Ablage => ablageIn(env, "mcp-ausgabe", TAG_MS);
 
 /** Hochgeladene Anhaenge, die auf ihren Container warten. */
-export const anhaenge = (env: ServerEnv): Ablage => ablageIn(env, "mcp-anhaenge");
+export const anhaenge = (env: ServerEnv): Ablage => ablageIn(env, "mcp-anhaenge", TAG_MS);
+
+/**
+ * Entwuerfe, an denen gerade gearbeitet wird.
+ *
+ * Der Grund, warum es sie gibt: bis zum 10.08.2026 musste das ganze Environment bei jedem
+ * Pruefen und jedem Erzeugen erneut uebertragen werden. Bei 34 KB und mehreren
+ * Korrekturrunden ist das der groesste Posten ueberhaupt, und er entsteht nur, weil der
+ * Server nichts behaelt.
+ */
+export const entwuerfe = (env: ServerEnv): Ablage => ablageIn(env, "mcp-entwuerfe", TAG_MS);

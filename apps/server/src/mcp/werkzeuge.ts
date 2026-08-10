@@ -25,9 +25,21 @@ import {
 } from "@aas-editor/core/io";
 import { validate, type ValidationIssue } from "@aas-editor/core/validation";
 import type { ServerEnv } from "../env.js";
-import { anhaenge as anhangsAblage, ausgabe, LEBENSDAUER_MS } from "../services/ablage.js";
+import { anhaenge as anhangsAblage, ausgabe, entwuerfe } from "../services/ablage.js";
 import { holeSicher, NetzFehler } from "./netz.js";
-import { KATALOG, KENNUNGEN, pflichtGeruest, semantikVon, vorlageVon } from "./vorlagen.js";
+import { lies as zeigerLesen, wendeAn, ZeigerFehler, type Patch } from "./zeiger.js";
+import {
+  KATALOG,
+  KENNUNGEN,
+  kinderNamen,
+  maengelVon,
+  pflichtGeruest,
+  schneideZu,
+  semantikVon,
+  strukturGeruest,
+  vorlageVon,
+  type VorlagenEintrag,
+} from "./vorlagen.js";
 
 /**
  * Die Werkzeuge des MCP-Servers.
@@ -175,9 +187,26 @@ export function aasSchema(eingabe: { art?: string | null }): Ergebnis {
 
 // --- aas_vorlage ----------------------------------------------------------------------
 
+export type Vorlagenumfang = "struktur" | "pflicht" | "vollstaendig";
+
+/**
+ * Was `_kardinalitaet` mit dem Qualifier zu tun hat.
+ *
+ * Zweimal dieselbe Angabe, und das ist keine Nachlaessigkeit: `vollstaendig` gibt die Datei
+ * des Herausgebers unveraendert heraus, und dort steht sie als `SMT/Cardinality`-Qualifier.
+ * Die abgeleiteten Stufen schreiben sie lesbar an das Element. Wer beides nebeneinander
+ * sieht, soll wissen, dass es dieselbe Auskunft ist.
+ */
+const KARDINALITAET_ERKLAERT =
+  "_kardinalitaet ist dieselbe Angabe wie der Qualifier SMT/Cardinality in umfang=" +
+  "vollstaendig, nur lesbar am Element. Sie ist eine Auskunft und gehoert vor dem Export " +
+  "entfernt, ebenso _hinweis.";
+
 export function aasVorlage(eingabe: {
   kennung?: string | null;
-  umfang?: "pflicht" | "vollstaendig" | null;
+  umfang?: Vorlagenumfang | null;
+  pfad?: string | null;
+  conceptDescriptions?: boolean | null;
 }): Ergebnis {
   const kennung = eingabe.kennung?.trim() ?? "";
 
@@ -191,9 +220,11 @@ export function aasVorlage(eingabe: {
         semanticId: semantikVon(v),
       })),
       hinweis:
-        "Mit kennung aufrufen, um das Geruest zu bekommen. Die semanticId-Werte stammen " +
-        "unveraendert aus den offiziellen Vorlagen des Herausgebers und duerfen nicht " +
-        "abgewandelt werden.",
+        "Mit kennung aufrufen, um das Geruest zu bekommen. umfang=struktur (Vorgabe) ist " +
+        "der Bauplan, pflicht das einsetzbare Geruest, vollstaendig die ganze Datei. Mit " +
+        "pfad laesst sich auf einen Teilbaum eingrenzen, etwa pfad=\"/Markings\". Die " +
+        "semanticId-Werte stammen unveraendert aus den offiziellen Vorlagen des " +
+        "Herausgebers und duerfen nicht abgewandelt werden.",
     });
   }
 
@@ -202,36 +233,106 @@ export function aasVorlage(eingabe: {
     return fehler(`Unbekannte Vorlage "${kennung}".`, `Erlaubt sind: ${KENNUNGEN.join(", ")}.`);
   }
 
-  if (eingabe.umfang === "vollstaendig") {
+  const umfang: Vorlagenumfang = eingabe.umfang ?? "struktur";
+  const pfad = eingabe.pfad?.trim() ?? "";
+  const maengel = maengelVon(kennung);
+  const kopf = {
+    kennung: eintrag.kennung,
+    titel: eintrag.titel,
+    idta: eintrag.idta,
+    umfang,
+    ...(pfad === "" ? {} : { pfad }),
+    ...(maengel.length === 0 ? {} : { bekannteMaengel: maengel }),
+  };
+
+  if (umfang === "vollstaendig") {
+    const submodel = zuschneiden(eintrag, pfad);
+    if (istErgebnis(submodel)) return submodel;
+    /*
+     * conceptDescriptions nur auf Verlangen. Sie sind der Loewenanteil der Groesse: bei
+     * technicaldata-2-0 machen sie den Unterschied zwischen einer lesbaren Antwort und
+     * einer, die den Kontext sprengt.
+     */
+    const cds = eingabe.conceptDescriptions === true ? eintrag.quelle["conceptDescriptions"] : undefined;
     return gib({
-      kennung: eintrag.kennung,
-      titel: eintrag.titel,
-      idta: eintrag.idta,
-      umfang: "vollstaendig",
-      environment: eintrag.quelle,
+      ...kopf,
+      submodel,
+      ...(cds === undefined ? {} : { conceptDescriptions: cds }),
       hinweis:
-        "Die vollstaendige Vorlage samt conceptDescriptions, unveraendert. kind steht auf " +
-        "Template; fuer eine echte AAS auf Instance setzen und eine eigene id vergeben.",
+        "Unveraendert aus der Datei des Herausgebers. kind steht auf Template; fuer eine " +
+        "echte AAS auf Instance setzen und eine eigene id vergeben. " +
+        (eingabe.conceptDescriptions === true
+          ? ""
+          : "conceptDescriptions=true liefert zusaetzlich die Begriffsdefinitionen."),
+    });
+  }
+
+  if (umfang === "struktur") {
+    const submodel = zuschneiden(eintrag, pfad, strukturGeruest(eintrag));
+    if (istErgebnis(submodel)) return submodel;
+    return gib({
+      ...kopf,
+      submodel,
+      hinweis:
+        "Ein Bauplan, kein einsetzbares JSON: alle Elemente, aber nur idShort, modelType, " +
+        "semanticId als Zeichenkette, valueType und Kardinalitaet. Fuer ein Geruest, das " +
+        "sich einsetzen laesst, umfang=pflicht nehmen, fuer die ganze Datei vollstaendig. " +
+        KARDINALITAET_ERKLAERT,
     });
   }
 
   const geruest = pflichtGeruest(eintrag);
+  if (!geruest.traegtKardinalitaeten) {
+    return fehler(
+      `Die Vorlage "${kennung}" fuehrt keine SMT/Cardinality-Qualifier, ein Pflicht-Geruest ` +
+        "laesst sich daraus nicht ableiten.",
+      "umfang=struktur oder umfang=vollstaendig nehmen und selbst auswaehlen.",
+    );
+  }
+
+  const submodel = zuschneiden(eintrag, pfad, geruest.submodel);
+  if (istErgebnis(submodel)) return submodel;
+
   return gib({
-    kennung: eintrag.kennung,
-    titel: eintrag.titel,
-    idta: eintrag.idta,
-    umfang: "pflicht",
-    submodel: geruest.submodel,
-    weggelassen: geruest.weggelassen,
-    ohneKardinalitaet: geruest.ohneKardinalitaet,
+    ...kopf,
+    submodel,
+    ...(pfad === ""
+      ? { weggelassen: geruest.weggelassen, ohneKardinalitaet: geruest.ohneKardinalitaet }
+      : {}),
     hinweis:
       "Nur Elemente mit SMT/Cardinality One oder OneToMany, Beispielwerte entfernt. " +
       "Wo TODO steht, verlangt das Metamodell einen nicht leeren Wert; das ist zu " +
       "ersetzen, nicht zu loeschen. " +
-      "Das Feld _kardinalitaet ist eine Auskunft und gehoert vor dem Export entfernt. " +
-      "Die id ist die der Vorlage und muss durch eine eigene ersetzt werden. " +
-      "umfang=vollstaendig liefert alle Elemente samt conceptDescriptions.",
+      KARDINALITAET_ERKLAERT +
+      " Die id ist die der Vorlage und muss durch eine eigene ersetzt werden. " +
+      "umfang=struktur zeigt auch die optionalen Elemente.",
   });
+}
+
+/** Den Teilbaum herausschneiden, oder sagen, was es an dieser Stelle gibt. */
+function zuschneiden(
+  eintrag: VorlagenEintrag,
+  pfad: string,
+  geruest?: JsonObject,
+): JsonObject | Ergebnis {
+  const wurzel = geruest ?? submodelDerVorlage(eintrag);
+  if (pfad === "") return wurzel;
+
+  const treffer = schneideZu(wurzel, pfad);
+  if (treffer === null) {
+    return fehler(
+      `In "${eintrag.kennung}" gibt es den Pfad "${pfad}" nicht.`,
+      `Direkt unter der Wurzel stehen: ${kinderNamen(wurzel).join(", ")}.`,
+    );
+  }
+  return treffer;
+}
+
+function submodelDerVorlage(eintrag: VorlagenEintrag): JsonObject {
+  const submodels = eintrag.quelle["submodels"];
+  const erstes = Array.isArray(submodels) ? submodels[0] : undefined;
+  if (!istObjekt(erstes)) throw new Error(`Die Vorlage ${eintrag.kennung} enthaelt kein Submodel.`);
+  return erstes;
 }
 
 // --- Anhaenge -------------------------------------------------------------------------
@@ -343,7 +444,7 @@ async function loeseAnhaenge(
       if (abruf === null) {
         return fehler(
           `"${pfad}": der Token ist unbekannt oder abgelaufen.`,
-          `Hochgeladene Anhaenge sind ${LEBENSDAUER_MS / 60000} Minuten gueltig.`,
+          `Hochgeladene Anhaenge sind ${ablage.lebensdauerMs / 3600000} Stunden gueltig.`,
         );
       }
       bytes = new Uint8Array(abruf.bytes);
@@ -414,6 +515,8 @@ interface Gelesen {
   readonly model: ReturnType<typeof normalize>;
   readonly environment: JsonObject;
   readonly befunde: Befund[];
+  /** Welche leeren Listen entfernt wurden, siehe `entferneLeereListen`. */
+  readonly normalisiert: string[];
   /**
    * Ob sich aus dem Modell ueberhaupt eine Datei schreiben laesst.
    *
@@ -437,25 +540,50 @@ function alsText(befund: ValidationIssue): string {
   return vorlage ?? befund.schluessel ?? "Warnung ohne Text.";
 }
 
+/**
+ * Der Pfad der Wurzel.
+ *
+ * `verify()` gibt fuer eine Verletzung am Environment selbst einen **leeren** Pfad
+ * zurueck, und ein leeres Feld liest sich wie eine fehlende Angabe. Genau daran ist am
+ * 10.08.2026 jemand haengen geblieben: der einzige Befund kam mit `pfad: ""`.
+ */
+const WURZEL = "$";
+
 function alsBefund(issue: ValidationIssue): Befund {
   return {
     schwere: issue.severity === "constraint" ? "verstoss" : "warnung",
     regel: issue.constraintId,
-    pfad: issue.aasPath,
+    pfad: issue.aasPath === "" ? WURZEL : issue.aasPath,
     ...(issue.field === "" ? {} : { feld: issue.field }),
     text: alsText(issue),
   };
 }
 
 /**
- * JSON einlesen, normalisieren, pruefen. Der Weg, den `aas_pruefen` und
- * `aas_datei_erzeugen` beide gehen.
+ * Leere Listen am Environment sind gemeint als "keine", das Metamodell wertet sie als
+ * Verstoss ("must be either not set or have at least one item").
  *
- * @param pfade Die vorhandenen Paketpfade. Ohne sie meldet die Pruefung jedes
- * File-Element als fehlenden Anhang, und genau das war der Grund, warum die Warnung
- * bisher nichts wert war.
+ * Formal hat es recht, praktisch ist es ein Stolperstein: `"conceptDescriptions": []` ist
+ * offensichtlich als "keine" geschrieben. Sie fallen deshalb weg, **aber nicht still**:
+ * was entfernt wurde, steht als `normalisiert` in der Antwort. Eine Eingabe klammheimlich
+ * zu aendern waere schlimmer als der Verstoss.
  */
-async function lies(roh: string, pfade: Set<string>): Promise<Gelesen | Ergebnis> {
+const OBERSTE_LISTEN = ["assetAdministrationShells", "submodels", "conceptDescriptions"] as const;
+
+function entferneLeereListen(environment: JsonObject): string[] {
+  const entfernt: string[] = [];
+  for (const name of OBERSTE_LISTEN) {
+    const wert = environment[name];
+    if (Array.isArray(wert) && wert.length === 0) {
+      delete environment[name];
+      entfernt.push(name);
+    }
+  }
+  return entfernt;
+}
+
+/** Den uebergebenen Text als Environment lesen, mit einer Groessengrenze davor. */
+function alsEnvironment(roh: string): JsonObject | Ergebnis {
   if (roh.length > MAX_EINGABE) {
     return fehler(
       `Die Eingabe ist ${Math.round(roh.length / 1024)} KB gross, erlaubt sind ${MAX_EINGABE / 1024 / 1024} MB.`,
@@ -475,7 +603,21 @@ async function lies(roh: string, pfade: Set<string>): Promise<Gelesen | Ergebnis
   if (json === null || typeof json !== "object" || Array.isArray(json)) {
     return fehler("environment muss ein JSON-Objekt sein.", "Erwartet wird ein AAS Environment.");
   }
-  const environment = json as JsonObject;
+  return json as JsonObject;
+}
+
+/**
+ * Normalisieren und pruefen. Der Weg, den alle Werkzeuge mit einem Environment gehen.
+ *
+ * @param pfade Die vorhandenen Paketpfade. Ohne sie meldet die Pruefung jedes
+ * File-Element als fehlenden Anhang, und genau das war der Grund, warum die Warnung
+ * bisher nichts wert war.
+ */
+async function pruefeEnvironment(
+  environment: JsonObject,
+  pfade: Set<string>,
+): Promise<Gelesen | Ergebnis> {
+  const normalisiert = entferneLeereListen(environment);
 
   let model: ReturnType<typeof normalize>;
   try {
@@ -486,7 +628,13 @@ async function lies(roh: string, pfade: Set<string>): Promise<Gelesen | Ergebnis
 
   try {
     const issues = await validate(model, pfade);
-    return { model, environment, befunde: issues.map(alsBefund), schreibbar: true };
+    return {
+      model,
+      environment,
+      normalisiert,
+      befunde: issues.map(alsBefund),
+      schreibbar: true,
+    };
   } catch (ursache) {
     /*
      * Ein fehlendes Pflichtfeld ist kein Werkzeugfehler, es ist der haeufigste Befund
@@ -495,15 +643,17 @@ async function lies(roh: string, pfade: Set<string>): Promise<Gelesen | Ergebnis
      * Pfad, und genau damit repariert das Modell seinen Entwurf.
      */
     if (istKernFehler(ursache) && ursache.schluessel === "modell.nichtZurueckwandelbar") {
+      const pfad = String(ursache.werte["pfad"] ?? "");
       return {
         model,
         environment,
+        normalisiert,
         schreibbar: false,
         befunde: [
           {
             schwere: "verstoss",
             regel: null,
-            pfad: String(ursache.werte["pfad"] ?? ""),
+            pfad: pfad === "" ? WURZEL : pfad,
             text: String(ursache.werte["grund"] ?? ursache.message),
           },
         ],
@@ -566,7 +716,15 @@ function dateiverweise(model: ReturnType<typeof normalize>): Dateiverweis[] {
 const IST_EXTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 interface Bilanz {
-  readonly aufgeloest: string[];
+  /**
+   * Je Datei **ein** Eintrag, mit der Zahl der Verweise darauf.
+   *
+   * Bis zum 10.08.2026 stand hier ein Eintrag je File-Element, und eine Datei, auf die
+   * zwei Elemente zeigen, sah aus wie ein Duplikatfehler in der Antwort. Der Zaehler sagt
+   * dasselbe kuerzer und ist zugleich die interessantere Auskunft: geteilte Dateien sind
+   * die, bei denen ein Ersetzen zwei Stellen trifft.
+   */
+  readonly aufgeloest: { pfad: string; verweise: number }[];
   readonly fehlend: { pfad: string; aasPath: string }[];
   readonly extern: { url: string; aasPath: string }[];
   readonly unreferenziert: string[];
@@ -584,10 +742,9 @@ function bilanziere(
   environment: JsonObject,
   pfade: Set<string>,
 ): Bilanz {
-  const aufgeloest: string[] = [];
+  const aufgeloest = new Map<string, number>();
   const fehlend: { pfad: string; aasPath: string }[] = [];
   const extern: { url: string; aasPath: string }[] = [];
-  const benutzt = new Set<string>();
 
   for (const verweis of dateiverweise(model)) {
     if (IST_EXTERN.test(verweis.wert)) {
@@ -596,38 +753,104 @@ function bilanziere(
     }
     const pfad = normalizePath(verweis.wert);
     if (pfade.has(pfad)) {
-      aufgeloest.push(pfad);
-      benutzt.add(pfad);
+      aufgeloest.set(pfad, (aufgeloest.get(pfad) ?? 0) + 1);
     } else {
       fehlend.push({ pfad, aasPath: verweis.aasPath });
     }
   }
 
+  // Das Vorschaubild zaehlt als Verweis: sonst gilt die Datei, auf die nur es zeigt, als
+  // unreferenziert und der Aufrufer entfernt sie.
   const thumb = thumbnailPfad(environment);
-  if (thumb !== null && pfade.has(thumb)) benutzt.add(thumb);
+  if (thumb !== null && pfade.has(thumb)) {
+    aufgeloest.set(thumb, (aufgeloest.get(thumb) ?? 0) + 1);
+  }
 
   return {
-    aufgeloest,
+    aufgeloest: [...aufgeloest].map(([pfad, verweise]) => ({ pfad, verweise })),
     fehlend,
     extern,
-    unreferenziert: [...pfade].filter((pfad) => !benutzt.has(pfad)),
+    unreferenziert: [...pfade].filter((pfad) => !aufgeloest.has(pfad)),
   };
 }
 
-// --- aas_pruefen ----------------------------------------------------------------------
+// --- Entwuerfe ------------------------------------------------------------------------
 
-export async function aasPruefen(eingabe: {
-  environment: string;
-  anhaenge?: readonly string[] | null;
-}): Promise<Ergebnis> {
-  const pfade = new Set((eingabe.anhaenge ?? []).map((p) => normalizePath(String(p).trim())));
-  const gelesen = await lies(eingabe.environment, pfade);
-  if (istErgebnis(gelesen)) return gelesen;
+/**
+ * Der Entwurf: ein Environment, das auf dem Server liegen bleibt.
+ *
+ * **Der groesste Posten des ganzen Ablaufs.** Ohne ihn geht das vollstaendige Environment
+ * bei jedem Pruefen und jedem Erzeugen erneut ueber die Leitung, und bei mehreren
+ * Korrekturrunden ist das um ein Vielfaches mehr als die AAS selbst. Gemeldet aus einer
+ * echten Sitzung am 10.08.2026: 34 KB, zweimal, je Runde.
+ *
+ * Der Server bleibt trotzdem ohne Datenbank und ohne Benutzer. Ein Entwurf ist eine Datei
+ * mit einem nicht zu ratenden Namen und einer Frist, genau wie eine Ausgabe oder ein
+ * hochgeladener Anhang.
+ */
+function entwurfLesen(umgebung: Umgebung, token: string): JsonObject | Ergebnis {
+  const abruf = entwuerfe(umgebung.env).abrufen(token.trim());
+  if (abruf === null) {
+    return fehler(
+      "Der Entwurf ist unbekannt oder abgelaufen.",
+      `Entwuerfe gelten ${entwuerfe(umgebung.env).lebensdauerMs / 3600000} Stunden ab der ` +
+        "letzten Aenderung. Mit entwurf_anlegen einen neuen anlegen.",
+    );
+  }
+  const environment = alsEnvironment(abruf.bytes.toString("utf8"));
+  return environment;
+}
 
+function entwurfSchreiben(umgebung: Umgebung, environment: JsonObject): string {
+  const info = entwuerfe(umgebung.env).ablegen({
+    bytes: new TextEncoder().encode(JSON.stringify(environment)),
+    dateiname: "entwurf.json",
+    contentType: "application/json",
+  });
+  return info.token;
+}
+
+/**
+ * Die Quelle eines Werkzeugs: entweder der volle Text oder ein Entwurf.
+ *
+ * Genau eines von beidem. Beides zugleich hiesse, dass zwei Staende im Umlauf sind, und
+ * keines von beidem ist ein Aufruf ohne Gegenstand.
+ */
+function quelleVon(
+  umgebung: Umgebung,
+  eingabe: { environment?: string | null; entwurf?: string | null },
+): JsonObject | Ergebnis {
+  const text = eingabe.environment?.trim() ?? "";
+  const token = eingabe.entwurf?.trim() ?? "";
+
+  if (text !== "" && token !== "") {
+    return fehler("environment und entwurf schliessen sich aus.", "Genau eines von beidem.");
+  }
+  if (text === "" && token === "") {
+    return fehler("Es fehlt die Quelle.", "Entweder environment als JSON-Text oder entwurf.");
+  }
+  return text !== "" ? alsEnvironment(text) : entwurfLesen(umgebung, token);
+}
+
+/** Die gemeinsame Antwort von anlegen, aendern und pruefen. */
+async function berichte(
+  gelesen: Gelesen,
+  pfade: Set<string>,
+  zusatz: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
   const bilanz = bilanziere(gelesen.model, gelesen.environment, pfade);
-
-  return gib({
+  return {
+    ...zusatz,
     ...befundeAusgabe(gelesen.befunde),
+    ...(gelesen.normalisiert.length === 0
+      ? {}
+      : {
+          normalisiert: gelesen.normalisiert,
+          normalisierungshinweis:
+            "Diese Listen waren leer und wurden entfernt. Das Metamodell laesst eine leere " +
+            "Liste nicht zu; gemeint war offensichtlich „keine\", und genau das ist jetzt " +
+            "der Zustand.",
+        }),
     anhaenge: {
       aufgeloest: bilanz.aufgeloest,
       fehlend: bilanz.fehlend,
@@ -642,7 +865,124 @@ export async function aasPruefen(eingabe: {
             "landen im Container, ohne dass sie jemand findet.",
         }
       : {}),
-  });
+  };
+}
+
+function anhangspfade(liste: readonly string[] | null | undefined): Set<string> {
+  return new Set((liste ?? []).map((p) => normalizePath(String(p).trim())));
+}
+
+export async function entwurfAnlegen(
+  umgebung: Umgebung,
+  eingabe: { environment: string; anhaenge?: readonly string[] | null },
+): Promise<Ergebnis> {
+  const environment = alsEnvironment(eingabe.environment);
+  if (istErgebnis(environment)) return environment;
+
+  const pfade = anhangspfade(eingabe.anhaenge);
+  const gelesen = await pruefeEnvironment(environment, pfade);
+  if (istErgebnis(gelesen)) return gelesen;
+
+  // Abgelegt wird der **normalisierte** Stand, sonst kaeme der Verstoss ueber leere Listen
+  // bei jedem Patch aufs Neue.
+  const token = entwurfSchreiben(umgebung, gelesen.environment);
+
+  return gib(
+    await berichte(gelesen, pfade, {
+      entwurf: token,
+      hinweis:
+        "Ab jetzt genuegt entwurf statt environment: entwurf_aendern fuer Korrekturen, " +
+        "aas_datei_erzeugen fuer die Datei. Das Environment muss nicht noch einmal " +
+        "geschickt werden.",
+    }),
+  );
+}
+
+export async function entwurfAendern(
+  umgebung: Umgebung,
+  eingabe: { entwurf: string; patches: readonly Patch[]; anhaenge?: readonly string[] | null },
+): Promise<Ergebnis> {
+  const token = eingabe.entwurf.trim();
+  const vorher = entwurfLesen(umgebung, token);
+  if (istErgebnis(vorher)) return vorher;
+
+  if (eingabe.patches.length === 0) {
+    return fehler("Es wurde kein Patch uebergeben.", "Zum blossen Nachsehen entwurf_lesen.");
+  }
+
+  let nachher: JsonObject;
+  try {
+    nachher = wendeAn(vorher, eingabe.patches);
+  } catch (ursache) {
+    if (ursache instanceof ZeigerFehler) {
+      /*
+       * Der Entwurf bleibt unveraendert: `wendeAn` arbeitet auf einer Kopie. Ein halb
+       * angewandter Stapel waere schlimmer als ein abgelehnter, der Aufrufer wuesste
+       * danach nicht mehr, was drinsteht.
+       */
+      return fehler(ursache.message, "Der Entwurf ist unveraendert. Mit entwurf_lesen nachsehen.");
+    }
+    throw ursache;
+  }
+
+  const pfade = anhangspfade(eingabe.anhaenge);
+  const gelesen = await pruefeEnvironment(nachher, pfade);
+  if (istErgebnis(gelesen)) return gelesen;
+
+  const bytes = new TextEncoder().encode(JSON.stringify(gelesen.environment));
+  if (entwuerfe(umgebung.env).aktualisieren(token, bytes) === null) {
+    return fehler("Der Entwurf ist zwischenzeitlich abgelaufen.");
+  }
+
+  return gib(
+    await berichte(gelesen, pfade, {
+      entwurf: token,
+      angewandt: eingabe.patches.length,
+    }),
+  );
+}
+
+export function entwurfAnsehen(
+  umgebung: Umgebung,
+  eingabe: { entwurf: string; pfad?: string | null },
+): Ergebnis {
+  const environment = entwurfLesen(umgebung, eingabe.entwurf);
+  if (istErgebnis(environment)) return environment;
+
+  const pfad = eingabe.pfad?.trim() ?? "";
+  if (pfad === "") return gib({ entwurf: eingabe.entwurf.trim(), environment });
+
+  let ausschnitt: JsonValue | undefined;
+  try {
+    ausschnitt = zeigerLesen(environment, pfad);
+  } catch (ursache) {
+    if (ursache instanceof ZeigerFehler) return fehler(ursache.message);
+    throw ursache;
+  }
+  if (ausschnitt === undefined) {
+    return fehler(`Unter "${pfad}" steht nichts.`, "Ohne pfad kommt das ganze Environment.");
+  }
+  return gib({ entwurf: eingabe.entwurf.trim(), pfad, wert: ausschnitt });
+}
+
+// --- aas_pruefen ----------------------------------------------------------------------
+
+export async function aasPruefen(
+  umgebung: Umgebung,
+  eingabe: {
+    environment?: string | null;
+    entwurf?: string | null;
+    anhaenge?: readonly string[] | null;
+  },
+): Promise<Ergebnis> {
+  const environment = quelleVon(umgebung, eingabe);
+  if (istErgebnis(environment)) return environment;
+
+  const pfade = anhangspfade(eingabe.anhaenge);
+  const gelesen = await pruefeEnvironment(environment, pfade);
+  if (istErgebnis(gelesen)) return gelesen;
+
+  return gib(await berichte(gelesen, pfade));
 }
 
 // --- aas_datei_erzeugen ---------------------------------------------------------------
@@ -667,12 +1007,16 @@ function sauberName(wunsch: string | null | undefined, format: AasFormat): strin
 export async function aasDateiErzeugen(
   umgebung: Umgebung,
   eingabe: {
-    environment: string;
+    environment?: string | null;
+    entwurf?: string | null;
     format: AasFormat;
     dateiname?: string | null;
     anhaenge?: readonly AnhangsEingabe[] | null;
   },
 ): Promise<Ergebnis> {
+  const quelle = quelleVon(umgebung, eingabe);
+  if (istErgebnis(quelle)) return quelle;
+
   const liste = eingabe.anhaenge ?? [];
 
   // Stilles Verwerfen waere hier das Schlimmste: der Aufrufer glaubte, sein Datenblatt
@@ -688,7 +1032,7 @@ export async function aasDateiErzeugen(
   if (istErgebnis(geloest)) return geloest;
   const anhangsMap = geloest as Map<string, Attachment>;
 
-  const gelesen = await lies(eingabe.environment, new Set(anhangsMap.keys()));
+  const gelesen = await pruefeEnvironment(quelle, new Set(anhangsMap.keys()));
   if (istErgebnis(gelesen)) return gelesen;
 
   /*
@@ -741,12 +1085,13 @@ export async function aasDateiErzeugen(
    * waere hier der schlechtere Weg: das Modell haette nichts in der Hand und wuesste
    * nicht, wie nah es war.
    */
+  const stunden = ausgabe(umgebung.env).lebensdauerMs / 3600000;
   return gib({
     url: `${umgebung.basisUrl}/api/mcp/dateien/${info.token}`,
     dateiname,
     format: eingabe.format,
     groesse: info.groesse,
-    gueltigBis: new Date(info.erstellt + LEBENSDAUER_MS).toISOString(),
+    gueltigBis: new Date(info.erstellt + ausgabe(umgebung.env).lebensdauerMs).toISOString(),
     ...befundeAusgabe(gelesen.befunde),
     anhaenge: {
       geschrieben: [...anhangsMap.keys()],
@@ -756,9 +1101,60 @@ export async function aasDateiErzeugen(
       unreferenziert: bilanz.unreferenziert,
     },
     hinweis:
-      gelesen.befunde.length === 0
-        ? "Der Link ist eine Stunde lang gueltig."
-        : "Die Datei wurde trotz Befunden erzeugt. Der Link ist eine Stunde lang gueltig.",
+      (gelesen.befunde.length === 0 ? "" : "Die Datei wurde trotz Befunden erzeugt. ") +
+      `Der Link gilt ${stunden} Stunden.`,
+  });
+}
+
+// --- anhang_hochladen -----------------------------------------------------------------
+
+/**
+ * Ein Anhang in die Ablage, ueber das Werkzeug statt ueber HTTP.
+ *
+ * `POST /api/mcp/anhaenge` bleibt fuer Shell und curl, ist aber aus einer Sandbox nicht
+ * erreichbar, wenn die Domain nicht in deren Erlaubnisliste steht. Genau daran ist am
+ * 10.08.2026 ein Produktfoto gescheitert: es wurde von 965 KB auf 11 KB heruntergerechnet,
+ * damit es als base64 direkt in den Container passte, und die Bildqualitaet im AASX war
+ * danach eine Folge des Transportwegs.
+ *
+ * Der Gewinn ist nicht, dass weniger durch den Kontext geht: die Bytes gehen genau einmal
+ * durch, ueberstehen dann aber jeden weiteren Versuch, ohne noch einmal geschickt zu
+ * werden.
+ */
+export function anhangHochladen(
+  umgebung: Umgebung,
+  eingabe: { base64: string; dateiname?: string | null; contentType?: string | null },
+): Ergebnis {
+  const roh = eingabe.base64.replace(/^data:[^,]*,/, "").trim();
+  const puffer = Buffer.from(roh, "base64");
+  if (puffer.byteLength === 0) {
+    return fehler("base64 liess sich nicht lesen oder ist leer.");
+  }
+  if (puffer.byteLength > MAX_BASE64_BYTES) {
+    return fehler(
+      `Ueber base64 sind hoechstens ${MAX_BASE64_BYTES / 1024 / 1024} MB vorgesehen, ` +
+        `geschickt wurden ${Math.round(puffer.byteLength / 1024)} KB.`,
+      "Groesseres ueber die url-Quelle an aas_datei_erzeugen geben, dann holt der Server " +
+        "die Datei selbst, oder ueber POST /api/mcp/anhaenge hochladen.",
+    );
+  }
+
+  const dateiname = (eingabe.dateiname ?? "").trim() || "anhang";
+  const geprueft = pruefeTyp(eingabe.contentType ?? "", dateiname);
+  if (istErgebnis(geprueft)) return geprueft;
+
+  const ablage = anhangsAblage(umgebung.env);
+  const info = ablage.ablegen({ bytes: new Uint8Array(puffer), dateiname, contentType: geprueft });
+
+  return gib({
+    token: info.token,
+    dateiname: info.dateiname,
+    contentType: info.contentType,
+    groesse: info.groesse,
+    gueltigBis: new Date(info.erstellt + ablage.lebensdauerMs).toISOString(),
+    hinweis:
+      "Den Token als anhaenge[].token an aas_datei_erzeugen geben, zusammen mit dem " +
+      "gewuenschten Paketpfad. Er ueberlebt dabei jeden weiteren Versuch.",
   });
 }
 
@@ -823,16 +1219,27 @@ export async function aasDateiLesen(
       };
     });
 
+    /*
+     * Der Entwurf entsteht gleich mit. Das Environment steht hier ohnehin fertig auf dem
+     * Server, und es herauszugeben, damit der Aufrufer es beim naechsten Aufruf
+     * zurueckbringt, ist die teuerste Art, nichts zu gewinnen.
+     */
+    const environment = denormalize(gelesen.model);
+    const entwurf = entwurfSchreiben(umgebung, environment);
+    const stunden = anhangsAblage(umgebung.env).lebensdauerMs / 3600000;
+
     return gib({
       format: gelesen.format,
       quellfassung: gelesen.sourceVersion,
+      entwurf,
       anhaenge: abgelegt,
       aufstieg: gelesen.upgradeNotes,
-      environment: denormalize(gelesen.model),
+      environment,
       hinweis:
-        "environment ist Metamodell 3.1 und kann unveraendert an aas_pruefen und " +
-        "aas_datei_erzeugen weitergereicht werden. Die Anhaenge liegen eine Stunde " +
-        "bereit; ihr token taugt unveraendert als Quelle in aas_datei_erzeugen.",
+        "environment ist Metamodell 3.1. Fuer alles Weitere genuegt entwurf: " +
+        "entwurf_aendern fuer Korrekturen, aas_datei_erzeugen fuer die Datei. Das " +
+        `Environment muss nicht zurueckgeschickt werden. Die Anhaenge liegen ${stunden} ` +
+        "Stunden bereit; ihr token taugt unveraendert als Quelle in aas_datei_erzeugen.",
     });
   } catch (ursache) {
     return fehler(`Die Datei liess sich nicht lesen: ${(ursache as Error).message}`);

@@ -61,9 +61,32 @@ im Chat, ueber mehrere Runden, am Ende faellt eine Datei heraus.
 |---|---|
 | `aas_schema` | Felder einer Art samt Pflichtangaben, Aufzaehlungswerten und gueltigem Geruest |
 | `aas_vorlage` | Geruest eines IDTA-Teilmodells mit den korrekten semanticId-Werten |
+| `entwurf_anlegen` | Nimmt ein Environment entgegen, prueft es und behaelt es; zurueck kommt eine Kennung |
+| `entwurf_aendern` | Patcht einen Entwurf ueber JSON Pointer und prueft im selben Aufruf |
+| `entwurf_lesen` | Zeigt einen Entwurf oder einen Ausschnitt daraus |
 | `aas_pruefen` | Befunde aus `verification.verify()` samt Regelkennung und Pfad, dazu eine Bilanz der Anhaenge |
-| `aas_datei_erzeugen` | Schreibt JSON, XML oder AASX samt Anhaengen und gibt einen Link, der eine Stunde gilt |
-| `aas_datei_lesen` | Liest eine vorhandene AAS (auch 3.0) als Environment 3.1 zurueck, samt Anhaengen |
+| `anhang_hochladen` | Legt eine Datei ab und gibt einen Token, der als Anhangsquelle taugt |
+| `aas_datei_erzeugen` | Schreibt JSON, XML oder AASX samt Anhaengen und gibt einen Link, der 24 Stunden gilt |
+| `aas_datei_lesen` | Liest eine vorhandene AAS (auch 3.0) als Environment 3.1 zurueck, samt Anhaengen und Entwurf |
+
+### Entwuerfe
+
+Der teuerste Posten dieses Ablaufs ist nicht die AAS, sondern ihre Wiederholung. Ohne
+Entwurf geht das vollstaendige Environment bei jedem Pruefen und jedem Erzeugen erneut
+ueber die Leitung; bei 44 KB und zwei Korrekturrunden waren das gemessene 204 000 Zeichen.
+Mit `entwurf_anlegen` und Patches sind es 52 000, und davon ist der Loewenanteil die eine
+unvermeidliche Erstuebertragung.
+
+```
+entwurf_anlegen(environment)          -> { entwurf, befunde, anhaenge }
+entwurf_aendern(entwurf, [{ op: "setzen", pfad: "/submodels/0/…/value", wert: "12,5" }])
+aas_datei_erzeugen(entwurf, format: "aasx", anhaenge: [...])
+```
+
+`op` ist `setzen`, `entfernen` oder `anfuegen`, `pfad` ein JSON Pointer nach RFC 6901
+(`src/mcp/zeiger.ts`). Schlaegt ein Patch fehl, bleibt der Entwurf **unveraendert**, es
+gibt keinen halb angewandten Stapel. Ein Entwurf gilt 24 Stunden ab der letzten Aenderung
+und liegt wie die Dateien als Token in `src/services/ablage.ts`, ohne Datenbankeintrag.
 
 ### Anhaenge
 
@@ -72,9 +95,12 @@ nimmt deshalb `anhaenge` entgegen, je Eintrag einen Paketpfad und **genau eine**
 
 | Quelle | Wofuer |
 |---|---|
-| `url` | der Regelfall bei Herstellerdokumenten, nur `https` |
-| `base64` | kleine Bilder aus dem Chat, bis 2 MB |
-| `token` | alles andere: zuvor ueber `POST /api/mcp/anhaenge` hochladen |
+| `url` | **der beste Weg**: der Server holt die Datei selbst, die Bytes gehen gar nicht durch das Gespraech. Nur `https` |
+| `token` | aus `anhang_hochladen`, aus `POST /api/mcp/anhaenge` oder aus `aas_datei_lesen`. Die Bytes gehen einmal durch und ueberstehen jeden weiteren Versuch |
+| `base64` | der letzte Weg: bis 2 MB, aber bei jedem Versuch erneut durch das Gespraech |
+
+`anhang_hochladen` gibt es als Werkzeug **und** als HTTP-Endpunkt, weil beide gebraucht
+werden: eine Sandbox erreicht die Domain oft nicht, eine Shell dafuer den Endpunkt direkt.
 
 ```bash
 curl -s -X POST http://localhost:3200/api/mcp/anhaenge -F datei=@datenblatt.pdf
@@ -109,11 +135,24 @@ parallel im selben Paket.
 
 ### IDTA-Vorlagen
 
-`aas_vorlage` liefert das Geruest eines Teilmodells nach IDTA. Die drei Vorlagen liegen
-unveraendert unter [apps/server/vorlagen/](apps/server/vorlagen/), Herkunft im README
-daneben. Gefiltert wird beim Lesen ueber den Qualifier `SMT/Cardinality`, den die Vorlagen
-selbst mitbringen: `umfang: "pflicht"` (Vorgabe) liefert nur One und OneToMany,
-`vollstaendig` die ganze Vorlage samt `conceptDescriptions`.
+`aas_vorlage` liefert das Geruest eines Teilmodells nach IDTA. Die vier Vorlagen liegen
+unveraendert unter [apps/server/vorlagen/](apps/server/vorlagen/), Herkunft und die
+bekannten Fehler des Herausgebers im README daneben.
+
+| `umfang` | Was kommt |
+|---|---|
+| `struktur` (Vorgabe) | der Bauplan: alle Elemente, aber nur `idShort`, `modelType`, `semanticId` als Zeichenkette, `valueType`, Kardinalitaet |
+| `pflicht` | ein einsetzbares Geruest, gefiltert ueber `SMT/Cardinality` auf One und OneToMany |
+| `vollstaendig` | die Datei des Herausgebers, unveraendert; `conceptDescriptions` nur auf Verlangen |
+
+`pfad: "/Markings"` grenzt auf einen Teilbaum ein. Ohne diese beiden Stufen war die Wahl
+zwischen zu wenig und zu viel: `pflicht` liess die optionalen Elemente weg, `vollstaendig`
+sprengte bei Technical Data den Kontext.
+
+Das Nameplate fuehrt `AddressInformation` als Pflichtelement, laesst es aber leer und
+verweist auf ein SMT-Drop-in, das beim Herausgeber nicht als JSON vorliegt. `aas_vorlage`
+zeigt an dieser Stelle auf `contactinformation-1-0-1` und sagt dazu, dass die Quelle eine
+andere ist. Raten ist hier der einzige Weg, der schlechter waere.
 
 ```bash
 pnpm vorlagen     # meldet, wenn die IDTA eine neuere Fassung veroeffentlicht hat

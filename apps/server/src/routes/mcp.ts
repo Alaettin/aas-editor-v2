@@ -4,7 +4,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ServerEnv } from "../env.js";
 import { baueMcpServer } from "../mcp/server.js";
 import { ERLAUBTE_TYPEN, MAX_ANHANG_BYTES } from "../mcp/werkzeuge.js";
-import { anhaenge, ausgabe, LEBENSDAUER_MS } from "../services/ablage.js";
+import { anhaenge, ausgabe, entwuerfe } from "../services/ablage.js";
 import { badRequest } from "../errors.js";
 
 /**
@@ -50,9 +50,12 @@ const NICHT_ERLAUBT = {
 };
 
 export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<void> {
-  // Beim Start einmal durchfegen: was ein voriger Lauf abgelegt hat, ist laengst abgelaufen.
+  // Beim Start einmal durchfegen. Anders als frueher ist hier nicht alles abgelaufen: die
+  // Fristen liegen bei 24 Stunden, ein Neustart mitten in einer Sitzung soll den Entwurf
+  // nicht mitnehmen. Weggeraeumt wird nur, was wirklich alt ist.
   ausgabe(env).raeumeAuf();
   anhaenge(env).raeumeAuf();
+  entwuerfe(env).raeumeAuf();
 
   await app.register(rateLimit, { global: false });
 
@@ -118,7 +121,8 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
           );
         }
 
-        const info = anhaenge(env).ablegen({
+        const ablage = anhaenge(env);
+        const info = ablage.ablegen({
           bytes,
           dateiname: teil.filename === "" ? "anhang" : teil.filename,
           contentType: typ,
@@ -130,7 +134,7 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
           dateiname: info.dateiname,
           contentType: info.contentType,
           groesse: info.groesse,
-          gueltigBis: new Date(info.erstellt + LEBENSDAUER_MS).toISOString(),
+          gueltigBis: new Date(info.erstellt + ablage.lebensdauerMs).toISOString(),
           hinweis: "Den Token als anhaenge[].token an aas_datei_erzeugen geben.",
         };
       },

@@ -57,6 +57,7 @@ describe("aas_vorlage", () => {
     const { daten } = await ruf(app, "aas_vorlage", {});
     const liste = daten["vorlagen"] as { kennung: string; semanticId: string; idta: string }[];
     expect(liste.map((v) => v.kennung).sort()).toEqual([
+      "contactinformation-1-0-1",
       "handoverdocumentation-2-0-1",
       "nameplate-3-0",
       "technicaldata-2-0",
@@ -104,24 +105,142 @@ describe("aas_vorlage", () => {
     const { daten } = await ruf(app, "aas_vorlage", {
       kennung: "nameplate-3-0",
       umfang: "vollstaendig",
+      conceptDescriptions: true,
     });
-    const env = daten["environment"] as Record<string, unknown>;
-    expect((env["conceptDescriptions"] as unknown[]).length).toBeGreaterThan(0);
-    const sm = (env["submodels"] as Record<string, unknown>[])[0];
+    expect((daten["conceptDescriptions"] as unknown[]).length).toBeGreaterThan(0);
+    const sm = daten["submodel"] as Record<string, unknown>;
     // Unveraendert heisst unveraendert: kind bleibt Template, die Qualifier bleiben drin.
-    expect(sm?.["kind"]).toBe("Template");
+    expect(sm["kind"]).toBe("Template");
+    expect(JSON.stringify(sm)).toContain("SMT/Cardinality");
+  });
+
+  it("liefert die Begriffsdefinitionen nur auf Verlangen", async () => {
+    // Sie sind der Loewenanteil der Groesse. Ohne Schalter fehlen sie, und genau das war
+    // der Grund, warum umfang=vollstaendig den Kontext sprengte.
+    const { daten } = await ruf(app, "aas_vorlage", {
+      kennung: "nameplate-3-0",
+      umfang: "vollstaendig",
+    });
+    expect(daten["conceptDescriptions"]).toBeUndefined();
   });
 
   it("dampft ein: das Pflicht-Geruest ist deutlich kleiner als die ganze Vorlage", async () => {
-    const pflicht = await ruf(app, "aas_vorlage", { kennung: "technicaldata-2-0" });
+    const pflicht = await ruf(app, "aas_vorlage", {
+      kennung: "technicaldata-2-0",
+      umfang: "pflicht",
+    });
     const voll = await ruf(app, "aas_vorlage", {
       kennung: "technicaldata-2-0",
       umfang: "vollstaendig",
+      conceptDescriptions: true,
     });
     expect(JSON.stringify(pflicht.daten["submodel"]).length).toBeLessThan(
-      JSON.stringify(voll.daten["environment"]).length / 4,
+      JSON.stringify(voll.daten).length / 4,
     );
     expect(pflicht.daten["weggelassen"] as number).toBeGreaterThan(0);
+  });
+
+  /*
+   * Die Stufe `struktur` ist die Vorgabe, seit `pflicht` zu wenig und `vollstaendig` zu
+   * viel lieferte: `pflicht` liess CompanyLogo, Markings und ProductImages weg, weil sie
+   * optional sind, und `vollstaendig` sprengte bei technicaldata-2-0 den Kontext.
+   */
+  it("zeigt in der Vorgabe alle Elemente, auch die optionalen", async () => {
+    const { daten } = await ruf(app, "aas_vorlage", { kennung: "nameplate-3-0" });
+    expect(daten["umfang"]).toBe("struktur");
+    const text = JSON.stringify(daten["submodel"]);
+    for (const optional of ["CompanyLogo", "Markings", "AssetSpecificProperties"]) {
+      expect(text, `${optional} fehlt im Bauplan`).toContain(optional);
+    }
+  });
+
+  it("haelt den Bauplan klein: ein Fuenftel der ganzen Vorlage", async () => {
+    const { daten } = await ruf(app, "aas_vorlage", { kennung: "technicaldata-2-0" });
+    const groesse = JSON.stringify(daten).length;
+    /*
+     * Gemessen wird gegen die Datei selbst, nicht gegen eine ausgedachte Zahl: sie ist
+     * das, was vorher durch den Kontext ging. Am 10.08.2026 waren es 11 KB gegen 69 KB;
+     * die Schranke haelt fest, dass sich das nicht unbemerkt annaehert.
+     */
+    const ganze = JSON.stringify(
+      (await ruf(app, "aas_vorlage", {
+        kennung: "technicaldata-2-0",
+        umfang: "vollstaendig",
+        conceptDescriptions: true,
+      })).daten,
+    ).length;
+    expect(groesse, `Bauplan ist ${groesse} Zeichen, ganze Vorlage ${ganze}`).toBeLessThan(
+      ganze / 5,
+    );
+    // Die semanticId steht als blosse Zeichenkette da, nicht als Schluesselobjekt.
+    expect(JSON.stringify(daten["submodel"])).not.toContain("GlobalReference");
+  });
+
+  it("schneidet mit pfad auf einen Teilbaum zu", async () => {
+    const { daten } = await ruf(app, "aas_vorlage", {
+      kennung: "nameplate-3-0",
+      pfad: "/Markings",
+    });
+    const sm = daten["submodel"] as Record<string, unknown>;
+    expect(sm["idShort"]).toBe("Markings");
+    expect(JSON.stringify(sm)).toContain("MarkingName");
+    // Und nichts von ausserhalb des Zweigs.
+    expect(JSON.stringify(sm)).not.toContain("ManufacturerName");
+  });
+
+  it("sagt bei einem falschen pfad, was es an dieser Stelle gibt", async () => {
+    const { istFehler, daten } = await ruf(app, "aas_vorlage", {
+      kennung: "nameplate-3-0",
+      pfad: "/Gibtsnicht",
+    });
+    expect(istFehler).toBe(true);
+    expect(String(daten["hinweis"])).toContain("ManufacturerName");
+  });
+
+  /*
+   * Die kaputte URL steht so in der Datei der IDTA. Sie wird gemeldet und nicht
+   * ausgebessert: eine ausgebesserte Vorlage ist keine Spezifikation mehr, sondern eine
+   * Abschrift davon.
+   */
+  it("nennt die bekannten Fehler des Herausgebers", async () => {
+    const { daten } = await ruf(app, "aas_vorlage", { kennung: "technicaldata-2-0" });
+    const maengel = (daten["bekannteMaengel"] as string[]) ?? [];
+    expect(maengel.some((m) => m.includes("eclass-cdp.com/ "))).toBe(true);
+    expect(maengel.some((m) => m.includes("Technsiche"))).toBe(true);
+  });
+
+  it("weist an der leeren AddressInformation auf die belegte Quelle hin", async () => {
+    const { daten } = await ruf(app, "aas_vorlage", {
+      kennung: "nameplate-3-0",
+      pfad: "/AddressInformation",
+    });
+    const hinweis = String((daten["submodel"] as Record<string, unknown>)["_hinweis"]);
+    expect(hinweis).toContain("contactinformation-1-0-1");
+    // Und die Quelle wird benannt, statt sie als das Drop-in auszugeben.
+    expect(hinweis).toContain("nicht aus dem Drop-in");
+  });
+
+  it("lehnt ein Pflicht-Geruest ab, wo die Vorlage keine Kardinalitaeten fuehrt", async () => {
+    // IDTA 02002 ist so eine. Ein leeres Geruest waere dort das Verwirrendste.
+    const { istFehler, daten } = await ruf(app, "aas_vorlage", {
+      kennung: "contactinformation-1-0-1",
+      umfang: "pflicht",
+    });
+    expect(istFehler).toBe(true);
+    expect(String(daten["fehler"])).toContain("SMT/Cardinality");
+  });
+
+  it("liefert die Adressfelder samt IRDI aus der ContactInformation", async () => {
+    const { daten } = await ruf(app, "aas_vorlage", {
+      kennung: "contactinformation-1-0-1",
+      pfad: "/ContactInformation",
+    });
+    const text = JSON.stringify(daten["submodel"]);
+    // Die IRDIs sind der ganze Grund fuer dieses Werkzeug.
+    expect(text).toContain("0173-1#02-AAO128#002");
+    for (const feld of ["Street", "Zipcode", "CityTown", "NationalCode"]) {
+      expect(text, `${feld} fehlt`).toContain(feld);
+    }
   });
 });
 
@@ -294,7 +413,7 @@ describe("Anhangsbilanz in aas_pruefen", () => {
       anhaenge: ["/da.pdf", "/niemand.pdf"],
     });
     const bilanz = daten["anhaenge"] as Record<string, unknown>;
-    expect(bilanz["aufgeloest"]).toEqual(["/da.pdf"]);
+    expect(bilanz["aufgeloest"]).toEqual([{ pfad: "/da.pdf", verweise: 1 }]);
     expect((bilanz["fehlend"] as { pfad: string }[]).map((f) => f.pfad)).toEqual(["/weg.pdf"]);
     expect((bilanz["extern"] as { url: string }[]).map((e) => e.url)).toEqual([
       "https://example.com/fern.pdf",
@@ -302,6 +421,55 @@ describe("Anhangsbilanz in aas_pruefen", () => {
     // Die Gegenrichtung, die es bisher nirgends gab: ein Anhang, den niemand braucht.
     expect(bilanz["unreferenziert"]).toEqual(["/niemand.pdf"]);
     expect(daten["anhangswarnung"]).toBeTruthy();
+  });
+
+  /*
+   * Zwei File-Elemente auf dieselbe Datei: bis zum 10.08.2026 stand sie zweimal unter
+   * aufgeloest und las sich wie ein Duplikatfehler in der Antwort.
+   */
+  it("zaehlt eine geteilte Datei als einen Eintrag mit zwei Verweisen", async () => {
+    const env = {
+      submodels: [
+        {
+          modelType: "Submodel",
+          id: "urn:test:sm:doku",
+          submodelElements: [
+            { modelType: "File", idShort: "A", contentType: "image/png", value: "/logo.png" },
+            { modelType: "File", idShort: "B", contentType: "image/png", value: "/logo.png" },
+          ],
+        },
+      ],
+    };
+    const { daten } = await ruf(app, "aas_pruefen", {
+      environment: JSON.stringify(env),
+      anhaenge: ["/logo.png"],
+    });
+    const bilanz = daten["anhaenge"] as Record<string, unknown>;
+    expect(bilanz["aufgeloest"]).toEqual([{ pfad: "/logo.png", verweise: 2 }]);
+  });
+
+  /*
+   * Leere Listen sind als "keine" gemeint, das Metamodell wertet sie als Verstoss. Der
+   * Befund kam obendrein ohne Regelkennung und mit **leerem** Pfad, weil die Wurzel in der
+   * SDK keinen hat. Beides war ein Stolperstein in einer echten Sitzung.
+   */
+  it("entfernt leere Listen und sagt es dazu, statt sie als Verstoss zu melden", async () => {
+    const { daten } = await ruf(app, "aas_pruefen", {
+      environment: JSON.stringify({ ...GUELTIG, conceptDescriptions: [] }),
+    });
+    expect(daten["verstoesse"]).toBe(0);
+    expect(daten["normalisiert"]).toEqual(["conceptDescriptions"]);
+    expect(daten["normalisierungshinweis"]).toBeTruthy();
+  });
+
+  it("nennt die Wurzel beim Namen, statt einen leeren Pfad zu melden", async () => {
+    // Ein Environment ohne alles: die Verletzung haengt an der Wurzel selbst.
+    const { daten } = await ruf(app, "aas_pruefen", {
+      environment: JSON.stringify({ assetAdministrationShells: [{ modelType: "Unsinn" }] }),
+    });
+    const befunde = (daten["befunde"] as { pfad: string }[]) ?? [];
+    expect(befunde.length).toBeGreaterThan(0);
+    expect(befunde.every((b) => b.pfad !== "")).toBe(true);
   });
 
   it("haelt einen fehlenden Anhang als Warnung, nicht als Verstoss", async () => {

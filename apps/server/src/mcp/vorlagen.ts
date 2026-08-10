@@ -1,4 +1,5 @@
 import type { JsonObject, JsonValue } from "@aas-editor/core";
+import contactinformation from "../../vorlagen/contactinformation-1-0-1.json" with { type: "json" };
 import handoverdocumentation from "../../vorlagen/handoverdocumentation-2-0-1.json" with { type: "json" };
 import nameplate from "../../vorlagen/nameplate-3-0.json" with { type: "json" };
 import technicaldata from "../../vorlagen/technicaldata-2-0.json" with { type: "json" };
@@ -51,12 +52,58 @@ export const KATALOG: readonly VorlagenEintrag[] = [
     fassung: "2.0.1",
     quelle: handoverdocumentation as unknown as JsonObject,
   },
+  {
+    kennung: "contactinformation-1-0-1",
+    titel: "Contact Information",
+    idta: "IDTA 02002-1-0-1",
+    fassung: "1.0.1",
+    quelle: contactinformation as unknown as JsonObject,
+  },
 ];
+
+/**
+ * Fehler in den Dateien des Herausgebers, die wir bewusst **nicht** ausbessern.
+ *
+ * Sie werden gemeldet statt behoben: sobald jemand in der Vorlage etwas glattzieht, ist die
+ * Quelle nicht mehr die Spezifikation, sondern eine Abschrift davon. Gemeldet muessen sie
+ * trotzdem werden, sonst wandert eine kaputte URL unbemerkt in eine ausgelieferte AAS.
+ * Aufgefallen am 10.08.2026 beim Bauen einer echten AAS.
+ */
+const MAENGEL: Readonly<Record<string, readonly string[]>> = {
+  "technicaldata-2-0": [
+    'supplementalSemanticId von TechnicalProperties: "https://api.eclass-cdp.com/ ' +
+      '0173-1-02-ABK163-002" enthaelt ein Leerzeichen und ist keine gueltige URL. ' +
+      "So steht es in der Datei der IDTA. Vor dem Ausliefern entfernen oder berichtigen.",
+    'displayName von TechnicalProperties: "Technsiche Merkmalsbereiche", Schreibfehler ' +
+      "des Herausgebers.",
+  ],
+};
+
+/**
+ * Elemente, deren Kinder die Vorlage schuldig bleibt, samt Fundstelle.
+ *
+ * `AddressInformation` im Nameplate verweist auf ein SMT-Drop-in, das beim Herausgeber
+ * nicht als JSON vorliegt: weder unter `published` noch als eigener Ordner, am 10.08.2026
+ * nachgesehen. Genau dort wurde in einer echten Sitzung geraten, wovor die
+ * Werkzeugbeschreibung warnt. Der Verweis nennt deshalb die naechstbeste **belegte**
+ * Quelle und sagt dazu, dass sie eine andere ist.
+ */
+const FUNDSTELLEN: Readonly<Record<string, string>> = {
+  "https://admin-shell.io/zvei/nameplate/1/0/ContactInformations/AddressInformation":
+    "Die Kinder definiert das SMT-Drop-in \"Address Information\". Es liegt beim " +
+    "Herausgeber nicht als JSON vor. Die offiziellen Adressfelder samt IRDI stehen in " +
+    "aas_vorlage(kennung=\"contactinformation-1-0-1\", pfad=\"/ContactInformation\"); sie " +
+    "stammen aus IDTA 02002 und nicht aus dem Drop-in. Nicht raten.",
+};
 
 export const KENNUNGEN: readonly string[] = KATALOG.map((v) => v.kennung);
 
 export function vorlageVon(kennung: string): VorlagenEintrag | undefined {
   return KATALOG.find((v) => v.kennung === kennung);
+}
+
+export function maengelVon(kennung: string): readonly string[] {
+  return MAENGEL[kennung] ?? [];
 }
 
 /**
@@ -71,6 +118,18 @@ const KINDLISTEN = ["submodelElements", "value", "statements", "annotations"] as
 
 function istObjekt(wert: JsonValue | undefined): wert is JsonObject {
   return typeof wert === "object" && wert !== null && !Array.isArray(wert);
+}
+
+/** Die `semanticId` eines Elements als schlichte Zeichenkette, leer wenn es keine gibt. */
+function semantikStringVon(element: JsonObject): string {
+  const semantik = element["semanticId"];
+  if (!istObjekt(semantik)) return "";
+  const keys = semantik["keys"];
+  if (!Array.isArray(keys)) return "";
+  return keys
+    .filter(istObjekt)
+    .map((k) => String(k["value"] ?? ""))
+    .join(", ");
 }
 
 function kardinalitaetVon(element: JsonObject): string | null {
@@ -90,6 +149,24 @@ export interface Geruest {
   readonly weggelassen: number;
   /** Davon solche, die gar keinen Kardinalitaets-Qualifier tragen. */
   readonly ohneKardinalitaet: number;
+  /**
+   * Ob die Vorlage ueberhaupt Kardinalitaeten fuehrt.
+   *
+   * Falsch heisst: dieses Geruest ist leer, und zwar nicht weil alles optional waere,
+   * sondern weil die Datei die Angabe gar nicht kennt. IDTA 02002 ContactInformation ist
+   * so eine, und ein leeres Geruest ohne Erklaerung waere dort das Verwirrendste.
+   */
+  readonly traegtKardinalitaeten: boolean;
+}
+
+/** Ob irgendwo im Teilbaum ein Kardinalitaets-Qualifier steht. */
+function irgendwoKardinalitaet(element: JsonObject): boolean {
+  if (kardinalitaetVon(element) !== null) return true;
+  for (const liste of KINDLISTEN) {
+    const kinder = element[liste];
+    if (istKindliste(kinder) && kinder.some(irgendwoKardinalitaet)) return true;
+  }
+  return false;
 }
 
 interface Zaehler {
@@ -142,6 +219,8 @@ function eindampfen(element: JsonObject, zaehler: Zaehler): JsonObject {
 
   const kard = kardinalitaetVon(element);
   if (kard !== null) out["_kardinalitaet"] = kard;
+  const fundstelle = FUNDSTELLEN[semantikStringVon(element)];
+  if (fundstelle !== undefined) out["_hinweis"] = fundstelle;
 
   for (const liste of KINDLISTEN) {
     const kinder = element[liste];
@@ -209,13 +288,7 @@ function leererWert(element: JsonObject): JsonValue {
  * die Werkzeugbeschreibung sagt das auch.
  */
 export function pflichtGeruest(eintrag: VorlagenEintrag): Geruest {
-  const submodels = eintrag.quelle["submodels"];
-  const erstes = Array.isArray(submodels) ? submodels[0] : undefined;
-  if (!istObjekt(erstes)) {
-    // Kein Bedienfehler, sondern eine kaputte Vorlagendatei.
-    throw new Error(`Die Vorlage ${eintrag.kennung} enthaelt kein Submodel.`);
-  }
-
+  const erstes = submodelVon(eintrag);
   const zaehler: Zaehler = { weggelassen: 0, ohneKardinalitaet: 0 };
   const submodel = eindampfen(erstes, zaehler);
   submodel["id"] = erstes["id"] ?? "";
@@ -225,20 +298,112 @@ export function pflichtGeruest(eintrag: VorlagenEintrag): Geruest {
     submodel,
     weggelassen: zaehler.weggelassen,
     ohneKardinalitaet: zaehler.ohneKardinalitaet,
+    traegtKardinalitaeten: irgendwoKardinalitaet(erstes),
   };
 }
 
 /** Die `semanticId` des Teilmodells als schlichte Zeichenkette, fuer die Uebersicht. */
 export function semantikVon(eintrag: VorlagenEintrag): string {
+  return istObjekt(submodelVon(eintrag)) ? semantikStringVon(submodelVon(eintrag)) : "";
+}
+
+/** Das erste Teilmodell der Vorlage. Eine Vorlage ohne eines ist eine kaputte Datei. */
+function submodelVon(eintrag: VorlagenEintrag): JsonObject {
   const submodels = eintrag.quelle["submodels"];
   const erstes = Array.isArray(submodels) ? submodels[0] : undefined;
-  if (!istObjekt(erstes)) return "";
-  const semantik = erstes["semanticId"];
-  if (!istObjekt(semantik)) return "";
-  const keys = semantik["keys"];
-  if (!Array.isArray(keys)) return "";
-  return keys
-    .filter(istObjekt)
-    .map((k) => String(k["value"] ?? ""))
-    .join(", ");
+  if (!istObjekt(erstes)) {
+    throw new Error(`Die Vorlage ${eintrag.kennung} enthaelt kein Submodel.`);
+  }
+  return erstes;
+}
+
+// --- umfang=struktur -------------------------------------------------------------------
+
+/**
+ * Was ein Bauplan braucht, und nicht mehr.
+ *
+ * Alles andere faellt weg: Beschreibungen, Beispielwerte, ergaenzende Semantik,
+ * Qualifier. `vollstaendig` bei technicaldata-2-0 hat in einer echten Sitzung den Kontext
+ * gesprengt und musste ausserhalb wieder zu einem Baum eingedampft werden. Genau diese
+ * Arbeit macht diese Stufe.
+ *
+ * `contentType`, `entityType` und `typeValueListElement` stehen mit dabei, obwohl sie keine
+ * Semantik tragen: ohne sie laesst sich aus dem Bauplan nicht ablesen, was ein Element
+ * ueberhaupt aufnehmen kann.
+ */
+const STRUKTURFELDER = [
+  "idShort",
+  "modelType",
+  "valueType",
+  "contentType",
+  "entityType",
+  "typeValueListElement",
+  "valueTypeListElement",
+] as const;
+
+function strukturieren(element: JsonObject): JsonObject {
+  const out: JsonObject = {};
+  for (const feld of STRUKTURFELDER) {
+    if (element[feld] !== undefined) out[feld] = element[feld];
+  }
+
+  // Die semanticId als blosse Zeichenkette: das Objekt drumherum kostet das Vierfache und
+  // sagt nichts, was hier gebraucht wird. Wer sie einsetzbar will, nimmt pflicht.
+  const semantik = semantikStringVon(element);
+  if (semantik !== "") out["semanticId"] = semantik;
+
+  const kard = kardinalitaetVon(element);
+  out["_kardinalitaet"] = kard ?? "ohne Angabe";
+  const fundstelle = FUNDSTELLEN[semantik];
+  if (fundstelle !== undefined) out["_hinweis"] = fundstelle;
+
+  for (const liste of KINDLISTEN) {
+    const kinder = element[liste];
+    if (!istKindliste(kinder)) continue;
+    out[liste] = kinder.map(strukturieren);
+  }
+
+  return out;
+}
+
+export function strukturGeruest(eintrag: VorlagenEintrag): JsonObject {
+  return strukturieren(submodelVon(eintrag));
+}
+
+// --- pfad ------------------------------------------------------------------------------
+
+/**
+ * Schneidet ein Geruest auf einen Teilbaum zu, ueber die `idShort`-Kette.
+ *
+ * `/Markings` statt des ganzen Nameplates. Ohne diesen Schnitt ist `vollstaendig` bei den
+ * grossen Vorlagen unbenutzbar, und das war der eigentliche Grund, warum jemand die
+ * Antwort in eine Datei auslagern und mit einem Skript nachbearbeiten musste.
+ *
+ * Ein Element einer `SubmodelElementList` traegt keinen `idShort`; dort zaehlt der Index,
+ * also `/Markings/0`.
+ */
+export function schneideZu(geruest: JsonObject, pfad: string): JsonObject | null {
+  const teile = pfad.split("/").filter((teil) => teil !== "");
+  let aktuell: JsonObject = geruest;
+
+  for (const teil of teile) {
+    const kinder = KINDLISTEN.map((liste) => aktuell[liste])
+      .filter(istKindliste)
+      .flat();
+    const index = /^[0-9]+$/.test(teil) ? Number(teil) : -1;
+    const treffer =
+      index >= 0 ? kinder[index] : kinder.find((kind) => kind["idShort"] === teil);
+    if (treffer === undefined) return null;
+    aktuell = treffer;
+  }
+
+  return aktuell;
+}
+
+/** Die idShorts direkt unter einem Element, fuer die Fehlermeldung eines falschen Pfades. */
+export function kinderNamen(geruest: JsonObject): string[] {
+  return KINDLISTEN.map((liste) => geruest[liste])
+    .filter(istKindliste)
+    .flat()
+    .map((kind, i) => (typeof kind["idShort"] === "string" ? kind["idShort"] : String(i)));
 }

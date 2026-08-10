@@ -19,11 +19,22 @@ import { fileURLToPath } from "node:url";
 
 const API = "https://api.github.com/repos/admin-shell-io/submodel-templates/contents/published";
 
-/** Was eingecheckt ist, und wo es beim Herausgeber herkommt. */
+/**
+ * Was eingecheckt ist, und wo es beim Herausgeber herkommt.
+ *
+ * Die Fassung steht vollstaendig da, mit Patchstand. Bis zum 10.08.2026 sah dieses Skript
+ * nur `<major>/<minor>` und hielt deshalb `nameplate-3-0` fuer aktuell, obwohl daneben
+ * `Digital nameplate/3/0/1` steht.
+ */
 const VORLAGEN = [
   { datei: "nameplate-3-0.json", ordner: "Digital nameplate", fassung: [3, 0] },
   { datei: "technicaldata-2-0.json", ordner: "Technical_Data", fassung: [2, 0] },
-  { datei: "handoverdocumentation-2-0-1.json", ordner: "Handover Documentation", fassung: [2, 0] },
+  {
+    datei: "handoverdocumentation-2-0-1.json",
+    ordner: "Handover Documentation",
+    fassung: [2, 0, 1],
+  },
+  { datei: "contactinformation-1-0-1.json", ordner: "Contact Information", fassung: [1, 0, 1] },
 ];
 
 const ORDNER = fileURLToPath(new URL("../apps/server/vorlagen", import.meta.url));
@@ -45,6 +56,32 @@ async function zahlen(pfad) {
     .sort((a, b) => b - a);
 }
 
+/**
+ * Die hoechste veroeffentlichte Fassung, bis zu drei Ebenen tief.
+ *
+ * Die IDTA legt sie als geschachtelte Zahlenordner ab: `<major>/<minor>` und, wo es einen
+ * Patchstand gibt, `<major>/<minor>/<patch>`. Abgestiegen wird nur im jeweils hoechsten
+ * Zweig; ein hoeherer Major schlaegt ohnehin jeden Minor darunter.
+ */
+async function hoechsteFassung(pfad, tiefe = 3) {
+  const kinder = await zahlen(pfad);
+  const hoechstes = kinder[0];
+  if (hoechstes === undefined) return [];
+  if (tiefe <= 1) return [hoechstes];
+  return [hoechstes, ...(await hoechsteFassung(`${pfad}/${hoechstes}`, tiefe - 1))];
+}
+
+/** Fassungen vergleichen, fehlende Stellen zaehlen als 0: 2.0 ist aelter als 2.0.1. */
+function vergleiche(a, b) {
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    const unterschied = (a[i] ?? 0) - (b[i] ?? 0);
+    if (unterschied !== 0) return unterschied;
+  }
+  return 0;
+}
+
+const punkte = (fassung) => (fassung.length === 0 ? "?" : fassung.join("."));
+
 const vorhanden = new Set(readdirSync(ORDNER));
 let neueres = 0;
 let fehlend = 0;
@@ -56,31 +93,21 @@ for (const vorlage of VORLAGEN) {
     continue;
   }
 
-  let majors;
+  let veroeffentlicht;
   try {
-    majors = await zahlen(vorlage.ordner);
+    veroeffentlicht = await hoechsteFassung(vorlage.ordner);
   } catch (fehler) {
     console.log(`? ${vorlage.ordner}: ${fehler.message}`);
     continue;
   }
 
-  const [major, minor] = vorlage.fassung;
-  const hoechsterMajor = majors[0] ?? 0;
-  let hoechsterMinor = minor;
-  if (hoechsterMajor === major) {
-    const minors = await zahlen(`${vorlage.ordner}/${major}`);
-    hoechsterMinor = minors[0] ?? minor;
-  }
-
-  const neuer = hoechsterMajor > major || (hoechsterMajor === major && hoechsterMinor > minor);
-  if (neuer) {
-    console.log(
-      `NEUER   ${vorlage.ordner}: eingecheckt ${major}.${minor}, ` +
-        `veroeffentlicht ${hoechsterMajor}.${hoechsterMinor}`,
-    );
+  const eigen = punkte(vorlage.fassung);
+  const fremd = punkte(veroeffentlicht);
+  if (vergleiche(veroeffentlicht, vorlage.fassung) > 0) {
+    console.log(`NEUER   ${vorlage.ordner}: eingecheckt ${eigen}, veroeffentlicht ${fremd}`);
     neueres += 1;
   } else {
-    console.log(`aktuell ${vorlage.ordner} ${major}.${minor}`);
+    console.log(`aktuell ${vorlage.ordner} ${eigen}`);
   }
 }
 
