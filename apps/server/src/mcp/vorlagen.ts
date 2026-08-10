@@ -85,16 +85,99 @@ const MAENGEL: Readonly<Record<string, readonly string[]>> = {
  * `AddressInformation` im Nameplate verweist auf ein SMT-Drop-in, das beim Herausgeber
  * nicht als JSON vorliegt: weder unter `published` noch als eigener Ordner, am 10.08.2026
  * nachgesehen. Genau dort wurde in einer echten Sitzung geraten, wovor die
- * Werkzeugbeschreibung warnt. Der Verweis nennt deshalb die naechstbeste **belegte**
- * Quelle und sagt dazu, dass sie eine andere ist.
+ * Werkzeugbeschreibung warnt.
+ *
+ * Bis zum 10.08.2026 stand hier nur ein Verweis auf einen **zweiten** Aufruf. Das war die
+ * halbe Auskunft: der Aufrufer musste sich aus der anderen Vorlage selbst zusammensuchen,
+ * was hierher gehoert, und genau dabei entsteht wieder Raten. Die Felder werden jetzt
+ * eingehaengt, siehe `adressfelderFuer`. Der Hinweis bleibt und sagt, woher sie kommen.
  */
+const ADRESS_SEMANTIK =
+  "https://admin-shell.io/zvei/nameplate/1/0/ContactInformations/AddressInformation";
+
+const ADRESS_QUELLE =
+  "Diese Kinder stehen nicht im Nameplate. Sie stammen aus IDTA 02002 ContactInformation, " +
+  "dort flach unter /ContactInformation, und sind hier eingehaengt. Das SMT-Drop-in " +
+  "\"Address Information\", auf das Nameplate 3.0 verweist, liegt beim Herausgeber nicht " +
+  "als JSON vor. Belegte, aber andere Quelle: vor dem Ausliefern pruefen, ob die " +
+  "semanticId so gewollt ist.";
+
 const FUNDSTELLEN: Readonly<Record<string, string>> = {
-  "https://admin-shell.io/zvei/nameplate/1/0/ContactInformations/AddressInformation":
-    "Die Kinder definiert das SMT-Drop-in \"Address Information\". Es liegt beim " +
-    "Herausgeber nicht als JSON vor. Die offiziellen Adressfelder samt IRDI stehen in " +
-    "aas_vorlage(kennung=\"contactinformation-1-0-1\", pfad=\"/ContactInformation\"); sie " +
-    "stammen aus IDTA 02002 und nicht aus dem Drop-in. Nicht raten.",
+  [ADRESS_SEMANTIK]:
+    "Nameplate 3.0 fuehrt AddressInformation als Pflicht, laesst es leer und verweist auf " +
+    "ein SMT-Drop-in, das beim Herausgeber nicht als JSON vorliegt. Die Kinder unten sind " +
+    "deshalb eingehaengt, siehe _quelle. Nicht raten.",
 };
+
+/**
+ * Die Adressfelder aus IDTA 02002, sofern das Element nach ihnen verlangt.
+ *
+ * Gesucht wird `ContactInformation` in `contactinformation-1-0-1`; seine Kinder sind genau
+ * die Felder samt IRDI. Findet sich das Element nicht, wird nichts eingehaengt: eine
+ * geratene Struktur waere schlimmer als eine leere.
+ */
+function adressfelderFuer(semantik: string): JsonObject[] | null {
+  if (semantik !== ADRESS_SEMANTIK) return null;
+  return adressfelder();
+}
+
+let adressfelderZwischenspeicher: JsonObject[] | null | undefined;
+
+function adressfelder(): JsonObject[] | null {
+  if (adressfelderZwischenspeicher !== undefined) return adressfelderZwischenspeicher;
+
+  const eintrag = KATALOG.find((v) => v.kennung === "contactinformation-1-0-1");
+  const gefunden =
+    eintrag === undefined ? null : sucheNachIdShort(submodelVon(eintrag), "ContactInformation");
+  const kinder = gefunden === null ? null : kindlisteVon(gefunden);
+
+  adressfelderZwischenspeicher = kinder !== null && kinder.length > 0 ? kinder : null;
+  return adressfelderZwischenspeicher;
+}
+
+/** Das erste Element mit diesem `idShort` im Teilbaum, in der Tiefe zuerst. */
+function sucheNachIdShort(element: JsonObject, idShort: string): JsonObject | null {
+  if (element["idShort"] === idShort) return element;
+  for (const liste of KINDLISTEN) {
+    const kinder = element[liste];
+    if (!istKindliste(kinder)) continue;
+    for (const kind of kinder) {
+      const treffer = sucheNachIdShort(kind, idShort);
+      if (treffer !== null) return treffer;
+    }
+  }
+  return null;
+}
+
+/** Die erste belegte Kindliste eines Elements. */
+function kindlisteVon(element: JsonObject): JsonObject[] | null {
+  for (const liste of KINDLISTEN) {
+    const kinder = element[liste];
+    if (istKindliste(kinder)) return kinder;
+  }
+  return null;
+}
+
+/**
+ * Die Kinder eines Vorlagenelements, samt dem Namen ihrer Liste.
+ *
+ * Die **eine** Stelle, an der die eingehaengten Adressfelder sichtbar werden. Wer die
+ * Vorlage entlanglaeuft, soll sie sehen, ohne davon zu wissen: sonst kennt `aas_vorlage`
+ * die Felder und `teilmodell_erzeugen` nicht, und ein Pfad, den die Ausgabe des einen
+ * Werkzeugs anbietet, wird vom anderen abgelehnt.
+ */
+export function kinderDerVorlage(
+  element: JsonObject,
+): { name: string; kinder: JsonObject[] } | null {
+  const eingehaengt = adressfelderFuer(semantikStringVon(element));
+  if (eingehaengt !== null) return { name: "value", kinder: eingehaengt };
+
+  for (const name of KINDLISTEN) {
+    const kinder = element[name];
+    if (istKindliste(kinder)) return { name, kinder };
+  }
+  return null;
+}
 
 export const KENNUNGEN: readonly string[] = KATALOG.map((v) => v.kennung);
 
@@ -109,19 +192,26 @@ export function maengelVon(kennung: string): readonly string[] {
 /**
  * Der Qualifier, den die IDTA an nahezu jedes Element ihrer Vorlagen haengt. Er ist der
  * Grund, warum sich ein Pflicht-Geruest **ableiten** und nicht pflegen laesst.
+ *
+ * Zwei Namen, und das ist keine Bequemlichkeit. Nameplate, TechnicalData und
+ * HandoverDocumentation schreiben `SMT/Cardinality`; IDTA 02002 ContactInformation
+ * schreibt `Multiplicity`, sechsunddreissig Mal, mit denselben Werten. Wer nur den ersten
+ * Namen kennt, haelt die Datei fuer eine ohne Kardinalitaeten und lehnt `umfang=pflicht`
+ * dort ab. Genau so stand es bis zum 10.08.2026 im Code, und genau so wurde es dann auch
+ * berichtet: als Vorlage, die keine Qualifier fuehrt. Sie fuehrt welche.
  */
-const KARDINALITAET = "SMT/Cardinality";
-const PFLICHT = new Set(["One", "OneToMany"]);
+const KARDINALITAET = new Set(["SMT/Cardinality", "Multiplicity"]);
+export const PFLICHT = new Set(["One", "OneToMany"]);
 
 /** Kindlisten, in denen weitere SubmodelElements haengen koennen. */
-const KINDLISTEN = ["submodelElements", "value", "statements", "annotations"] as const;
+export const KINDLISTEN = ["submodelElements", "value", "statements", "annotations"] as const;
 
-function istObjekt(wert: JsonValue | undefined): wert is JsonObject {
+export function istObjekt(wert: JsonValue | undefined): wert is JsonObject {
   return typeof wert === "object" && wert !== null && !Array.isArray(wert);
 }
 
 /** Die `semanticId` eines Elements als schlichte Zeichenkette, leer wenn es keine gibt. */
-function semantikStringVon(element: JsonObject): string {
+export function semantikStringVon(element: JsonObject): string {
   const semantik = element["semanticId"];
   if (!istObjekt(semantik)) return "";
   const keys = semantik["keys"];
@@ -132,11 +222,11 @@ function semantikStringVon(element: JsonObject): string {
     .join(", ");
 }
 
-function kardinalitaetVon(element: JsonObject): string | null {
+export function kardinalitaetVon(element: JsonObject): string | null {
   const quals = element["qualifiers"];
   if (!Array.isArray(quals)) return null;
   for (const q of quals) {
-    if (istObjekt(q) && q["type"] === KARDINALITAET && typeof q["value"] === "string") {
+    if (istObjekt(q) && KARDINALITAET.has(String(q["type"])) && typeof q["value"] === "string") {
       return q["value"];
     }
   }
@@ -183,7 +273,7 @@ interface Zaehler {
  * `SubmodelElementList`. Das Ergebnis waere ein Geruest, aus dem sich gar keine Datei
  * schreiben laesst. Was nicht hier steht, bleibt stehen.
  */
-const WEG = new Set([
+export const WEG = new Set([
   "qualifiers",
   "category",
   "embeddedDataSpecifications",
@@ -199,7 +289,7 @@ const WEG = new Set([
  * einer MultiLanguageProperty eine Liste von Sprachtexten **ohne** `modelType`. Genau
  * daran laesst es sich unterscheiden.
  */
-function istKindliste(wert: JsonValue | undefined): wert is JsonObject[] {
+export function istKindliste(wert: JsonValue | undefined): wert is JsonObject[] {
   return Array.isArray(wert) && wert.every((k) => istObjekt(k) && k["modelType"] !== undefined);
 }
 
@@ -214,13 +304,41 @@ function eindampfen(element: JsonObject, zaehler: Zaehler): JsonObject {
   for (const [feld, wert] of Object.entries(element)) {
     if (WEG.has(feld)) continue;
     if ((KINDLISTEN as readonly string[]).includes(feld)) continue;
+    // Ein leerer idShort ist schlimmer als keiner: das Metamodell verlangt an einem Glied
+    // einer SubmodelElementList gar keinen und verbietet einen leeren. Siehe `instanz.ts`.
+    if (feld === "idShort" && String(wert).trim() === "") continue;
     out[feld] = wert;
   }
 
   const kard = kardinalitaetVon(element);
   if (kard !== null) out["_kardinalitaet"] = kard;
-  const fundstelle = FUNDSTELLEN[semantikStringVon(element)];
+  const semantik = semantikStringVon(element);
+  const fundstelle = FUNDSTELLEN[semantik];
   if (fundstelle !== undefined) out["_hinweis"] = fundstelle;
+
+  /*
+   * Die Adressfelder werden eingehaengt statt auf einen zweiten Aufruf verwiesen. Sie
+   * durchlaufen dasselbe Eindampfen wie alles andere, also gilt auch hier: nur Pflicht.
+   *
+   * In IDTA 02002 ist allerdings **jedes** der 23 Felder optional. Uebrig bleibt deshalb
+   * eine leere Liste, und die ist laut Metamodell ein Verstoss ("Value must be either not
+   * set or have at least one item"). Also gar kein `value`, und stattdessen die Auskunft,
+   * wo die Felder zu sehen sind.
+   */
+  const eingehaengt = adressfelderFuer(semantik);
+  if (eingehaengt !== null) {
+    const pflicht = eingehaengt.filter((kind) => PFLICHT.has(kardinalitaetVon(kind) ?? ""));
+    if (pflicht.length > 0) {
+      out["value"] = pflicht.map((kind) => eindampfen(kind, zaehler));
+      out["_quelle"] = ADRESS_QUELLE;
+    } else {
+      zaehler.weggelassen += eingehaengt.length;
+      out["_hinweis"] =
+        `${fundstelle ?? ""} In IDTA 02002 ist jedes der ${eingehaengt.length} Adressfelder ` +
+        "optional, deshalb steht hier nichts. umfang=struktur zeigt sie alle mit ihren IRDIs.";
+    }
+    return out;
+  }
 
   for (const liste of KINDLISTEN) {
     const kinder = element[liste];
@@ -262,9 +380,9 @@ function eindampfen(element: JsonObject, zaehler: Zaehler): JsonObject {
  * vorsieht. Ein Geruest, das durchlaeuft und sichtbar auszufuellen ist, ist mehr wert als
  * eines, das leer ist und scheitert.
  */
-const PLATZHALTER = "TODO";
+export const PLATZHALTER = "TODO";
 
-function leererWert(element: JsonObject): JsonValue {
+export function leererWert(element: JsonObject): JsonValue {
   if (element["modelType"] !== "MultiLanguageProperty") return "";
 
   const vorhanden = element["value"];
@@ -308,7 +426,7 @@ export function semantikVon(eintrag: VorlagenEintrag): string {
 }
 
 /** Das erste Teilmodell der Vorlage. Eine Vorlage ohne eines ist eine kaputte Datei. */
-function submodelVon(eintrag: VorlagenEintrag): JsonObject {
+export function submodelVon(eintrag: VorlagenEintrag): JsonObject {
   const submodels = eintrag.quelle["submodels"];
   const erstes = Array.isArray(submodels) ? submodels[0] : undefined;
   if (!istObjekt(erstes)) {
@@ -341,7 +459,43 @@ const STRUKTURFELDER = [
   "valueTypeListElement",
 ] as const;
 
-function strukturieren(element: JsonObject): JsonObject {
+/**
+ * Elemente, die nur sagen "hier darf beliebiges stehen".
+ *
+ * Die IDTA rollt sie in ihren Dateien voll aus, und zwar verschachtelt: in
+ * `technicaldata-2-0` tragen `Section` und `ArbitrarySMC` jeweils denselben Sechserblock,
+ * und der ganze Bau steht ein zweites Mal unter `SpecificDescriptions`. Jeder dieser Namen
+ * kommt dadurch sechsmal in der Datei vor.
+ *
+ * Wiedergegeben ergibt das rund dreissig Zeilen JSON, deren gesamte Aussage in einen Satz
+ * passt. Ausgerollt wird das nicht mehr; wer die Namen wirklich braucht, nimmt
+ * `umfang=vollstaendig` mit `pfad`.
+ */
+const PLATZHALTER_NAMEN = new Set([
+  "Section",
+  "ArbitrarySMC",
+  "ArbitrarySML",
+  "ArbitraryProperty",
+  "ArbitraryMLP",
+  "ArbitraryRange",
+  "ArbitraryFile",
+  "ArbitraryBlob",
+  "ArbitraryEntity",
+  "ArbitraryRelationshipElement",
+  "arbitrary",
+]);
+
+const BELIEBIG_HINWEIS =
+  "Hier darf beliebiger Inhalt stehen: die Vorlage fuehrt an dieser Stelle nur Platzhalter " +
+  "(Section, ArbitrarySMC, ArbitrarySML, ArbitraryProperty, ArbitraryMLP, ArbitraryRange). " +
+  "Sie sind nicht auszufuellen und stehen so nicht in einer Instanz. Wer sie im Wortlaut " +
+  "braucht: umfang=vollstaendig mit pfad.";
+
+function istPlatzhalter(element: JsonObject): boolean {
+  return PLATZHALTER_NAMEN.has(String(element["idShort"] ?? ""));
+}
+
+function strukturieren(element: JsonObject, mitKardinalitaet: boolean): JsonObject {
   const out: JsonObject = {};
   for (const feld of STRUKTURFELDER) {
     if (element[feld] !== undefined) out[feld] = element[feld];
@@ -353,21 +507,42 @@ function strukturieren(element: JsonObject): JsonObject {
   if (semantik !== "") out["semanticId"] = semantik;
 
   const kard = kardinalitaetVon(element);
-  out["_kardinalitaet"] = kard ?? "ohne Angabe";
+  // "ohne Angabe" an jedem einzelnen Element ist Rauschen, sobald die Vorlage gar keine
+  // Kardinalitaeten fuehrt. Dann steht es einmal oben.
+  if (kard !== null) out["_kardinalitaet"] = kard;
+  else if (mitKardinalitaet) out["_kardinalitaet"] = "ohne Angabe";
+
   const fundstelle = FUNDSTELLEN[semantik];
   if (fundstelle !== undefined) out["_hinweis"] = fundstelle;
+
+  const eingehaengt = adressfelderFuer(semantik);
+  if (eingehaengt !== null) {
+    out["value"] = eingehaengt.map((kind) => strukturieren(kind, mitKardinalitaet));
+    out["_quelle"] = ADRESS_QUELLE;
+    return out;
+  }
 
   for (const liste of KINDLISTEN) {
     const kinder = element[liste];
     if (!istKindliste(kinder)) continue;
-    out[liste] = kinder.map(strukturieren);
+    const echte = kinder.filter((kind) => !istPlatzhalter(kind));
+    if (echte.length !== kinder.length) out["_beliebig"] = BELIEBIG_HINWEIS;
+    if (echte.length > 0) out[liste] = echte.map((kind) => strukturieren(kind, mitKardinalitaet));
   }
 
   return out;
 }
 
 export function strukturGeruest(eintrag: VorlagenEintrag): JsonObject {
-  return strukturieren(submodelVon(eintrag));
+  const erstes = submodelVon(eintrag);
+  const mitKardinalitaet = irgendwoKardinalitaet(erstes);
+  const out = strukturieren(erstes, mitKardinalitaet);
+  if (!mitKardinalitaet) {
+    out["_kardinalitaet"] =
+      "Diese Vorlage fuehrt gar keine Kardinalitaets-Qualifier. Was Pflicht ist, steht " +
+      "nicht in der Datei und laesst sich daraus nicht ableiten.";
+  }
+  return out;
 }
 
 // --- pfad ------------------------------------------------------------------------------

@@ -36,6 +36,16 @@ export interface ServerEnv {
   readonly sessionSecret: string;
   readonly sessionTtlMs: number;
   readonly maxUploadBytes: number;
+  /**
+   * Rechnernamen, die der MCP-Server abrufen darf, ohne dass seine Bereichspruefung
+   * mitredet. Genauer Name oder `*.suffix`.
+   *
+   * Der Ausweg fuer den Fall, dass ein Herstellerportal hinter einem Adressraum liegt, den
+   * der Zaun fuer intern haelt, und die Klaerung laenger dauert als die Arbeit. Er hebelt
+   * **nur** die Bereichspruefung aus: https, Groessengrenzen, Typenliste und die erneute
+   * Pruefung jedes Weiterleitungssprungs gelten weiter. Leer heisst: nichts freigestellt.
+   */
+  readonly mcpNetzErlaubt: readonly string[];
 }
 
 export class ConfigError extends Error {}
@@ -111,5 +121,9 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     sessionSecret: required("SESSION_SECRET", source["SESSION_SECRET"]),
     sessionTtlMs: ttlHours * 60 * 60 * 1000,
     maxUploadBytes: maxUploadMb * 1024 * 1024,
+    mcpNetzErlaubt: (source["MCP_NETZ_ERLAUBT"] ?? "")
+      .split(",")
+      .map((eintrag) => eintrag.trim().toLowerCase())
+      .filter((eintrag) => eintrag !== ""),
   };
 }

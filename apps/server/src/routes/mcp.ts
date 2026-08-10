@@ -2,6 +2,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ServerEnv } from "../env.js";
+import { pruefeSignatur, sha256Von } from "../mcp/bytes.js";
 import { baueMcpServer } from "../mcp/server.js";
 import { ERLAUBTE_TYPEN, MAX_ANHANG_BYTES } from "../mcp/werkzeuge.js";
 import { anhaenge, ausgabe, entwuerfe } from "../services/ablage.js";
@@ -121,12 +122,21 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
           );
         }
 
+        const dateiname = teil.filename === "" ? "anhang" : teil.filename;
+
+        // Derselbe Zaun wie am Werkzeug: passen Kopf und Fuss nicht zum Typ, ist die
+        // Datei abgeschnitten oder falsch benannt, und beides gehoert nicht in einen
+        // Container. Der Weg ist ein anderer, das Ergebnis dasselbe.
+        const signatur = pruefeSignatur(new Uint8Array(bytes), typ, dateiname);
+        if (signatur !== null) {
+          throw badRequest(
+            "datei-unstimmig",
+            `${signatur.grund} ${signatur.hinweis ?? ""}`.trim(),
+          );
+        }
+
         const ablage = anhaenge(env);
-        const info = ablage.ablegen({
-          bytes,
-          dateiname: teil.filename === "" ? "anhang" : teil.filename,
-          contentType: typ,
-        });
+        const info = ablage.ablegen({ bytes, dateiname, contentType: typ });
 
         void reply.code(201);
         return {
@@ -134,6 +144,7 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
           dateiname: info.dateiname,
           contentType: info.contentType,
           groesse: info.groesse,
+          sha256: sha256Von(new Uint8Array(bytes)),
           gueltigBis: new Date(info.erstellt + ablage.lebensdauerMs).toISOString(),
           hinweis: "Den Token als anhaenge[].token an aas_datei_erzeugen geben.",
         };

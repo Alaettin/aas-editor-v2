@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { importFile } from "@aas-editor/core/io";
 import type { FastifyInstance } from "fastify";
+import { KATALOG, pflichtGeruest } from "../src/mcp/vorlagen.js";
 import { startTestServer, type TestServer } from "./helpers/app.js";
 import {
   anhang,
@@ -209,25 +210,74 @@ describe("aas_vorlage", () => {
     expect(maengel.some((m) => m.includes("Technsiche"))).toBe(true);
   });
 
-  it("weist an der leeren AddressInformation auf die belegte Quelle hin", async () => {
+  /*
+   * Bis zum 10.08.2026 wurde hier nur auf einen zweiten Aufruf verwiesen. Das war die
+   * halbe Auskunft: der Aufrufer musste sich aus IDTA 02002 selbst zusammensuchen, was
+   * hierher gehoert, und genau dabei entsteht wieder Raten. Jetzt stehen die Felder da.
+   */
+  it("haengt an der leeren AddressInformation die Adressfelder samt Quelle ein", async () => {
     const { daten } = await ruf(app, "aas_vorlage", {
       kennung: "nameplate-3-0",
       pfad: "/AddressInformation",
     });
-    const hinweis = String((daten["submodel"] as Record<string, unknown>)["_hinweis"]);
-    expect(hinweis).toContain("contactinformation-1-0-1");
-    // Und die Quelle wird benannt, statt sie als das Drop-in auszugeben.
-    expect(hinweis).toContain("nicht aus dem Drop-in");
+    const sm = daten["submodel"] as Record<string, unknown>;
+    const text = JSON.stringify(sm);
+    for (const feld of ["Street", "Zipcode", "CityTown", "NationalCode"]) {
+      expect(text, `${feld} fehlt an der AddressInformation`).toContain(feld);
+    }
+    // Die IRDI aus IDTA 02002, nicht geraten.
+    expect(text).toContain("0173-1#02-AAO128#002");
+    // Und dass es eine andere Quelle ist, steht dabei.
+    expect(String(sm["_quelle"])).toContain("IDTA 02002");
+    expect(String(sm["_hinweis"])).toContain("Nicht raten");
   });
 
-  it("lehnt ein Pflicht-Geruest ab, wo die Vorlage keine Kardinalitaeten fuehrt", async () => {
-    // IDTA 02002 ist so eine. Ein leeres Geruest waere dort das Verwirrendste.
+  /*
+   * Die Datei fuehrt sehr wohl Kardinalitaeten, nur unter dem Namen `Multiplicity`. Bis
+   * zum 10.08.2026 kannte der Server nur `SMT/Cardinality` und hielt IDTA 02002 deshalb
+   * fuer eine Vorlage ohne. Berichtet wurde es genauso, und beides war falsch.
+   */
+  it("liest Multiplicity als Kardinalitaet, wo die IDTA sie so nennt", async () => {
     const { istFehler, daten } = await ruf(app, "aas_vorlage", {
       kennung: "contactinformation-1-0-1",
       umfang: "pflicht",
     });
-    expect(istFehler).toBe(true);
-    expect(String(daten["fehler"])).toContain("SMT/Cardinality");
+    expect(istFehler).toBe(false);
+    const text = JSON.stringify(daten["submodel"]);
+    expect(text).toContain("ContactInformation");
+    expect(daten["umfang"]).toBe("pflicht");
+  });
+
+  it("liefert statt eines Fehlers den Bauplan, wo es wirklich keine Kardinalitaeten gibt", () => {
+    /*
+     * Kein Aufruf, sondern eine Zusicherung an den Code: alle vier eingecheckten Vorlagen
+     * fuehren Kardinalitaeten, unter dem einen oder dem anderen Namen. Der Zweig, der
+     * ohne sie den Bauplan zurueckgibt, ist damit ein Netz und kein Regelfall. Faellt eine
+     * fuenfte Vorlage herein, die keine fuehrt, faellt das hier auf.
+     */
+    for (const eintrag of KATALOG) {
+      expect(pflichtGeruest(eintrag).traegtKardinalitaeten, eintrag.kennung).toBe(true);
+    }
+  });
+
+  /*
+   * Die Platzhalter der IDTA sagen nur "hier darf beliebiges stehen", stehen in der Datei
+   * aber zweifach verschachtelt und insgesamt sechsmal. Ausgerollt sind das rund dreissig
+   * Zeilen JSON je Vorkommen fuer einen Satz Aussage.
+   */
+  it("rollt die Arbitrary-Platzhalter nicht aus, sondern sagt es in einer Zeile", async () => {
+    const { daten } = await ruf(app, "aas_vorlage", { kennung: "technicaldata-2-0" });
+    const text = JSON.stringify(daten["submodel"]);
+    // Als Element, nicht als Wort: der _beliebig-Hinweis nennt die Namen ja gerade.
+    for (const platzhalter of ["Section", "ArbitrarySMC", "ArbitrarySML", "ArbitraryRange"]) {
+      expect(text, `${platzhalter} wird noch ausgerollt`).not.toContain(
+        `"idShort":"${platzhalter}"`,
+      );
+    }
+    expect(text).toContain("_beliebig");
+    // Die echten Elemente sind unberuehrt.
+    expect(text).toContain("TechnicalPropertyAreas");
+    expect(text).toContain("ManufacturerName");
   });
 
   it("liefert die Adressfelder samt IRDI aus der ContactInformation", async () => {
@@ -568,28 +618,65 @@ describe("aas_datei_lesen erhaelt die Anhaenge", () => {
  * also, ihn einmal je Art von Ziel zu treffen.
  */
 describe("Zaun gegen das interne Netz", () => {
-  const faelle: readonly (readonly [string, string])[] = [
-    ["http statt https", "http://example.com/a.pdf"],
-    ["Loopback als IP", "https://127.0.0.1/a.pdf"],
-    ["Loopback als Name", "https://localhost/a.pdf"],
-    ["Metadatendienst", "https://169.254.169.254/latest/meta-data/"],
-    ["privates Netz", "https://192.168.1.1/a.pdf"],
-    ["Docker-Netz", "https://172.17.0.1/a.pdf"],
-    ["IPv6-Loopback", "https://[::1]/a.pdf"],
-    ["IPv4 im IPv6-Kleid", "https://[::ffff:169.254.169.254]/a.pdf"],
+  /*
+   * Der dritte Eintrag je Fall ist der Bereich, der in der Meldung stehen muss. Bis zum
+   * 10.08.2026 sagte sie nur "liegt in einem internen Bereich", und genau daran ist eine
+   * Klaerung haengengeblieben: eine oeffentliche Adresse wurde abgewiesen, und aus der
+   * Meldung ging nicht hervor, welche Regel gegriffen hatte.
+   */
+  const faelle: readonly (readonly [string, string, string])[] = [
+    ["http statt https", "http://example.com/a.pdf", "Nur https"],
+    ["Loopback als IP", "https://127.0.0.1/a.pdf", "127.0.0.0/8"],
+    ["Metadatendienst", "https://169.254.169.254/latest/meta-data/", "169.254.0.0/16"],
+    ["privates Netz", "https://192.168.1.1/a.pdf", "192.168.0.0/16"],
+    ["Docker-Netz", "https://172.17.0.1/a.pdf", "172.16.0.0/12"],
+    ["IPv6-Loopback", "https://[::1]/a.pdf", "::1/128"],
+    ["IPv4 im IPv6-Kleid", "https://[::ffff:169.254.169.254]/a.pdf", "169.254.0.0/16"],
   ];
 
-  for (const [name, url] of faelle) {
-    it(`lehnt ab: ${name}`, async () => {
+  for (const [name, url, bereich] of faelle) {
+    it(`lehnt ab und nennt den Bereich: ${name}`, async () => {
       const { istFehler, daten } = await ruf(app, "aas_datei_lesen", {
         url,
         inhalt: null,
         dateiname: null,
       });
       expect(istFehler, `${url} kam durch`).toBe(true);
-      expect(String(daten["fehler"])).toMatch(/https|internen Bereich/);
+      expect(String(daten["fehler"]), `${url} nennt den Bereich nicht`).toContain(bereich);
     });
   }
+
+  it("lehnt Loopback auch unter seinem Namen ab", async () => {
+    // Welchen Bereich `localhost` trifft, haengt am Resolver: 127.0.0.0/8 oder ::1/128.
+    const { istFehler, daten } = await ruf(app, "aas_datei_lesen", {
+      url: "https://localhost/a.pdf",
+      inhalt: null,
+      dateiname: null,
+    });
+    expect(istFehler).toBe(true);
+    expect(String(daten["fehler"])).toMatch(/127\.0\.0\.0\/8|::1\/128/);
+  });
+
+  /*
+   * Der Fehlalarm vom 10.08.2026, als Test festgehalten. `bdih-download.endress.com`
+   * zeigt auf 23.201.254.186, oeffentlicher Akamai-Raum. Die Liste sperrte damals
+   * `::ffff:0:0/96` als Ganzes, also **jede** IPv4-Adresse im IPv6-Kleid; welche
+   * Schreibweise ein Resolver liefert, haengt am Container und nicht am Ziel.
+   */
+  it("laesst eine oeffentliche Adresse durch, auch im IPv6-Kleid", async () => {
+    for (const url of [
+      "https://23.201.254.186/a.pdf",
+      "https://[::ffff:23.201.254.186]/a.pdf",
+      "https://[::ffff:17c9:feba]/a.pdf",
+    ]) {
+      const { daten } = await ruf(app, "aas_datei_lesen", { url, inhalt: null, dateiname: null });
+      // Am Zaun scheitert sie nicht mehr. Dass der Abruf selbst scheitert, ist in einem
+      // Test ohne Netz der erwartete Ausgang.
+      expect(String(daten["fehler"] ?? ""), `${url} haengt noch am Zaun`).not.toMatch(
+        /liegt in .*\/\d+ \(/,
+      );
+    }
+  });
 
   it("lehnt dieselben Ziele auch als Anhangsquelle ab", async () => {
     const { istFehler, daten } = await ruf(app, "aas_datei_erzeugen", {
@@ -601,6 +688,6 @@ describe("Zaun gegen das interne Netz", () => {
       ],
     });
     expect(istFehler).toBe(true);
-    expect(String(daten["fehler"])).toContain("internen Bereich");
+    expect(String(daten["fehler"])).toContain("169.254.0.0/16");
   });
 });

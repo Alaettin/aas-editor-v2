@@ -102,7 +102,7 @@ describe("Protokoll", () => {
     expect(antwort.result?.["serverInfo"]).toMatchObject({ name: "axon-editor" });
   });
 
-  it("bietet genau die neun Werkzeuge", async () => {
+  it("bietet genau die zehn Werkzeuge", async () => {
     const antwort = await rpc("tools/list");
     const namen = (antwort.result?.["tools"] as { name: string }[]).map((w) => w.name).sort();
     expect(namen).toEqual([
@@ -115,6 +115,7 @@ describe("Protokoll", () => {
       "entwurf_aendern",
       "entwurf_anlegen",
       "entwurf_lesen",
+      "teilmodell_erzeugen",
     ]);
   });
 

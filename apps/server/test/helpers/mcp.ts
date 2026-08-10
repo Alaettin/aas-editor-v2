@@ -97,8 +97,19 @@ export function multipart(
 export const PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-export const PDF_BYTES = Buffer.from("%PDF-1.4\n% Testdatei\n");
+/**
+ * Ein winziges PDF, das **abgeschlossen** ist.
+ *
+ * Das `%%EOF` am Ende ist kein Zierrat: der Server prueft es seit dem 10.08.2026, weil eine
+ * abgeschnittene Datei sonst mit Token und Erfolgsmeldung angenommen wird. Ohne diese Zeile
+ * ist der Testanhang selbst ein abgeschnittenes PDF, und der Server hat recht, ihn
+ * abzulehnen.
+ */
+export const PDF_BYTES = Buffer.from("%PDF-1.4\n% Testdatei\n%%EOF\n");
 export const PDF_BASE64 = PDF_BYTES.toString("base64");
+
+/** Dasselbe PDF, hinten abgeschnitten. Der Fall aus dem Feldbericht. */
+export const PDF_ABGESCHNITTEN = Buffer.from("%PDF-1.4\n% Testdatei\n");
 
 /** Das kleinste Environment, das die Pruefung fehlerfrei passiert. */
 export const GUELTIG = {

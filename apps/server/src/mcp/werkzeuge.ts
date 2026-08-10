@@ -25,7 +25,27 @@ import {
 } from "@aas-editor/core/io";
 import { validate, type ValidationIssue } from "@aas-editor/core/validation";
 import type { ServerEnv } from "../env.js";
-import { anhaenge as anhangsAblage, ausgabe, entwuerfe } from "../services/ablage.js";
+import {
+  anhaenge as anhangsAblage,
+  ausgabe,
+  entwuerfe,
+  type Ablage,
+} from "../services/ablage.js";
+import {
+  ausBase64,
+  istBytesFehler,
+  pruefeSignatur,
+  pruefeZusage,
+  sha256Von,
+} from "./bytes.js";
+import {
+  instanzErzeugen,
+  istPfadFehler,
+  schaleBauen,
+  verweisAuf,
+  type Instanz,
+  type SchalenKopf,
+} from "./instanz.js";
 import { holeSicher, NetzFehler } from "./netz.js";
 import { lies as zeigerLesen, wendeAn, ZeigerFehler, type Patch } from "./zeiger.js";
 import {
@@ -282,12 +302,31 @@ export function aasVorlage(eingabe: {
   }
 
   const geruest = pflichtGeruest(eintrag);
+  /*
+   * Fuehrt die Vorlage gar keine Kardinalitaeten, gibt es nichts abzuleiten. Bis zum
+   * 10.08.2026 war das ein Fehler mit `isError`, und der kostet eine Runde: das Modell
+   * bekommt nichts und muss den naechsten Aufruf raten. Es bekommt jetzt den Bauplan und
+   * die Begruendung dazu.
+   *
+   * Ausgeloest hat das ContactInformation, wo die Diagnose falsch war: die Datei fuehrt
+   * sehr wohl Kardinalitaeten, nur unter dem Namen `Multiplicity`, siehe `vorlagen.ts`.
+   * Der Zweig bleibt als Netz fuer eine Vorlage, die wirklich keine fuehrt.
+   */
   if (!geruest.traegtKardinalitaeten) {
-    return fehler(
-      `Die Vorlage "${kennung}" fuehrt keine SMT/Cardinality-Qualifier, ein Pflicht-Geruest ` +
-        "laesst sich daraus nicht ableiten.",
-      "umfang=struktur oder umfang=vollstaendig nehmen und selbst auswaehlen.",
-    );
+    const bauplan = zuschneiden(eintrag, pfad, strukturGeruest(eintrag));
+    if (istErgebnis(bauplan)) return bauplan;
+    return gib({
+      ...kopf,
+      umfang: "struktur",
+      submodel: bauplan,
+      hinweis:
+        `Die Vorlage "${kennung}" fuehrt keine Kardinalitaets-Qualifier (weder ` +
+        "SMT/Cardinality noch Multiplicity). Ein Pflicht-Geruest laesst sich daraus nicht " +
+        "ableiten, und zwar nicht weil alles optional waere, sondern weil die Datei die " +
+        "Angabe nicht kennt. Statt eines leeren Geruests kommt hier der Bauplan; was " +
+        "gebraucht wird, ist selbst auszuwaehlen. " +
+        KARDINALITAET_ERKLAERT,
+    });
   }
 
   const submodel = zuschneiden(eintrag, pfad, geruest.submodel);
@@ -343,6 +382,10 @@ export interface AnhangsEingabe {
   readonly url?: string | null;
   readonly base64?: string | null;
   readonly token?: string | null;
+  /** Zugesagte Byteszahl. Weicht sie ab, wird abgelehnt. */
+  readonly groesse?: number | null;
+  /** Zugesagte Pruefsumme, 64 Stellen hex. Weicht sie ab, wird abgelehnt. */
+  readonly sha256?: string | null;
 }
 
 /**
@@ -418,7 +461,9 @@ async function loeseAnhaenge(
 
     if (typeof eintrag.url === "string" && eintrag.url.trim() !== "") {
       try {
-        const geholt = await holeSicher(eintrag.url.trim(), MAX_ANHANG_BYTES);
+        const geholt = await holeSicher(eintrag.url.trim(), MAX_ANHANG_BYTES, {
+          erlaubt: umgebung.env.mcpNetzErlaubt,
+        });
         bytes = geholt.bytes;
         if (typ === "") typ = geholt.contentType;
       } catch (ursache) {
@@ -426,18 +471,17 @@ async function loeseAnhaenge(
         throw ursache;
       }
     } else if (typeof eintrag.base64 === "string" && eintrag.base64.trim() !== "") {
-      const roh = eintrag.base64.replace(/^data:[^,]*,/, "").trim();
-      const puffer = Buffer.from(roh, "base64");
-      if (puffer.byteLength === 0) {
-        return fehler(`"${pfad}": base64 liess sich nicht lesen oder ist leer.`);
-      }
-      if (puffer.byteLength > MAX_BASE64_BYTES) {
+      // Streng, nicht nachsichtig: `Buffer.from(x, "base64")` schneidet am ersten
+      // ungueltigen Zeichen still ab, und genau so sind halbe Bilder durchgekommen.
+      const gelesen = ausBase64(eintrag.base64);
+      if (istBytesFehler(gelesen)) return fehler(`"${pfad}": ${gelesen.grund}`, gelesen.hinweis);
+      if (gelesen.byteLength > MAX_BASE64_BYTES) {
         return fehler(
           `"${pfad}": ueber base64 sind hoechstens ${MAX_BASE64_BYTES / 1024 / 1024} MB vorgesehen.`,
           "Groesseres ueber POST /api/mcp/anhaenge hochladen und den Token angeben.",
         );
       }
-      bytes = new Uint8Array(puffer);
+      bytes = gelesen;
     } else {
       const token = String(eintrag.token).trim();
       const abruf = ablage.abrufen(token);
@@ -447,12 +491,28 @@ async function loeseAnhaenge(
           `Hochgeladene Anhaenge sind ${ablage.lebensdauerMs / 3600000} Stunden gueltig.`,
         );
       }
+      // Ein Upload, dessen letzter Teil noch aussteht, ist kein Anhang. Ohne diese
+      // Sperre landet die halbe Datei im Container, und der Token sah dabei gueltig aus.
+      if (abruf.info.unvollstaendig === true) {
+        return fehler(
+          `"${pfad}": der Upload zu diesem Token ist noch nicht abgeschlossen ` +
+            `(${abruf.info.teil ?? 0} Teile, ${abruf.bytes.byteLength} Bytes).`,
+          "Den letzten Teil mit letzter=true und sha256 an anhang_hochladen geben.",
+        );
+      }
       bytes = new Uint8Array(abruf.bytes);
       if (typ === "") typ = abruf.info.contentType;
     }
 
     const geprueft = pruefeTyp(typ, pfad);
     if (istErgebnis(geprueft)) return geprueft;
+
+    // Zusage und Signatur fuer **jede** Quelle, nicht nur fuer base64: auch eine url kann
+    // abgeschnitten antworten, und dann steht es in den letzten Bytes.
+    const zusage = pruefeZusage(bytes, eintrag, pfad);
+    if (zusage !== null) return fehler(zusage.grund, zusage.hinweis);
+    const signatur = pruefeSignatur(bytes, geprueft, pfad);
+    if (signatur !== null) return fehler(signatur.grund, signatur.hinweis);
 
     if (bytes.byteLength > MAX_ANHANG_BYTES) {
       return fehler(`"${pfad}" ist groesser als ${MAX_ANHANG_BYTES / 1024 / 1024} MB.`);
@@ -801,9 +861,13 @@ function entwurfLesen(umgebung: Umgebung, token: string): JsonObject | Ergebnis 
   return environment;
 }
 
+function alsBytes(environment: JsonObject): Uint8Array {
+  return new TextEncoder().encode(JSON.stringify(environment));
+}
+
 function entwurfSchreiben(umgebung: Umgebung, environment: JsonObject): string {
   const info = entwuerfe(umgebung.env).ablegen({
-    bytes: new TextEncoder().encode(JSON.stringify(environment)),
+    bytes: alsBytes(environment),
     dateiname: "entwurf.json",
     contentType: "application/json",
   });
@@ -872,12 +936,67 @@ function anhangspfade(liste: readonly string[] | null | undefined): Set<string> 
   return new Set((liste ?? []).map((p) => normalizePath(String(p).trim())));
 }
 
+export interface TeilmodellWunsch {
+  readonly kennung: string;
+  readonly id?: string | null;
+  readonly idShort?: string | null;
+  readonly werte?: Readonly<Record<string, JsonValue>> | null;
+}
+
+export interface AnlegeEingabe {
+  readonly environment?: string | null;
+  readonly kopf?: SchalenKopf | null;
+  readonly teilmodelle?: readonly TeilmodellWunsch[] | null;
+  readonly anhaenge?: readonly string[] | null;
+}
+
+/**
+ * Ein Entwurf, entweder aus einem fertigen Environment oder aus Vorlagen gebaut.
+ *
+ * Der zweite Weg ist seit dem 10.08.2026 der bessere und der Grund fuer diese Runde. Bis
+ * dahin musste das vollstaendige Environment einmal geschickt werden, und fuer drei
+ * Teilmodelle waren das rund fuenfhundert Zeilen, von denen vier Fuenftel reine
+ * semanticId-Boilerplate waren. Mit `kopf` und `teilmodelle` baut der Server Schale,
+ * Teilmodelle und die Verweise dazwischen selbst; ueber die Leitung gehen nur noch die
+ * Werte aus dem Datenblatt.
+ *
+ * `environment` bleibt fuer alles, was nicht nach einer IDTA-Vorlage gebaut wird.
+ */
 export async function entwurfAnlegen(
   umgebung: Umgebung,
-  eingabe: { environment: string; anhaenge?: readonly string[] | null },
+  eingabe: AnlegeEingabe,
 ): Promise<Ergebnis> {
-  const environment = alsEnvironment(eingabe.environment);
-  if (istErgebnis(environment)) return environment;
+  const roh = eingabe.environment ?? "";
+  const ausVorlagen = eingabe.kopf != null || (eingabe.teilmodelle?.length ?? 0) > 0;
+
+  if (roh.trim() !== "" && ausVorlagen) {
+    return fehler(
+      "environment und kopf/teilmodelle schliessen sich aus.",
+      "Entweder ein fertiges Environment schicken oder es aus Vorlagen bauen lassen.",
+    );
+  }
+  if (roh.trim() === "" && !ausVorlagen) {
+    return fehler(
+      "Es fehlt die Angabe, woraus der Entwurf entstehen soll.",
+      "Entweder environment mit dem vollstaendigen JSON, oder kopf und teilmodelle, dann " +
+        "baut der Server das Geruest aus den IDTA-Vorlagen. Der zweite Weg spart die " +
+        "gesamte semanticId-Boilerplate.",
+    );
+  }
+
+  let environment: JsonObject;
+  let bauplan: Bauplan | null = null;
+
+  if (ausVorlagen) {
+    const gebaut = baueAusVorlagen(eingabe);
+    if (istErgebnis(gebaut)) return gebaut;
+    environment = gebaut.environment;
+    bauplan = gebaut;
+  } else {
+    const gelesenesEnv = alsEnvironment(roh);
+    if (istErgebnis(gelesenesEnv)) return gelesenesEnv;
+    environment = gelesenesEnv;
+  }
 
   const pfade = anhangspfade(eingabe.anhaenge);
   const gelesen = await pruefeEnvironment(environment, pfade);
@@ -890,12 +1009,205 @@ export async function entwurfAnlegen(
   return gib(
     await berichte(gelesen, pfade, {
       entwurf: token,
+      ...(bauplan === null
+        ? {}
+        : {
+            gebaut: bauplan.bericht,
+            offen: bauplan.offen,
+            ...(bauplan.maengel.length === 0 ? {} : { bekannteMaengel: bauplan.maengel }),
+          }),
       hinweis:
         "Ab jetzt genuegt entwurf statt environment: entwurf_aendern fuer Korrekturen, " +
+        "teilmodell_erzeugen fuer ein weiteres Teilmodell nach Vorlage, " +
         "aas_datei_erzeugen fuer die Datei. Das Environment muss nicht noch einmal " +
-        "geschickt werden.",
+        "geschickt werden." +
+        (bauplan === null
+          ? ""
+          : " Wo TODO steht, verlangt das Metamodell einen nicht leeren Wert; das steht " +
+            "unter offen und ist zu ersetzen, nicht zu loeschen."),
     }),
   );
+}
+
+interface Bauplan {
+  readonly environment: JsonObject;
+  readonly bericht: JsonObject;
+  readonly offen: JsonObject;
+  readonly maengel: readonly string[];
+}
+
+/** Schale, Teilmodelle und die Verweise dazwischen, aus den IDTA-Vorlagen. */
+function baueAusVorlagen(eingabe: AnlegeEingabe): Bauplan | Ergebnis {
+  const wuensche = eingabe.teilmodelle ?? [];
+  if (wuensche.length === 0) {
+    return fehler(
+      "teilmodelle ist leer.",
+      `Mindestens eine Vorlagenkennung angeben. Erlaubt: ${KENNUNGEN.join(", ")}.`,
+    );
+  }
+
+  const submodels: JsonObject[] = [];
+  const bericht: JsonObject = {};
+  const offen: JsonObject = {};
+  const maengel: string[] = [];
+
+  for (const wunsch of wuensche) {
+    const gebaut = baueTeilmodell(wunsch);
+    if (istErgebnis(gebaut)) return gebaut;
+
+    submodels.push(gebaut.submodel);
+    const name = String(gebaut.submodel["idShort"] ?? wunsch.kennung);
+    bericht[name] = {
+      kennung: wunsch.kennung,
+      id: String(gebaut.submodel["id"] ?? ""),
+      gesetzt: gebaut.gesetzt.length,
+    };
+    if (gebaut.offen.length > 0) offen[name] = gebaut.offen.map((o) => o.pfad);
+    maengel.push(...maengelVon(wunsch.kennung));
+  }
+
+  const environment: JsonObject = { submodels };
+  if (eingabe.kopf != null) {
+    const globalAssetId = eingabe.kopf.globalAssetId?.trim() ?? "";
+    if (globalAssetId === "") {
+      return fehler(
+        "kopf.globalAssetId fehlt.",
+        "Jede Schale braucht die Kennung ihres Assets, etwa eine IRI oder eine IEC 61406 " +
+          "ID-Link-Adresse.",
+      );
+    }
+    environment["assetAdministrationShells"] = [schaleBauen(eingabe.kopf, submodels)];
+  }
+
+  return { environment, bericht, offen, maengel: [...new Set(maengel)] };
+}
+
+function baueTeilmodell(wunsch: TeilmodellWunsch): Instanz | Ergebnis {
+  const kennung = wunsch.kennung?.trim() ?? "";
+  const eintrag = vorlageVon(kennung);
+  if (eintrag === undefined) {
+    return fehler(
+      `Die Vorlage "${kennung}" gibt es nicht.`,
+      `Erlaubt: ${KENNUNGEN.join(", ")}. Ohne kennung listet aas_vorlage sie auf.`,
+    );
+  }
+
+  const gebaut = instanzErzeugen(eintrag, wunsch.werte ?? {}, {
+    id: wunsch.id ?? null,
+    idShort: wunsch.idShort ?? null,
+  });
+  if (istPfadFehler(gebaut)) {
+    return fehler(`${kennung}: ${gebaut.grund}`, gebaut.hinweis);
+  }
+  return gebaut;
+}
+
+// --- teilmodell_erzeugen --------------------------------------------------------------
+
+/**
+ * Ein Teilmodell nach Vorlage, wahlweise gleich in einen Entwurf hinein.
+ *
+ * Mit `entwurf` geht **kein** Teilmodell-JSON zurueck durch die Leitung: es entsteht im
+ * Server, wird angehaengt, der Entwurf wird geprueft, und zurueck kommen Befunde und
+ * Bilanz. Ohne `entwurf` kommt es als JSON, fuer den Fall, dass es woandershin soll.
+ */
+export async function teilmodellErzeugen(
+  umgebung: Umgebung,
+  eingabe: {
+    kennung: string;
+    werte?: Readonly<Record<string, JsonValue>> | null;
+    id?: string | null;
+    idShort?: string | null;
+    entwurf?: string | null;
+    anhaenge?: readonly string[] | null;
+  },
+): Promise<Ergebnis> {
+  const gebaut = baueTeilmodell(eingabe);
+  if (istErgebnis(gebaut)) return gebaut;
+
+  const gemeldet = {
+    gesetzt: gebaut.gesetzt,
+    ...(gebaut.offen.length === 0
+      ? {}
+      : {
+          offen: gebaut.offen.map((o) => `${o.pfad} (${o.modelType})`),
+          offenHinweis:
+            "Diese Pflichtelemente stehen auf ihrem Platzhalter TODO. Sie bestehen die " +
+            "Pruefung, sind aber nicht ausgefuellt: ersetzen, nicht loeschen.",
+        }),
+    ...(maengelVon(eingabe.kennung.trim()).length === 0
+      ? {}
+      : { bekannteMaengel: maengelVon(eingabe.kennung.trim()) }),
+  };
+
+  const token = (eingabe.entwurf ?? "").trim();
+  if (token === "") {
+    return gib({
+      ...gemeldet,
+      submodel: gebaut.submodel,
+      hinweis:
+        "Ohne entwurf kommt das Teilmodell als JSON zurueck. Mit entwurf haengt der Server " +
+        "es direkt an und schickt gar kein JSON: das ist der Weg, der Uebertragung spart.",
+    });
+  }
+
+  const environment = entwurfLesen(umgebung, token);
+  if (istErgebnis(environment)) return environment;
+
+  const submodels = Array.isArray(environment["submodels"])
+    ? [...(environment["submodels"] as JsonValue[])]
+    : [];
+
+  const id = String(gebaut.submodel["id"] ?? "");
+  if (submodels.some((sm) => istJsonObjekt(sm) && sm["id"] === id)) {
+    return fehler(
+      `Im Entwurf steht bereits ein Teilmodell mit der id "${id}".`,
+      "Eine eigene id ueber den Parameter id vergeben, oder das vorhandene mit " +
+        "entwurf_aendern anpassen.",
+    );
+  }
+  submodels.push(gebaut.submodel);
+  environment["submodels"] = submodels;
+
+  /*
+   * Den Verweis von der Schale mitzuziehen ist kein Beiwerk. Ihn zu vergessen war in der
+   * echten Sitzung eine eigene Korrekturrunde: das Teilmodell stand im Environment, die
+   * Schale kannte es nicht, und aufgefallen ist es erst beim Lesen der fertigen Datei.
+   */
+  let verknuepft = false;
+  const shells = environment["assetAdministrationShells"];
+  if (Array.isArray(shells) && istJsonObjekt(shells[0])) {
+    const schale = shells[0];
+    const verweise = Array.isArray(schale["submodels"]) ? [...schale["submodels"]] : [];
+    verweise.push(verweisAuf(id));
+    schale["submodels"] = verweise;
+    verknuepft = true;
+  }
+
+  const pfade = anhangspfade(eingabe.anhaenge);
+  const gelesen = await pruefeEnvironment(environment, pfade);
+  if (istErgebnis(gelesen)) return gelesen;
+
+  if (entwuerfe(umgebung.env).aktualisieren(token, alsBytes(gelesen.environment)) === null) {
+    return fehler("Der Entwurf ist zwischenzeitlich abgelaufen.");
+  }
+
+  return gib(
+    await berichte(gelesen, pfade, {
+      entwurf: token,
+      ...gemeldet,
+      angehaengt: { idShort: gebaut.submodel["idShort"], id, verknuepft },
+      hinweis: verknuepft
+        ? "Angehaengt und von der Schale verwiesen. Das Teilmodell selbst ging nicht " +
+          "ueber die Leitung; mit entwurf_lesen nachsehen, falls ein Index gebraucht wird."
+        : "Angehaengt. Der Entwurf fuehrt keine Schale, deshalb gibt es keinen Verweis " +
+          "darauf; das ist zulaessig, aber selten gewollt.",
+    }),
+  );
+}
+
+function istJsonObjekt(wert: unknown): wert is JsonObject {
+  return typeof wert === "object" && wert !== null && !Array.isArray(wert);
 }
 
 export async function entwurfAendern(
@@ -1121,40 +1433,207 @@ export async function aasDateiErzeugen(
  * durch, ueberstehen dann aber jeden weiteren Versuch, ohne noch einmal geschickt zu
  * werden.
  */
-export function anhangHochladen(
-  umgebung: Umgebung,
-  eingabe: { base64: string; dateiname?: string | null; contentType?: string | null },
-): Ergebnis {
-  const roh = eingabe.base64.replace(/^data:[^,]*,/, "").trim();
-  const puffer = Buffer.from(roh, "base64");
-  if (puffer.byteLength === 0) {
-    return fehler("base64 liess sich nicht lesen oder ist leer.");
-  }
-  if (puffer.byteLength > MAX_BASE64_BYTES) {
+export interface HochladeEingabe {
+  readonly base64: string;
+  readonly dateiname?: string | null;
+  readonly contentType?: string | null;
+  readonly groesse?: number | null;
+  readonly sha256?: string | null;
+  /** Ohne: ein neuer Upload. Mit: an einen laufenden anhaengen. */
+  readonly token?: string | null;
+  /** 1-basierte Folgenummer. Ohne Angabe ein einteiliger Upload. */
+  readonly teil?: number | null;
+  /** Schliesst den stueckweisen Upload ab. */
+  readonly letzter?: boolean | null;
+}
+
+export function anhangHochladen(umgebung: Umgebung, eingabe: HochladeEingabe): Ergebnis {
+  const ablage = anhangsAblage(umgebung.env);
+  const fortsetzung = (eingabe.token ?? "").trim();
+  const teil = eingabe.teil ?? null;
+  const stueckweise = fortsetzung !== "" || teil !== null;
+
+  // Die Bytes dieses Aufrufs. Streng gelesen, aber noch ohne Signaturpruefung: bei einem
+  // Teilstueck steht der Kopf nur im ersten und der Fuss nur im letzten.
+  const gelesen = ausBase64(eingabe.base64);
+  if (istBytesFehler(gelesen)) return fehler(gelesen.grund, gelesen.hinweis);
+  if (gelesen.byteLength > MAX_BASE64_BYTES) {
     return fehler(
-      `Ueber base64 sind hoechstens ${MAX_BASE64_BYTES / 1024 / 1024} MB vorgesehen, ` +
-        `geschickt wurden ${Math.round(puffer.byteLength / 1024)} KB.`,
+      `Ueber base64 sind je Aufruf hoechstens ${MAX_BASE64_BYTES / 1024 / 1024} MB vorgesehen, ` +
+        `geschickt wurden ${Math.round(gelesen.byteLength / 1024)} KB.`,
       "Groesseres ueber die url-Quelle an aas_datei_erzeugen geben, dann holt der Server " +
-        "die Datei selbst, oder ueber POST /api/mcp/anhaenge hochladen.",
+        "die Datei selbst, ueber POST /api/mcp/anhaenge hochladen, oder hier stueckweise " +
+        "mit teil und einem abschliessenden letzter=true samt sha256.",
     );
   }
 
+  if (!stueckweise) return einteilig(ablage, eingabe, gelesen);
+  return stueckweiser(ablage, eingabe, gelesen, fortsetzung, teil ?? 1);
+}
+
+function einteilig(
+  ablage: Ablage,
+  eingabe: HochladeEingabe,
+  bytes: Uint8Array,
+): Ergebnis {
   const dateiname = (eingabe.dateiname ?? "").trim() || "anhang";
   const geprueft = pruefeTyp(eingabe.contentType ?? "", dateiname);
   if (istErgebnis(geprueft)) return geprueft;
 
-  const ablage = anhangsAblage(umgebung.env);
-  const info = ablage.ablegen({ bytes: new Uint8Array(puffer), dateiname, contentType: geprueft });
+  const zusage = pruefeZusage(bytes, eingabe, dateiname);
+  if (zusage !== null) return fehler(zusage.grund, zusage.hinweis);
+  const signatur = pruefeSignatur(bytes, geprueft, dateiname);
+  if (signatur !== null) return fehler(signatur.grund, signatur.hinweis);
+
+  const info = ablage.ablegen({ bytes, dateiname, contentType: geprueft });
 
   return gib({
     token: info.token,
     dateiname: info.dateiname,
     contentType: info.contentType,
     groesse: info.groesse,
+    // Immer mitgeliefert, auch ohne Zusage: damit ein Abgleich moeglich ist, ohne ihn
+    // vorher angekuendigt zu haben.
+    sha256: sha256Von(bytes),
     gueltigBis: new Date(info.erstellt + ablage.lebensdauerMs).toISOString(),
     hinweis:
       "Den Token als anhaenge[].token an aas_datei_erzeugen geben, zusammen mit dem " +
       "gewuenschten Paketpfad. Er ueberlebt dabei jeden weiteren Versuch.",
+  });
+}
+
+/**
+ * Ein Upload ueber mehrere Aufrufe.
+ *
+ * Der Sinn ist nicht Bequemlichkeit, sondern Nachweisbarkeit: bei einer Datei, die in einem
+ * Stueck nicht durch den Gespraechsspeicher passt, war die Alternative bisher, sie
+ * herunterzurechnen. Was ankam, war dann kleiner als die Quelle, und niemand konnte sagen,
+ * ob das Absicht war oder ein Abriss.
+ *
+ * Geprueft wird deshalb erst am Schluss, dort aber vollstaendig: Kopf, Fuss und die
+ * zugesagte Pruefsumme ueber alle Teile. Faellt eine durch, wird der ganze Token verworfen.
+ * Ein halber Upload, der liegen bleibt, ist die Falle, die dieses Werkzeug schliessen soll.
+ */
+function stueckweiser(
+  ablage: Ablage,
+  eingabe: HochladeEingabe,
+  bytes: Uint8Array,
+  fortsetzung: string,
+  teil: number,
+): Ergebnis {
+  const letzter = eingabe.letzter === true;
+
+  if (!Number.isInteger(teil) || teil < 1) {
+    return fehler(`teil ist ${String(eingabe.teil)}, erwartet wird eine ganze Zahl ab 1.`);
+  }
+
+  if (fortsetzung === "") {
+    if (teil !== 1) {
+      return fehler(
+        `Ohne token faengt ein Upload an, also mit teil=1; angegeben war teil=${teil}.`,
+      );
+    }
+    const dateiname = (eingabe.dateiname ?? "").trim() || "anhang";
+    const geprueft = pruefeTyp(eingabe.contentType ?? "", dateiname);
+    if (istErgebnis(geprueft)) return geprueft;
+
+    // Ein einziger Teil mit letzter=true ist derselbe Fall wie ein einteiliger Upload.
+    if (letzter) return einteilig(ablage, eingabe, bytes);
+
+    const info = ablage.ablegen({
+      bytes,
+      dateiname,
+      contentType: geprueft,
+      unvollstaendig: true,
+      teil: 1,
+    });
+    return gib({
+      token: info.token,
+      teil: 1,
+      angekommen: bytes.byteLength,
+      vollstaendig: false,
+      hinweis:
+        "Den naechsten Teil mit diesem token und teil=2 schicken. Den letzten mit " +
+        "letzter=true und sha256 ueber die **ganze** Datei.",
+    });
+  }
+
+  const vorher = ablage.abrufen(fortsetzung);
+  if (vorher === null) {
+    return fehler(
+      "Der token ist unbekannt oder abgelaufen.",
+      `Uploads sind ${ablage.lebensdauerMs / 3600000} Stunden gueltig. Neu anfangen, ohne token.`,
+    );
+  }
+  if (vorher.info.unvollstaendig !== true) {
+    return fehler(
+      "Dieser Upload ist bereits abgeschlossen und nimmt keine weiteren Teile an.",
+      "Ohne token einen neuen anfangen.",
+    );
+  }
+
+  const erwartet = (vorher.info.teil ?? 0) + 1;
+  if (teil !== erwartet) {
+    // Der Entwurf bleibt unveraendert. Ein halb angewandter Stapel ist schlimmer als ein
+    // abgelehnter, und fuer Bytes gilt das genauso wie fuer Patches.
+    return fehler(
+      `Erwartet wird teil=${erwartet}, angegeben war teil=${teil}.`,
+      `Angekommen sind bisher ${vorher.bytes.byteLength} Bytes ueber ${vorher.info.teil ?? 0} Teile. ` +
+        "Der Upload ist unveraendert geblieben.",
+    );
+  }
+
+  const zusammen = new Uint8Array(vorher.bytes.byteLength + bytes.byteLength);
+  zusammen.set(new Uint8Array(vorher.bytes), 0);
+  zusammen.set(bytes, vorher.bytes.byteLength);
+
+  if (zusammen.byteLength > MAX_ANHANG_BYTES) {
+    ablage.verwerfen(fortsetzung);
+    return fehler(
+      `Die Teile zusammen sind groesser als ${MAX_ANHANG_BYTES / 1024 / 1024} MB. ` +
+        "Der Upload wurde verworfen.",
+    );
+  }
+
+  if (!letzter) {
+    const info = ablage.aktualisieren(fortsetzung, zusammen, { unvollstaendig: true, teil });
+    if (info === null) return fehler("Der token ist zwischenzeitlich abgelaufen.");
+    return gib({
+      token: fortsetzung,
+      teil,
+      angekommen: zusammen.byteLength,
+      vollstaendig: false,
+      hinweis: `Weiter mit teil=${teil + 1}. Den letzten mit letzter=true und sha256.`,
+    });
+  }
+
+  const dateiname = vorher.info.dateiname;
+  const zusage = pruefeZusage(zusammen, eingabe, dateiname);
+  if (zusage !== null) {
+    ablage.verwerfen(fortsetzung);
+    return fehler(zusage.grund, `${zusage.hinweis ?? ""} Der Upload wurde verworfen.`.trim());
+  }
+  const signatur = pruefeSignatur(zusammen, vorher.info.contentType, dateiname);
+  if (signatur !== null) {
+    ablage.verwerfen(fortsetzung);
+    return fehler(signatur.grund, `${signatur.hinweis ?? ""} Der Upload wurde verworfen.`.trim());
+  }
+
+  const info = ablage.aktualisieren(fortsetzung, zusammen, { unvollstaendig: false, teil });
+  if (info === null) return fehler("Der token ist zwischenzeitlich abgelaufen.");
+
+  return gib({
+    token: fortsetzung,
+    dateiname: info.dateiname,
+    contentType: info.contentType,
+    groesse: info.groesse,
+    teile: teil,
+    sha256: sha256Von(zusammen),
+    vollstaendig: true,
+    gueltigBis: new Date(info.erstellt + ablage.lebensdauerMs).toISOString(),
+    hinweis:
+      "Den Token als anhaenge[].token an aas_datei_erzeugen geben, zusammen mit dem " +
+      "gewuenschten Paketpfad.",
   });
 }
 
@@ -1179,7 +1658,9 @@ export async function aasDateiLesen(
 
   if (url !== "") {
     try {
-      const geholt = await holeSicher(url, MAX_ANHANG_BYTES);
+      const geholt = await holeSicher(url, MAX_ANHANG_BYTES, {
+        erlaubt: umgebung.env.mcpNetzErlaubt,
+      });
       bytes = geholt.bytes;
       if (name === "") name = geholt.url.pathname.split("/").pop() ?? "";
     } catch (ursache) {

@@ -13,6 +13,7 @@ import {
   entwurfAnlegen,
   entwurfAnsehen,
   ERLAUBTE_TYPEN,
+  teilmodellErzeugen,
   type Ergebnis,
   type Umgebung,
 } from "./werkzeuge.js";
@@ -39,11 +40,16 @@ import {
  * ungeprueftes JSON aus.
  */
 const REIHENFOLGE =
-  "Ablauf: fuer ein Teilmodell nach IDTA zuerst aas_vorlage, sonst aas_schema fuer die " +
-  "Feldnamen. Dann das Environment entwerfen und **einmal** mit entwurf_anlegen abgeben. " +
-  "Ab da nur noch entwurf_aendern mit Patches, bis keine Verstoesse mehr bleiben, dann " +
-  "aas_datei_erzeugen mit demselben entwurf. Das vollstaendige Environment ein zweites " +
-  "Mal zu schicken ist der teuerste Fehler in diesem Ablauf.";
+  "Ablauf fuer Teilmodelle nach IDTA: erst aas_vorlage mit umfang=struktur, das zeigt die " +
+  "idShort-Pfade. Dann entwurf_anlegen mit kopf und teilmodelle, wobei je Teilmodell nur " +
+  "die Werte aus dem Datenblatt stehen; Schale, semanticId, IRDIs, valueType und die " +
+  "Verweise dazwischen setzt der Server aus der Vorlage. Weitere Teilmodelle danach mit " +
+  "teilmodell_erzeugen und derselben Entwurfskennung, Korrekturen mit entwurf_aendern, " +
+  "zuletzt aas_datei_erzeugen mit demselben entwurf. " +
+  "**Metamodell-Geruest gehoert nicht in einen Aufruf**: semanticId-Bloecke abzutippen ist " +
+  "der teuerste und fehleranfaelligste Teil, und der Server kennt sie bereits. Fuer alles " +
+  "ausserhalb der IDTA-Vorlagen: aas_schema fuer die Feldnamen und entwurf_anlegen mit " +
+  "environment, dieses dann aber nur **einmal**.";
 
 /** Ein Anhang, so wie ihn `aas_datei_erzeugen` entgegennimmt. */
 const ANHANG = z.object({
@@ -74,6 +80,47 @@ const ANHANG = z.object({
     .describe(
       "Token aus anhang_hochladen, aus POST /api/mcp/anhaenge oder aus aas_datei_lesen.",
     ),
+  groesse: z
+    .number()
+    .nullish()
+    .describe(
+      "Zugesagte Groesse in Bytes. Weicht das Angekommene ab, wird abgelehnt statt " +
+        "stillschweigend uebernommen.",
+    ),
+  sha256: z
+    .string()
+    .nullish()
+    .describe("Zugesagte Pruefsumme, 64 Stellen hex. Weicht sie ab, wird abgelehnt."),
+});
+
+/**
+ * Werte fuer ein Teilmodell: idShort-Pfad auf Wert.
+ *
+ * `z.json()` als Wert, weil die Schreibweise von der Art des Elements abhaengt und der
+ * Server sie kennt: eine Zeichenkette fuer eine Property, `{"de": "..."}` fuer eine
+ * MultiLanguageProperty, `{"min", "max"}` fuer ein Range, ein Paketpfad fuer eine File.
+ * Der Aufrufer schreibt, was im Datenblatt steht; die Umsetzung ist Buchhaltung.
+ */
+const WERTE = z.record(z.string(), z.json());
+
+/** Die Kopfdaten einer Schale. */
+const KOPF = z.object({
+  globalAssetId: z
+    .string()
+    .describe("Die Kennung des Assets, etwa eine IRI oder eine IEC-61406-Adresse. Pflicht."),
+  assetKind: z.enum(["Instance", "Type"]).nullish().describe("Vorgabe Instance."),
+  idShort: z.string().nullish().describe("Sprechender Name der Schale."),
+  id: z.string().nullish().describe("Die id der Schale. Ohne Angabe eine abgeleitete."),
+});
+
+/** Ein Teilmodell, das aus einer Vorlage entstehen soll. */
+const TEILMODELL = z.object({
+  kennung: z.string().describe(`Die Vorlage. Erlaubt: ${KENNUNGEN.join(", ")}.`),
+  id: z.string().nullish().describe("Die id des Teilmodells. Ohne Angabe eine abgeleitete."),
+  idShort: z.string().nullish().describe("Ohne Angabe der idShort der Vorlage."),
+  werte: WERTE.nullish().describe(
+    "idShort-Pfad auf Wert. Die Pfade zeigt aas_vorlage mit umfang=struktur.",
+  ),
 });
 
 /** Ein Patch auf einen Entwurf. */
@@ -110,11 +157,15 @@ export function baueMcpServer(umgebung: Umgebung): McpServer {
       instructions:
         "Werkzeuge zum Bauen von Asset Administration Shells nach IDTA-Metamodell 3.1. " +
         REIHENFOLGE +
-        " Das Environment wird als JSON-Text uebergeben und hat die Form " +
-        '{"assetAdministrationShells": [...], "submodels": [...]}. ' +
+        " Wo doch ein Environment noetig ist, wird es als JSON-Text uebergeben und hat die " +
+        'Form {"assetAdministrationShells": [...], "submodels": [...]}. ' +
         "Jedes Element traegt sein modelType. Einen Slot, der nichts enthaelt, ganz " +
         "weglassen: eine leere Liste ist laut Metamodell ein Verstoss, der Server " +
-        "entfernt sie und sagt es dazu.",
+        "entfernt sie und sagt es dazu. " +
+        "Anhaenge kommen am besten ueber url, dann holt der Server die Datei selbst; " +
+        "base64 nur fuer Kleinkram, und dann mit sha256 oder groesse als Zusage: der " +
+        "Server prueft Kopf und Fuss der Bytes und lehnt eine abgeschnittene Datei ab, " +
+        "statt sie stillschweigend anzunehmen.",
     },
   );
 
@@ -183,15 +234,29 @@ export function baueMcpServer(umgebung: Umgebung): McpServer {
     {
       title: "Entwurf anlegen",
       description:
-        "Nimmt ein Environment entgegen, prueft es und behaelt es. Zurueck kommt eine " +
+        "Legt einen Entwurf an, prueft ihn und behaelt ihn. Zurueck kommt eine " +
         "Entwurfskennung, die alle weiteren Werkzeuge statt des Environments annehmen. " +
-        "**Der Weg, der Uebertragung spart**: ohne ihn geht das vollstaendige Environment " +
-        "bei jedem Pruefen und jedem Erzeugen erneut ueber die Leitung. Danach nur noch " +
-        "entwurf_aendern.",
+        "**Der beste Weg ist kopf + teilmodelle**: dann baut der Server Schale, " +
+        "Teilmodelle und die Verweise dazwischen aus den IDTA-Vorlagen, und ueber die " +
+        "Leitung gehen nur die Werte aus dem Datenblatt. semanticId, IRDI und valueType " +
+        "kennt er bereits. environment bleibt fuer alles, was keiner Vorlage folgt. Genau " +
+        "eines von beidem.",
       inputSchema: {
         environment: z
           .string()
-          .describe("Das vollstaendige AAS Environment als JSON-Text, Metamodell 3.1."),
+          .nullish()
+          .describe(
+            "Das vollstaendige AAS Environment als JSON-Text, Metamodell 3.1. Nur noetig, " +
+              "wenn nicht nach einer IDTA-Vorlage gebaut wird.",
+          ),
+        kopf: KOPF.nullish().describe("Die Kopfdaten der Schale. Mit teilmodelle zu nehmen."),
+        teilmodelle: z
+          .array(TEILMODELL)
+          .nullish()
+          .describe(
+            "Welche Vorlagen als Teilmodelle entstehen sollen, je mit den Werten. Der " +
+              "Server setzt semanticId, IRDIs, valueType und die Verweise von der Schale.",
+          ),
         anhaenge: z
           .array(z.string())
           .nullish()
@@ -200,6 +265,41 @@ export function baueMcpServer(umgebung: Umgebung): McpServer {
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },
     async (eingabe) => alsInhalt(await entwurfAnlegen(umgebung, eingabe)),
+  );
+
+  server.registerTool(
+    "teilmodell_erzeugen",
+    {
+      title: "Teilmodell nach Vorlage erzeugen",
+      description:
+        "Baut ein Teilmodell aus einer IDTA-Vorlage und einer flachen Abbildung von " +
+        "idShort-Pfad auf Wert. **Der Server kennt semanticId, IRDI, valueType und die " +
+        "Listenstruktur bereits**; sie abzutippen ist unnoetig und genau die Stelle, an " +
+        "der Fehler entstehen. Pflichtelemente kommen von selbst mit und stehen auf TODO, " +
+        "bis sie belegt sind. Mit entwurf haengt der Server das Ergebnis direkt an und " +
+        "setzt den Verweis von der Schale; dann geht gar kein Teilmodell-JSON durch das " +
+        "Gespraech. Welche Pfade es gibt, zeigt aas_vorlage mit umfang=struktur.",
+      inputSchema: {
+        kennung: z.string().describe(`Die Vorlage. Erlaubt: ${KENNUNGEN.join(", ")}.`),
+        werte: WERTE.nullish().describe(
+          "idShort-Pfad auf Wert, etwa {\"/GeneralInformation/ManufacturerName\": " +
+            "\"Endress+Hauser\"}. Ein Pfad, den die Vorlage nicht kennt, wird abgelehnt " +
+            "und nennt die Geschwister an der Bruchstelle.",
+        ),
+        id: z.string().nullish().describe("Die id des Teilmodells. Ohne Angabe eine abgeleitete."),
+        idShort: z.string().nullish().describe("Ohne Angabe der idShort der Vorlage."),
+        entwurf: z
+          .string()
+          .nullish()
+          .describe(
+            "Kennung aus entwurf_anlegen. Mit ihr wird angehaengt statt zurueckgegeben, " +
+              "und das ist der Weg, der Uebertragung spart.",
+          ),
+        anhaenge: z.array(z.string()).nullish().describe("Wie bei entwurf_anlegen."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
+    },
+    async (eingabe) => alsInhalt(await teilmodellErzeugen(umgebung, eingabe)),
   );
 
   server.registerTool(
@@ -252,11 +352,52 @@ export function baueMcpServer(umgebung: Umgebung): McpServer {
         "anhaenge[].token an aas_datei_erzeugen geht. Gegenueber base64 direkt am " +
         "Container: die Bytes gehen genau einmal durch das Gespraech und ueberstehen jeden " +
         "weiteren Versuch. Liegt die Datei im Netz, ist die url-Quelle noch besser, dann " +
-        "holt der Server sie selbst.",
+        "holt der Server sie selbst. Kopf und Fuss der Bytes werden gegen contentType " +
+        "geprueft: eine abgeschnittene Datei wird abgelehnt und nicht abgelegt. Passt sie " +
+        "nicht in einen Aufruf, stueckweise mit teil und token schicken.",
       inputSchema: {
-        base64: z.string().describe("Die Bytes als base64, bis 2 MB."),
+        base64: z.string().describe("Die Bytes als base64, je Aufruf bis 2 MB."),
         dateiname: z.string().nullish().describe("Nur zur Wiedererkennung, etwa datenblatt.pdf."),
-        contentType: z.string().describe(`Erlaubt: ${ERLAUBTE_TYPEN.join(", ")}.`),
+        contentType: z
+          .string()
+          .nullish()
+          .describe(
+            `Erlaubt: ${ERLAUBTE_TYPEN.join(", ")}. Bei einer Fortsetzung mit token ` +
+              "wegzulassen, der Typ steht schon fest.",
+          ),
+        groesse: z
+          .number()
+          .nullish()
+          .describe(
+            "Zugesagte Groesse der **ganzen** Datei in Bytes. Weicht das Angekommene ab, " +
+              "wird abgelehnt. Freiwillig, aber die einzige lueckenlose Zusage neben sha256.",
+          ),
+        sha256: z
+          .string()
+          .nullish()
+          .describe(
+            "Zugesagte Pruefsumme der **ganzen** Datei, 64 Stellen hex. Beim letzten Teil " +
+              "eines stueckweisen Uploads verlangt.",
+          ),
+        token: z
+          .string()
+          .nullish()
+          .describe("Ohne: ein neuer Upload. Mit: an den laufenden Upload anhaengen."),
+        teil: z
+          .number()
+          .nullish()
+          .describe(
+            "1-basierte Folgenummer. Ohne Angabe ein einteiliger Upload. Eine falsche " +
+              "Nummer laesst den Upload unveraendert und nennt die erwartete.",
+          ),
+        letzter: z
+          .boolean()
+          .nullish()
+          .describe(
+            "true schliesst den Upload ab. Erst dann werden Kopf, Fuss und sha256 ueber " +
+              "alle Teile geprueft; faellt eine Pruefung durch, wird der Token verworfen. " +
+              "Ein unvollstaendiger Token taugt nicht als Anhangsquelle.",
+          ),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: false },
     },

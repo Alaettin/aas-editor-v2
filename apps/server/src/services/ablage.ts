@@ -37,6 +37,16 @@ export interface AblageInfo {
   readonly contentType: string;
   readonly groesse: number;
   readonly erstellt: number;
+  /**
+   * Ob noch Teile ausstehen.
+   *
+   * Nur beim stueckweisen Upload gesetzt. Wer sie liest, muss sie beachten: ein Eintrag mit
+   * `unvollstaendig` traegt eine halbe Datei, sieht aber ansonsten wie jeder andere aus.
+   * Genau daran haengt, dass kein halber Upload in einen Container geraet.
+   */
+  readonly unvollstaendig?: boolean;
+  /** Die zuletzt angenommene Folgenummer. */
+  readonly teil?: number;
 }
 
 export interface Abruf {
@@ -47,7 +57,13 @@ export interface Abruf {
 export interface Ablage {
   /** Wie lange ein Eintrag dieser Ablage gilt. */
   readonly lebensdauerMs: number;
-  ablegen(datei: { bytes: Uint8Array; dateiname: string; contentType: string }): AblageInfo;
+  ablegen(datei: {
+    bytes: Uint8Array;
+    dateiname: string;
+    contentType: string;
+    unvollstaendig?: boolean;
+    teil?: number;
+  }): AblageInfo;
   /** Der Eintrag, oder `null` fuer unbekannt, abgelaufen und verunstaltet. */
   abrufen(token: string, jetzt?: number): Abruf | null;
   /**
@@ -56,12 +72,18 @@ export interface Ablage {
    * Gleitende Haltbarkeit, und das ist hier keine Bequemlichkeit: ein Entwurf, an dem
    * gerade gearbeitet wird, darf nicht mitten in der Arbeit ablaufen. `null` heisst, dass
    * der Token unbekannt oder bereits abgelaufen war; dann entsteht auch keiner.
+   *
+   * `zusatz` schreibt den Zustand eines stueckweisen Uploads fort. Was nicht darin steht,
+   * bleibt stehen; `unvollstaendig: false` schliesst ab.
    */
   aktualisieren(
     token: string,
     bytes: Uint8Array,
+    zusatz?: { unvollstaendig?: boolean; teil?: number },
     jetzt?: number,
   ): AblageInfo | null;
+  /** Einen Eintrag samt Bytes entfernen. Fuer einen Upload, der die Pruefung nicht besteht. */
+  verwerfen(token: string): void;
   raeumeAuf(jetzt?: number): number;
 }
 
@@ -69,6 +91,8 @@ interface Kopf {
   readonly dateiname: string;
   readonly contentType: string;
   readonly erstellt: number;
+  readonly unvollstaendig?: boolean;
+  readonly teil?: number;
 }
 
 /**
@@ -140,6 +164,8 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
         dateiname: datei.dateiname,
         contentType: datei.contentType,
         erstellt: Date.now(),
+        ...(datei.unvollstaendig === true ? { unvollstaendig: true } : {}),
+        ...(datei.teil === undefined ? {} : { teil: datei.teil }),
       };
       // Erst die Bytes, dann der Kopf: der Kopf ist es, der einen Abruf erlaubt, und er
       // soll nie auf eine Datei zeigen, die es noch nicht ganz gibt.
@@ -162,7 +188,7 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
       return { info: { token, ...kopf, groesse: bytes.byteLength }, bytes };
     },
 
-    aktualisieren(token, bytes, jetzt = Date.now()) {
+    aktualisieren(token, bytes, zusatz, jetzt = Date.now()) {
       if (!istToken(token)) return null;
       const pfad = ordner();
       const kopf = liesKopf(pfad, token);
@@ -170,11 +196,22 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
       // Patch, um einen Entwurf beliebig lange am Leben zu halten.
       if (kopf === null || jetzt - kopf.erstellt >= lebensdauerMs) return null;
 
-      const neu: Kopf = { ...kopf, erstellt: jetzt };
+      const neu: Kopf = { ...kopf, ...zusatz, erstellt: jetzt };
+      // `unvollstaendig: false` gehoert nicht in die Datei, sondern heisst "Feld weg".
+      // Sonst traegt ein abgeschlossener Upload fuer immer die Erinnerung daran.
+      if (neu.unvollstaendig !== true) delete (neu as { unvollstaendig?: boolean }).unvollstaendig;
+
       writeFileSync(resolve(pfad, `${token}.bin`), bytes);
       writeFileSync(resolve(pfad, `${token}.json`), JSON.stringify(neu), "utf8");
 
       return { token, ...neu, groesse: bytes.byteLength };
+    },
+
+    verwerfen(token) {
+      if (!istToken(token)) return;
+      const pfad = ordner();
+      rmSync(resolve(pfad, `${token}.json`), { force: true });
+      rmSync(resolve(pfad, `${token}.bin`), { force: true });
     },
   };
 }
