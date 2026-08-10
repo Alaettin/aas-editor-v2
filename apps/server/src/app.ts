@@ -10,6 +10,7 @@ import { authRoutes } from "./routes/auth.js";
 import { einstellungsRoutes } from "./routes/einstellungen.js";
 import { healthRoutes } from "./routes/health.js";
 import { fileRoutes } from "./routes/files.js";
+import { mcpRoutes } from "./routes/mcp.js";
 import { projectRoutes } from "./routes/projects.js";
 import { frontendVorhanden, statischeDateien } from "./routes/statisch.js";
 import { submodelRoutes } from "./routes/submodels.js";
@@ -56,6 +57,9 @@ export async function buildServer(
   submodelRoutes(app, db);
   einstellungsRoutes(app, db, env);
   await assistentRoutes(app, db, env);
+  // Ohne requireAuth und ohne db: der MCP-Zugang ist eine Werkbank ueber
+  // @aas-editor/core, kein Fernzugriff auf die Ablage. Siehe routes/mcp.ts.
+  await mcpRoutes(app, env);
 
   // Zuletzt, damit keine API-Route verdeckt wird.
   if (hatFrontend) await statischeDateien(app, frontendFolder as string);

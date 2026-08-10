@@ -50,6 +50,44 @@ pnpm dev          # Frontend auf http://localhost:5273
 pnpm dev:server   # Backend auf http://localhost:3200
 ```
 
+## MCP-Zugang
+
+Unter `POST /api/mcp` liegt ein MCP-Server (Streamable HTTP, zustandslos). Er ist eine
+**Werkbank, kein Fernzugriff**: er kennt weder Projekte noch Benutzer noch die Datenbank.
+Gedacht ist er fuer „bau mir eine AAS mit den und den Teilmodellen fuer dieses Produkt"
+im Chat, ueber mehrere Runden, am Ende faellt eine Datei heraus.
+
+| Werkzeug | Was es tut |
+|---|---|
+| `aas_schema` | Felder einer Art samt Pflichtangaben, Aufzaehlungswerten und gueltigem Geruest |
+| `aas_pruefen` | Befunde aus `verification.verify()` samt Regelkennung und Pfad |
+| `aas_datei_erzeugen` | Schreibt JSON, XML oder AASX und gibt einen Link, der eine Stunde gilt |
+| `aas_datei_lesen` | Liest eine vorhandene AAS (auch 3.0) als Environment 3.1 zurueck |
+
+Anbinden:
+
+```bash
+claude mcp add --transport http axon-editor http://localhost:3200/api/mcp
+```
+
+Nachsehen, ob er antwortet:
+
+```bash
+curl -s -X POST http://localhost:3200/api/mcp \
+  -H "content-type: application/json" \
+  -H "accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+**Der Zugang ist nicht abgesichert.** Wer die Adresse kennt, kann pruefen, umwandeln und
+Dateien erzeugen; Projekte, Anhaenge und Einstellungen sind nicht erreichbar, die
+Werkzeuge sehen `db` gar nicht. Solange das so ist, gehoert der Zugang nicht ins offene
+Netz. Fuer claude.ai braucht es ohnehin OAuth: feste Bearer-Token nimmt dort nur ein
+Beta-Feld entgegen, das nicht bei jedem freigeschaltet ist.
+
+Erzeugte Dateien liegen unter `DATA_DIR/mcp-ausgabe` und werden beim Start und bei jedem
+Ablegen weggeraeumt.
+
 ## Pruefen
 
 ```bash
@@ -99,7 +137,7 @@ docker compose cp app:/data/backups ./sicherung
 ```
 packages/core     Domaenenlogik, DOM-frei und worker-tauglich
 apps/web          React 19, Vite 8, Tailwind 4
-apps/server       Fastify 5, SQLite via Drizzle
+apps/server       Fastify 5, SQLite via Drizzle, MCP-Zugang unter src/mcp
 scripts/          Testdaten holen, Bundle-Budget pruefen
 ```
 
