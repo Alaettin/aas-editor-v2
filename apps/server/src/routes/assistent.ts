@@ -1,9 +1,9 @@
-import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance, FastifyReply } from "fastify";
 import type { Db } from "../db/client.js";
 import type { ServerEnv } from "../env.js";
 import { AppError } from "../errors.js";
 import { pruefeEingabe, starteStrom } from "../services/assistent.js";
+import { besitzer } from "../services/projects.js";
 
 /**
  * Eine Runde des Assistenten: Eingabeliste hinein, Ereignisstrom hinaus.
@@ -42,25 +42,29 @@ function sende(reply: FastifyReply, ereignis: Ereignis): void {
  */
 const PULS_MS = 15_000;
 
-export async function assistentRoutes(
-  app: FastifyInstance,
-  db: Db,
-  env: ServerEnv,
-): Promise<void> {
-  await app.register(rateLimit, { global: false });
-
-  app.register(async (scope) => {
+export function assistentRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
+  // Die Ratenbegrenzung ist in `app.ts` angemeldet; hier wird sie nur je Route genutzt.
+  app.register((scope, _opts, fertig) => {
     scope.addHook("preHandler", app.requireAuth);
 
     scope.post(
       "/api/assistent/nachricht",
       {
-        // Jede Runde kostet Geld. Der Zaun bremst eine durchgedrehte Schleife im
-        // Browser, bevor sie die Rechnung schreibt.
-        config: { rateLimit: { max: 60, timeWindow: "5 minutes" } },
+        // Jede Runde kostet Geld, und zwar den, dessen Schluessel liegt. Der Zaun bremst
+        // eine durchgedrehte Schleife im Browser, bevor sie die Rechnung schreibt, und
+        // zaehlt **je Nutzer** statt je IP: sonst teilten sich hinter einem gemeinsamen
+        // Ausgang mehrere Nutzer einen Eimer (Sicherheitsaudit 11.08.2026).
+        config: {
+          rateLimit: {
+            max: 60,
+            timeWindow: "5 minutes",
+            keyGenerator: (req) => req.benutzer?.id ?? req.ip,
+          },
+        },
       },
       async (req, reply) => {
         const eingabe = pruefeEingabe(req.body);
+        const wer = besitzer(req);
 
         /*
          * Bricht der Nutzer ab oder schliesst den Reiter, soll auch der Anbieter
@@ -78,7 +82,7 @@ export async function assistentRoutes(
          * gewoehnlicher 412 mit Code, den der Fehlerbehandler uebersetzbar ausliefert;
          * innerhalb eines laufenden Stroms waere daraus ein 200 mit Fehlertext geworden.
          */
-        const strom = await starteStrom(db, env, { eingabe, signal: abbruch.signal });
+        const strom = await starteStrom(db, env, wer, { eingabe, signal: abbruch.signal });
 
         // Ab hier bedient die Route den Sockel selbst; Fastify soll nicht auch noch
         // eine Antwort senden wollen, die es laengst nicht mehr gibt.
@@ -153,5 +157,7 @@ export async function assistentRoutes(
         return reply;
       },
     );
+
+    fertig();
   });
 }

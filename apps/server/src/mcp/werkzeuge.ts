@@ -1686,6 +1686,23 @@ export async function aasDateiLesen(
     const teile = [...gelesen.attachments.values()];
     if (gelesen.thumbnail !== null) teile.push(gelesen.thumbnail);
 
+    /*
+     * Dieselben Grenzen wie der Schreibpfad, und aus demselben Grund: eine fremde AASX ueber
+     * `url` ist unangemeldet erreichbar, und ohne diese Deckelung legt eine Zip-Bombe jeden
+     * ihrer Eintraege einzeln auf das Volume (Sicherheitsaudit 11.08.2026, mittlerer Befund).
+     */
+    if (teile.length > MAX_ANHAENGE) {
+      return fehler(
+        `Die Datei traegt ${teile.length} Anhaenge, mehr als ${MAX_ANHAENGE} werden nicht abgelegt.`,
+      );
+    }
+    const summe = teile.reduce((s, teil) => s + teil.bytes.byteLength, 0);
+    if (summe > MAX_CONTAINER_BYTES) {
+      return fehler(
+        `Die Anhaenge zusammen sind ${Math.round(summe / 1024 / 1024)} MB, erlaubt sind ${MAX_CONTAINER_BYTES / 1024 / 1024} MB.`,
+      );
+    }
+
     const abgelegt = teile.map((teil) => {
       const info = ablage.ablegen({
         bytes: teil.bytes,

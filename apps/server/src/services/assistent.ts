@@ -115,9 +115,10 @@ export function setzeAnbieter(ersatz: Anbieter): () => void {
 export async function starteStrom(
   db: Db,
   env: ServerEnv,
+  besitzer: string,
   anfrage: VermittlerAnfrage,
 ): Promise<Anbieterstrom> {
-  const schluessel = leseSchluessel(db, env);
+  const schluessel = leseSchluessel(db, env, besitzer);
   if (schluessel === null) {
     throw new AppError(
       412,
@@ -127,7 +128,7 @@ export async function starteStrom(
   }
 
   return anbieter(
-    { modell: lesen(db, env).modell, eingabe: anfrage.eingabe, schluessel },
+    { modell: lesen(db, env, besitzer).modell, eingabe: anfrage.eingabe, schluessel },
     anfrage.signal,
   );
 }

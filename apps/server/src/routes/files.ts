@@ -50,6 +50,16 @@ export function fileRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
       const { info, bytes } = readFile(db, env, id, fileId);
       void reply.header("content-type", info.contentType);
       void reply.header("content-length", String(info.size));
+      /*
+       * Der content-type kommt aus dem Upload und ist damit Nutzerdaten. Ohne diese beiden
+       * Kopfzeilen liefe eine als text/html hochgeladene Datei auf dem eigenen Ursprung als
+       * Skript (Sicherheitsaudit 11.08.2026, hoher Befund). `nosniff` haelt den Browser am
+       * gemeldeten Typ fest, `attachment` laesst ihn herunterladen statt darstellen. Die
+       * Vorschau im Editor bricht dadurch nicht: sie holt die Bytes ueber `apiBytes` und
+       * baut selbst eine Blob-URL, sie navigiert nie auf diese Route.
+       */
+      void reply.header("x-content-type-options", "nosniff");
+      void reply.header("content-disposition", "attachment");
       return reply.send(bytes);
     });
 

@@ -37,7 +37,11 @@ const GRENZE = { max: 120, timeWindow: "5 minutes" } as const;
  * Wert waere genau einmal richtig. `trustProxy` steht in `app.ts`, deshalb traegt
  * `req.protocol` bereits `x-forwarded-proto`.
  */
-function basisUrlVon(req: FastifyRequest): string {
+function basisUrlVon(req: FastifyRequest, env: ServerEnv): string {
+  // PUBLIC_BASE_URL schlaegt den Host-Kopf: der ist Nutzerdaten, und ein untergeschobener
+  // Aufruf bekaeme sonst Download-Links auf eine fremde Domain (Sicherheitsaudit
+  // 11.08.2026). Ohne die Einstellung bleibt es beim Host, wie bisher.
+  if (env.publicBaseUrl !== null) return env.publicBaseUrl;
   const host = req.headers.host ?? "localhost";
   return `${req.protocol}://${host}`;
 }
@@ -61,7 +65,7 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
   // eine Anmeldung. Hier wird sie nur noch je Route in Anspruch genommen.
   app.register(async (scope) => {
     scope.post("/api/mcp", { config: { rateLimit: GRENZE } }, async (req, reply) => {
-      const server = baueMcpServer({ env, basisUrl: basisUrlVon(req) });
+      const server = baueMcpServer({ env, basisUrl: basisUrlVon(req, env) });
       const transport = new StreamableHTTPServerTransport({
         // Zustandslos. Ohne diese Zeile vergibt der Transport Sitzungskennungen und
         // weist jede Folgeanfrage ohne passende Kennung mit 400 ab.

@@ -632,6 +632,9 @@ describe("Zaun gegen das interne Netz", () => {
     ["Docker-Netz", "https://172.17.0.1/a.pdf", "172.16.0.0/12"],
     ["IPv6-Loopback", "https://[::1]/a.pdf", "::1/128"],
     ["IPv4 im IPv6-Kleid", "https://[::ffff:169.254.169.254]/a.pdf", "169.254.0.0/16"],
+    // Sicherheitsaudit 11.08.2026: NAT64 traegt den Metadatendienst als eingebettete IPv4.
+    ["NAT64 auf den Metadatendienst", "https://[64:ff9b::169.254.169.254]/a.pdf", "64:ff9b::/96"],
+    ["6to4", "https://[2002::1]/a.pdf", "2002::/16"],
   ];
 
   for (const [name, url, bereich] of faelle) {

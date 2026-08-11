@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { einstellungen } from "../db/schema.js";
 import type { ServerEnv } from "../env.js";
@@ -6,12 +6,15 @@ import { badRequest } from "../errors.js";
 import { entschluesseln, verschluesseln } from "./geheimnis.js";
 
 /**
- * Der API-Schluessel des Assistenten und das gewaehlte Modell.
+ * Der API-Schluessel des Assistenten und das gewaehlte Modell, **je Besitzer**.
  *
  * Eine Stelle, an der beides gelesen und geschrieben wird, damit der Weg des Schluessels
  * ueberschaubar bleibt: hinein ueber `setzen`, hinaus ausschliesslich ueber `leseSchluessel`,
  * und das ruft nur der Vermittler. Was die Oberflaeche sieht, liefert `lesen`, und das
  * enthaelt den Schluessel nicht.
+ *
+ * Jede Funktion nimmt den `besitzer` (die Sitzungskennung) und ruehrt nur dessen Zeilen an.
+ * Vorher lag alles in einer globalen Zeile; siehe `db/schema.ts` und den Sicherheitsaudit.
  */
 
 const SCHLUESSEL_ZEILE = "assistent.schluessel";
@@ -40,27 +43,32 @@ export interface AssistentEinstellung {
   readonly modelle: typeof MODELLE;
 }
 
-function zeilen(db: Db): Map<string, string> {
+function zeilen(db: Db, besitzer: string): Map<string, string> {
   const rows = db
     .select()
     .from(einstellungen)
-    .where(inArray(einstellungen.schluessel, [SCHLUESSEL_ZEILE, MODELL_ZEILE]))
+    .where(
+      and(
+        eq(einstellungen.ownerId, besitzer),
+        inArray(einstellungen.schluessel, [SCHLUESSEL_ZEILE, MODELL_ZEILE]),
+      ),
+    )
     .all();
   return new Map(rows.map((row) => [row.schluessel, row.wert]));
 }
 
-function schreibe(db: Db, schluessel: string, wert: string): void {
+function schreibe(db: Db, besitzer: string, schluessel: string, wert: string): void {
   db.insert(einstellungen)
-    .values({ schluessel, wert, aktualisiert: Date.now() })
+    .values({ ownerId: besitzer, schluessel, wert, aktualisiert: Date.now() })
     .onConflictDoUpdate({
-      target: einstellungen.schluessel,
+      target: [einstellungen.ownerId, einstellungen.schluessel],
       set: { wert, aktualisiert: Date.now() },
     })
     .run();
 }
 
-export function lesen(db: Db, env: ServerEnv): AssistentEinstellung {
-  const gespeichert = zeilen(db);
+export function lesen(db: Db, env: ServerEnv, besitzer: string): AssistentEinstellung {
+  const gespeichert = zeilen(db, besitzer);
   const roh = gespeichert.get(SCHLUESSEL_ZEILE);
   const klar = roh === undefined ? null : entschluesseln(roh, env.sessionSecret);
 
@@ -73,21 +81,27 @@ export function lesen(db: Db, env: ServerEnv): AssistentEinstellung {
 }
 
 /** Nur fuer den Vermittler. Der Klartext geht von hier direkt an OpenAI und nirgends sonst. */
-export function leseSchluessel(db: Db, env: ServerEnv): string | null {
-  const roh = zeilen(db).get(SCHLUESSEL_ZEILE);
+export function leseSchluessel(db: Db, env: ServerEnv, besitzer: string): string | null {
+  const roh = zeilen(db, besitzer).get(SCHLUESSEL_ZEILE);
   return roh === undefined ? null : entschluesseln(roh, env.sessionSecret);
 }
 
 export function setzen(
   db: Db,
   env: ServerEnv,
+  besitzer: string,
   eingabe: { schluessel?: unknown; modell?: unknown },
 ): AssistentEinstellung {
   if (eingabe.schluessel !== undefined) {
     if (typeof eingabe.schluessel !== "string" || eingabe.schluessel.trim() === "") {
       throw badRequest("assistent-schluessel-ungueltig", "The API key must be a non-empty string.");
     }
-    schreibe(db, SCHLUESSEL_ZEILE, verschluesseln(eingabe.schluessel.trim(), env.sessionSecret));
+    schreibe(
+      db,
+      besitzer,
+      SCHLUESSEL_ZEILE,
+      verschluesseln(eingabe.schluessel.trim(), env.sessionSecret),
+    );
   }
 
   if (eingabe.modell !== undefined) {
@@ -97,14 +111,18 @@ export function setzen(
         erlaubt: MODELLE.map((modell) => modell.id),
       });
     }
-    schreibe(db, MODELL_ZEILE, eingabe.modell as string);
+    schreibe(db, besitzer, MODELL_ZEILE, eingabe.modell as string);
   }
 
-  return lesen(db, env);
+  return lesen(db, env, besitzer);
 }
 
-/** Loescht den Schluessel. Das Modell bleibt stehen, es ist kein Geheimnis. */
-export function loeschen(db: Db, env: ServerEnv): AssistentEinstellung {
-  db.delete(einstellungen).where(eq(einstellungen.schluessel, SCHLUESSEL_ZEILE)).run();
-  return lesen(db, env);
+/** Loescht den Schluessel des Besitzers. Das Modell bleibt stehen, es ist kein Geheimnis. */
+export function loeschen(db: Db, env: ServerEnv, besitzer: string): AssistentEinstellung {
+  db.delete(einstellungen)
+    .where(
+      and(eq(einstellungen.ownerId, besitzer), eq(einstellungen.schluessel, SCHLUESSEL_ZEILE)),
+    )
+    .run();
+  return lesen(db, env, besitzer);
 }

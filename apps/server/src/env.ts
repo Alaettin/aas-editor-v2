@@ -46,6 +46,15 @@ export interface ServerEnv {
    * Pruefung jedes Weiterleitungssprungs gelten weiter. Leer heisst: nichts freigestellt.
    */
   readonly mcpNetzErlaubt: readonly string[];
+  /**
+   * Die oeffentliche Basis-Adresse, ohne abschliessenden Schraegstrich, oder `null`.
+   *
+   * Gesetzt, wird sie fuer die Download-Links des MCP-Servers und die Basis-Adresse des
+   * Repositories genommen, statt den vom Klienten gemeldeten `Host`-Kopf zu vertrauen. Der
+   * Host ist Nutzerdaten: ein untergeschobener Aufruf bekaeme sonst Links auf eine fremde
+   * Domain angezeigt (Sicherheitsaudit 11.08.2026, niedriger Befund).
+   */
+  readonly publicBaseUrl: string | null;
 }
 
 export class ConfigError extends Error {}
@@ -70,7 +79,15 @@ function number(name: string, value: string | undefined, fallback: number): numb
 
 export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
   const dataDir = resolve(source["DATA_DIR"] ?? "./data");
-  const ttlHours = number("SESSION_TTL_HOURS", source["SESSION_TTL_HOURS"], 720);
+  /*
+   * Vorgabe 12 Stunden (Sicherheitsaudit 11.08.2026, mittlerer Befund). Der Editor liest je
+   * Aufruf nur sein eigenes Cookie und fragt den Hub nicht; nimmt der Hub jemandem die
+   * Freischaltung, wirkt das erst, wenn die Editor-Sitzung ablaeuft. Kurz genug, dass ein
+   * Entzug am selben Tag greift, lang genug, dass niemand mitten in der Arbeit hinausfliegt.
+   * Vorher 720 Stunden (30 Tage). Auf dem Sliplane-Dienst steht der Wert fest gesetzt und
+   * muss dort von Hand gesenkt werden.
+   */
+  const ttlHours = number("SESSION_TTL_HOURS", source["SESSION_TTL_HOURS"], 12);
   const maxUploadMb = number("MAX_UPLOAD_MB", source["MAX_UPLOAD_MB"], 50);
 
   const rohModus = source["AUTH_MODE"] ?? "passwort";
@@ -125,5 +142,9 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
       .split(",")
       .map((eintrag) => eintrag.trim().toLowerCase())
       .filter((eintrag) => eintrag !== ""),
+    publicBaseUrl: (() => {
+      const roh = source["PUBLIC_BASE_URL"]?.trim();
+      return roh === undefined || roh === "" ? null : roh.replace(/\/+$/, "");
+    })(),
   };
 }

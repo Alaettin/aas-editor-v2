@@ -31,3 +31,10 @@ jobs:
       # Plan Abschnitt 10: bricht ab, wenn das initiale Bundle 250 KB gzip reisst
       - name: Bundle-Budget
         run: pnpm budget
+
+      # Bekannte Luecken in den Laufzeit-Abhaengigkeiten (Sicherheitsaudit 11.08.2026).
+      # Nur --prod: Dev-Werkzeuge wie drizzle-kit tragen eigene, die den Betrieb nicht
+      # betreffen. Ab "high" bricht der Lauf, damit eine ernste Luecke auffaellt, bevor sie
+      # ausgeliefert wird.
+      - name: Abhaengigkeiten pruefen
+        run: pnpm audit --prod --audit-level high

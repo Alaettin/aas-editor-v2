@@ -1,0 +1,19 @@
+# Woechentlich nach neuen Fassungen der Abhaengigkeiten sehen, damit transitive Luecken
+# nicht erst beim naechsten Audit auffallen (Sicherheitsaudit 11.08.2026).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Kleinkram gebuendelt, damit nicht ein Schwung einzelner PRs entsteht.
+      klein:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

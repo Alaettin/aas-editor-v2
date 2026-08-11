@@ -3,6 +3,12 @@ node_modules
 **/dist
 test-data
 .git
+# Geheimnisse gehoeren in keine Bauschicht. `.env` allein reichte nicht: `.env.bak` und
+# `ai_key.txt` wanderten ueber `COPY . .` in die Bauschicht (Sicherheitsaudit 11.08.2026).
 .env
+.env.*
+!.env.example
+*key*.txt
+*.pem
 data
 coverage

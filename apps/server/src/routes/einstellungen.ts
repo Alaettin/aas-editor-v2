@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Db } from "../db/client.js";
 import type { ServerEnv } from "../env.js";
 import { lesen, loeschen, setzen } from "../services/assistentEinstellung.js";
+import { besitzer } from "../services/projects.js";
 
 /**
  * Die Einstellungen des Assistenten.
@@ -14,13 +15,13 @@ export function einstellungsRoutes(app: FastifyInstance, db: Db, env: ServerEnv)
   app.register(async (scope) => {
     scope.addHook("preHandler", app.requireAuth);
 
-    scope.get("/api/einstellungen/assistent", () => lesen(db, env));
+    scope.get("/api/einstellungen/assistent", (req) => lesen(db, env, besitzer(req)));
 
     scope.put("/api/einstellungen/assistent", (req) => {
       const body = (req.body ?? {}) as { schluessel?: unknown; modell?: unknown };
-      return setzen(db, env, body);
+      return setzen(db, env, besitzer(req), body);
     });
 
-    scope.delete("/api/einstellungen/assistent", () => loeschen(db, env));
+    scope.delete("/api/einstellungen/assistent", (req) => loeschen(db, env, besitzer(req)));
   });
 }

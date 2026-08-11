@@ -38,6 +38,7 @@ interface Jwk {
 export interface IdToken {
   readonly iss: string;
   readonly aud: string | readonly string[];
+  readonly azp?: string;
   readonly sub: string;
   readonly exp: number;
   readonly iat: number;
@@ -69,12 +70,31 @@ async function holeJson(url: string): Promise<unknown> {
 
 export async function holeEntdeckung(aussteller: string): Promise<Entdeckung> {
   if (entdeckung && entdeckung.bis > Date.now()) return entdeckung.wert;
+  const erwartet = aussteller.replace(/\/$/, "");
   // Der OIDC-Pfad, nicht der OAuth-Pfad: nur er nennt das jwks_uri verlaesslich.
-  const wert = (await holeJson(
-    `${aussteller.replace(/\/$/, "")}/.well-known/openid-configuration`,
-  )) as Entdeckung;
+  const wert = (await holeJson(`${erwartet}/.well-known/openid-configuration`)) as Entdeckung;
   if (!wert.token_endpoint || !wert.jwks_uri || !wert.authorization_endpoint) {
     throw new OidcFehler("Die Entdeckung des Ausstellers ist unvollstaendig.");
+  }
+  /*
+   * Der `issuer` des Dokuments muss der konfigurierte sein. Sonst prueft der Token spaeter
+   * seinen `iss` gegen einen Wert, den das Dokument selbst bestimmt, und ein
+   * untergeschobenes Entdeckungsdokument koennte den Aussteller frei erklaeren
+   * (Sicherheitsaudit 11.08.2026, mittlerer Befund).
+   */
+  if (wert.issuer.replace(/\/$/, "") !== erwartet) {
+    throw new OidcFehler(
+      `Der issuer der Entdeckung (${wert.issuer}) ist nicht der konfigurierte (${erwartet}).`,
+    );
+  }
+  /*
+   * Alle Endpunkte muessen https sein, das Client-Geheimnis geht per Basic-Auth an
+   * token_endpoint. Ein manipuliertes Dokument leitete es sonst im Klartext um.
+   */
+  for (const punkt of [wert.authorization_endpoint, wert.token_endpoint, wert.jwks_uri]) {
+    if (!punkt.startsWith("https://")) {
+      throw new OidcFehler(`Ein Endpunkt der Entdeckung ist nicht https: ${punkt}.`);
+    }
   }
   entdeckung = { wert, bis: Date.now() + GEDAECHTNIS_MS };
   return wert;
@@ -238,6 +258,14 @@ export async function pruefeIdToken(
   const empfaenger = Array.isArray(nutzlast.aud) ? nutzlast.aud : [nutzlast.aud];
   if (!empfaenger.includes(konf.clientId)) {
     throw new OidcFehler("Das ID-Token ist nicht fuer diesen Client ausgestellt.");
+  }
+  /*
+   * Bei mehreren Empfaengern verlangt OIDC Core 3.1.3.7 (4)/(6) ein `azp`, das genau dieser
+   * Client ist. Ohne die Pruefung wuerde ein Token akzeptiert, das fuer den Editor **und**
+   * einen anderen Client ausgestellt wurde (Sicherheitsaudit 11.08.2026, mittlerer Befund).
+   */
+  if (empfaenger.length > 1 && nutzlast.azp !== konf.clientId) {
+    throw new OidcFehler("Das ID-Token nennt einen anderen berechtigten Client (azp).");
   }
   // Eine Minute Nachsicht fuer auseinanderlaufende Uhren, mehr nicht.
   const jetzt = Math.floor(Date.now() / 1000);

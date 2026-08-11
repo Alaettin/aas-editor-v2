@@ -1,6 +1,7 @@
 import { decodeIdentifier } from "@aas-editor/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Db } from "../db/client.js";
+import type { ServerEnv } from "../env.js";
 import { AppError, badRequest } from "../errors.js";
 import { parsePageQuery } from "../services/pagination.js";
 import { besitzer } from "../services/projects.js";
@@ -81,12 +82,14 @@ function decode(encoded: string): string {
  * unter `localhost:3200`, mal hinter Caddy unter `axon-editor.sliplane.app`. Ein fest
  * eingetragener Wert waere genau einmal richtig. `trustProxy` steht in `app.ts`.
  */
-function basisAdresse(req: FastifyRequest, repoId: string): string {
-  const host = req.headers.host ?? "localhost";
-  return `${req.protocol}://${host}/api/repo/${repoId}`;
+function basisAdresse(req: FastifyRequest, env: ServerEnv, repoId: string): string {
+  // PUBLIC_BASE_URL schlaegt den Host-Kopf, siehe die gleiche Stelle in `routes/mcp.ts`.
+  const wurzel =
+    env.publicBaseUrl ?? `${req.protocol}://${req.headers.host ?? "localhost"}`;
+  return `${wurzel}/api/repo/${repoId}`;
 }
 
-export function repositoryRoutes(app: FastifyInstance, db: Db): void {
+export function repositoryRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
   // --- oeffentlich ---------------------------------------------------------------------
   //
   // Ohne `requireAuth`. Die Ratenbegrenzung ist in `app.ts` angemeldet und wird hier nur
@@ -104,6 +107,12 @@ export function repositoryRoutes(app: FastifyInstance, db: Db): void {
         const roh = req.query as { limit?: unknown; cursor?: unknown; idShort?: unknown };
         try {
           const page = parsePageQuery(roh);
+          // Der Filter geht in die Abfrage; eine ueberlange Zeichenkette waere billiger Druck
+          // auf die Datenbank (Sicherheitsaudit 11.08.2026, niedriger Befund). idShorts sind
+          // kurz, 256 Zeichen sind grosszuegig.
+          if (typeof roh.idShort === "string" && roh.idShort.length > 256) {
+            return alsResult(reply, 400, "The idShort filter is too long.");
+          }
           const idShort = typeof roh.idShort === "string" && roh.idShort !== "" ? roh.idShort : null;
           const ergebnis = oeffentlicheListe(db, repoId, page, idShort);
           /*
@@ -157,12 +166,12 @@ export function repositoryRoutes(app: FastifyInstance, db: Db): void {
       const info = findeRepository(db, besitzer(req));
       return info === null
         ? null
-        : { ...info, basisAdresse: basisAdresse(req, info.id) };
+        : { ...info, basisAdresse: basisAdresse(req, env, info.id) };
     });
 
     scope.post("/api/repository", (req) => {
       const info = starteRepository(db, besitzer(req));
-      return { ...info, basisAdresse: basisAdresse(req, info.id) };
+      return { ...info, basisAdresse: basisAdresse(req, env, info.id) };
     });
 
     scope.get("/api/repository/submodels", (req) => {

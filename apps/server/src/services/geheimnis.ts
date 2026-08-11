@@ -24,8 +24,21 @@ const SALZ = "aas-editor:einstellungen:v1";
 const IV_LAENGE = 12;
 const MARKE_LAENGE = 16;
 
+/*
+ * Der abgeleitete Schluessel wird gemerkt. scrypt mit den Standardparametern kostet rund
+ * hundert Millisekunden, und ohne diesen Zwischenspeicher lief das bei **jedem** Lesen neu
+ * (Sicherheitsaudit 11.08.2026, niedriger Befund): ein authentifizierter Aufruf von
+ * `GET /api/einstellungen/assistent` wurde damit zu einem spuerbaren CPU-Hebel. Der
+ * Schluessel haengt allein am `sessionSecret`, deshalb reicht ein Eintrag je Wert.
+ */
+const abgeleitet = new Map<string, Buffer>();
+
 function ableiten(sessionSecret: string): Buffer {
-  return scryptSync(sessionSecret, SALZ, 32);
+  const gemerkt = abgeleitet.get(sessionSecret);
+  if (gemerkt !== undefined) return gemerkt;
+  const neu = scryptSync(sessionSecret, SALZ, 32);
+  abgeleitet.set(sessionSecret, neu);
+  return neu;
 }
 
 /** Liefert `iv.marke.geheimtext`, alles base64url, damit es in eine Textspalte passt. */

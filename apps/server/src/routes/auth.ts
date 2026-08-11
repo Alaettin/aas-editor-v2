@@ -1,4 +1,3 @@
-import rateLimit from "@fastify/rate-limit";
 import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from "fastify";
 import type { Db } from "../db/client.js";
 import type { ServerEnv } from "../env.js";
@@ -50,22 +49,21 @@ function setzeAnlauf(reply: FastifyReply, anlauf: Anlauf, env: ServerEnv): void 
 
 /**
  * Die Projekte aus der Zeit vor der Besitzertrennung (08.08.2026) tragen keinen Besitzer.
- * Der erste, der sich danach anmeldet, uebernimmt sie. Ein zweiter Aufruf findet nichts
- * mehr, die Uebernahme ist damit von selbst einmalig.
+ *
+ * Uebernommen werden sie **nur im Passwortbetrieb**, wo es genau einen Nutzer gibt
+ * (`einzelbenutzer`). Im OIDC-Betrieb ueber den Hub taete es sonst der erste beliebige
+ * Anmelder, und der bekaeme den gesamten Altbestand fremder Arbeit (Sicherheitsaudit
+ * 11.08.2026, niedriger Befund). Ein zweiter Aufruf findet nichts mehr, die Uebernahme ist
+ * damit von selbst einmalig.
  */
 function uebernimmBestand(db: Db, benutzerId: string, log: FastifyBaseLogger): void {
   const anzahl = uebernimmHerrenlose(db, benutzerId);
   if (anzahl > 0) log.info({ benutzer: benutzerId, anzahl }, "Herrenlose Projekte uebernommen");
 }
 
-export async function authRoutes(
-  app: FastifyInstance,
-  db: Db,
-  env: ServerEnv,
-): Promise<void> {
-  // Nur an diesen Routen, nicht global: die Ratenbegrenzung soll Anmeldeversuche bremsen,
-  // nicht das Blaettern in der Projektliste.
-  await app.register(rateLimit, { global: false });
+export function authRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {
+  // Die Ratenbegrenzung ist in `app.ts` angemeldet; die Anmelderouten hier nehmen sie nur
+  // ueber `config.rateLimit` in Anspruch.
 
   /**
    * Womit sich dieser Editor anmeldet. Ohne Anmeldung abrufbar, denn die Anmeldemaske
@@ -170,7 +168,8 @@ export async function authRoutes(
           { sub: benutzer.id, name: benutzer.name, exp: Date.now() + env.sessionTtlMs },
           env,
         );
-        uebernimmBestand(db, benutzer.id, req.log);
+        // Kein uebernimmBestand hier: im OIDC-Betrieb duerfte der herrenlose Altbestand
+        // nicht dem ersten Anmelder zufallen. Siehe die Erklaerung bei der Funktion.
         return await reply.redirect("/projekte", 302);
       } catch (ursache) {
         // Der Grund gehoert ins Protokoll, nicht in die Adresszeile: er nennt mitunter

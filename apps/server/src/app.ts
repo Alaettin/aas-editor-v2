@@ -6,6 +6,7 @@ import { openDatabase, type Db } from "./db/client.js";
 import { runMigrations } from "./db/migrate.js";
 import type { ServerEnv } from "./env.js";
 import { registerErrorHandler } from "./errors.js";
+import { installiereSicherheitskopfzeilen } from "./sicherheitskopfzeilen.js";
 import { assistentRoutes } from "./routes/assistent.js";
 import { authRoutes } from "./routes/auth.js";
 import { einstellungsRoutes } from "./routes/einstellungen.js";
@@ -40,9 +41,18 @@ export async function buildServer(
       level: env.logLevel,
       redact: ["req.headers.cookie", "req.headers.authorization"],
     },
-    // Ohne trustProxy sieht die Ratenbegrenzung hinter Caddy nur dessen Container-IP
-    // und sperrt beim ersten Fehlversuch alle aus.
-    trustProxy: true,
+    /*
+     * Genau **ein** vertrauter Sprung, nicht `true`.
+     *
+     * Ohne trustProxy saehe die Ratenbegrenzung hinter Caddy nur dessen Container-IP und
+     * sperrte beim ersten Fehlversuch alle aus. Mit `true` aber vertraut Fastify jedem
+     * Eintrag in `X-Forwarded-For`, und weil `req.ip` der Schluessel jeder Grenze ist, liesse
+     * sich mit einer gefaelschten Kopfzeile jede Ratenbegrenzung frei drehen
+     * (Sicherheitsaudit 11.08.2026, hoher Befund; lokal nachgemessen, dass die Eimer dann
+     * auseinanderfallen). `1` traut genau dem einen Vorschalter: lokal Caddy, auf Sliplane
+     * dessen Rand.
+     */
+    trustProxy: 1,
     bodyLimit: 64 * 1024 * 1024,
     /*
      * Der Router deckelt einen Pfadparameter von Haus aus auf **100 Zeichen**, und das ist
@@ -57,13 +67,17 @@ export async function buildServer(
      * untergekommen, weil die Testkennungen kurz sind. Ein Test mit einer echten
      * Hersteller-IRI haelt es jetzt fest (`test/repository.test.ts`), und die Gegenprobe
      * ohne diese Zeile schlaegt mit 414 an.
+     *
+     * Unter `routerOptions`, nicht als Direktfeld: Fastify 5 warnt sonst mit FSTDEP022 und
+     * entfernt den alten Weg in Fassung 6.
      */
-    maxParamLength: 2048,
+    routerOptions: { maxParamLength: 2048 },
   });
 
   // Der SPA-Fallback haengt am 404-Handler, und den gibt es nur einmal je Instanz.
   const hatFrontend = frontendFolder !== undefined && frontendVorhanden(frontendFolder);
   registerErrorHandler(app, hatFrontend);
+  installiereSicherheitskopfzeilen(app, env.production);
   await installAuth(app, env);
   await app.register(multipart, { limits: { fileSize: env.maxUploadBytes, files: 1 } });
   /*
@@ -76,13 +90,13 @@ export async function buildServer(
   await app.register(rateLimit, { global: false });
 
   healthRoutes(app, db);
-  await authRoutes(app, db, env);
+  authRoutes(app, db, env);
   projectRoutes(app, db);
   fileRoutes(app, db, env);
   submodelRoutes(app, db);
-  repositoryRoutes(app, db);
+  repositoryRoutes(app, db, env);
   einstellungsRoutes(app, db, env);
-  await assistentRoutes(app, db, env);
+  assistentRoutes(app, db, env);
   // Ohne requireAuth und ohne db: der MCP-Zugang ist eine Werkbank ueber
   // @aas-editor/core, kein Fernzugriff auf die Ablage. Siehe routes/mcp.ts.
   await mcpRoutes(app, env);

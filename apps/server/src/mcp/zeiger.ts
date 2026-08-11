@@ -28,6 +28,17 @@ export interface Patch {
 export class ZeigerFehler extends Error {}
 
 /**
+ * Segmente, die auf den Prototyp zielen und deshalb nie ein Feldname sein duerfen.
+ *
+ * Ohne diese Sperre traegt ein Patch auf `/__proto__/x` in `Object.prototype` ein, weil
+ * `aktuell["__proto__"]` den geerbten Prototyp liefert und die spaetere Zuweisung dort
+ * landet. Das wirkt prozessweit und ist ueber den unangemeldeten `entwurf_aendern` von
+ * aussen erreichbar (Sicherheitsaudit 11.08.2026, kritischer Befund). `constructor` und
+ * `prototype` sind derselbe Weg ein Glied weiter.
+ */
+const VERBOTENE_SEGMENTE = new Set(["__proto__", "constructor", "prototype"]);
+
+/**
  * Die Segmente eines Zeigers, mit aufgeloester Maskierung.
  *
  * `~1` steht fuer `/` und `~0` fuer `~`, und die Reihenfolge ist nicht beliebig: erst `~1`,
@@ -41,7 +52,15 @@ export function segmente(pfad: string): string[] {
   return pfad
     .slice(1)
     .split("/")
-    .map((teil) => teil.replace(/~1/g, "/").replace(/~0/g, "~"));
+    .map((teil) => teil.replace(/~1/g, "/").replace(/~0/g, "~"))
+    .map((teil) => {
+      if (VERBOTENE_SEGMENTE.has(teil)) {
+        throw new ZeigerFehler(
+          `"${teil}" ist als Segment nicht erlaubt: es zeigt auf den Prototyp und nicht auf ein Feld.`,
+        );
+      }
+      return teil;
+    });
 }
 
 function istObjekt(wert: JsonValue | undefined): wert is JsonObject {
@@ -64,7 +83,8 @@ export function lies(wurzel: JsonValue, pfad: string): JsonValue | undefined {
       const index = alsIndex(segment, aktuell.length - 1);
       aktuell = index === null ? undefined : aktuell[index];
     } else if (istObjekt(aktuell)) {
-      aktuell = aktuell[segment];
+      // Nur eigene Felder: ein geerbtes (etwa "toString") ist kein Inhalt des Environments.
+      aktuell = Object.hasOwn(aktuell, segment) ? aktuell[segment] : undefined;
     } else {
       return undefined;
     }
@@ -85,7 +105,7 @@ function elternteil(wurzel: JsonValue, teile: readonly string[], pfad: string): 
     if (Array.isArray(aktuell)) {
       const index = alsIndex(segment, aktuell.length - 1);
       naechster = index === null ? undefined : aktuell[index];
-    } else if (istObjekt(aktuell)) {
+    } else if (istObjekt(aktuell) && Object.hasOwn(aktuell, segment)) {
       naechster = aktuell[segment];
     }
     if (naechster === undefined || naechster === null) {

@@ -463,6 +463,11 @@ function Zeile({
             <iframe
               src={`${geladen.url}#toolbar=0&navpanes=0&view=FitH`}
               title={beschriftung}
+              // Die Bytes stammen aus einer beliebigen hochgeladenen AASX. Eine Blob-URL
+              // erbt die Herkunft der Seite; ohne sandbox liefe darin enthaltenes Skript
+              // gleichherkuenftig (Sicherheitsaudit 11.08.2026). Kein `allow-same-origin`,
+              // die Anzeige eines PDF braucht es nicht.
+              sandbox=""
               className="h-[520px] w-full border-0 bg-canvas"
             />
           ) : (

@@ -1,7 +1,16 @@
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import type { ServerEnv } from "../env.js";
+import { AppError } from "../errors.js";
 
 /**
  * Kurzlebige Dateiablage fuer den MCP-Server, in beide Richtungen.
@@ -30,6 +39,17 @@ import type { ServerEnv } from "../env.js";
  * an dem noch gearbeitet wird, erst recht.
  */
 export const TAG_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Obergrenzen je Ablage, gegen das Volllaufen des Volumes.
+ *
+ * Der MCP-Zugang ist unangemeldet: ohne diese Grenzen legt ein Anrufer, der die Adresse
+ * kennt, in der 24-Stunden-Frist beliebig viele 25-MB-Anhaenge ab, bis die Platte voll ist
+ * (Sicherheitsaudit 11.08.2026, mittlerer Befund). Gedeckelt wird an der Zahl **und** an der
+ * Summe: viele kleine Dateien fuellen sonst das Verzeichnis, wenige grosse den Platz.
+ */
+export const MAX_EINTRAEGE = 200;
+export const MAX_GESAMT_BYTES = 500 * 1024 * 1024;
 
 export interface AblageInfo {
   readonly token: string;
@@ -151,6 +171,33 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
     return entfernt;
   };
 
+  /**
+   * Weist einen neuen Eintrag ab, wenn die Ablage sonst zu voll wuerde. Zu rufen **nach**
+   * `raeumeAuf`, damit Abgelaufenes nicht mitzaehlt. Der Fehler ist ein 507 (Insufficient
+   * Storage) und kein 5xx-Serverfehler: der Grund ist bekannt und gehoert benannt, nicht
+   * hinter "Unexpected server error" versteckt.
+   */
+  const pruefeQuote = (pfad: string, neueBytes: number): void => {
+    let anzahl = 0;
+    let summe = 0;
+    for (const name of readdirSync(pfad)) {
+      if (!name.endsWith(".bin")) continue;
+      anzahl += 1;
+      try {
+        summe += statSync(resolve(pfad, name)).size;
+      } catch {
+        // Zwischen readdir und stat weggeraeumt: dann zaehlt die Datei eben nicht mit.
+      }
+    }
+    if (anzahl >= MAX_EINTRAEGE || summe + neueBytes > MAX_GESAMT_BYTES) {
+      throw new AppError(
+        507,
+        "ablage-voll",
+        "The temporary storage is full. Try again later once entries have expired.",
+      );
+    }
+  };
+
   return {
     lebensdauerMs,
     raeumeAuf,
@@ -158,6 +205,7 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
     ablegen(datei) {
       const pfad = ordner();
       raeumeAuf();
+      pruefeQuote(pfad, datei.bytes.byteLength);
 
       const token = neuerToken();
       const kopf: Kopf = {

@@ -36,6 +36,33 @@ describe("segmente", () => {
   it("verlangt den fuehrenden Schraegstrich", () => {
     expect(() => segmente("submodels/0")).toThrow(ZeigerFehler);
   });
+
+  it("lehnt die Segmente ab, die auf den Prototyp zielen", () => {
+    // Sicherheitsaudit 11.08.2026, kritischer Befund: ohne diese Sperre schreibt ein Patch
+    // auf /__proto__/x in Object.prototype.
+    for (const boese of ["/__proto__", "/__proto__/x", "/constructor/prototype/x", "/a/prototype"]) {
+      expect(() => segmente(boese), boese).toThrow(ZeigerFehler);
+    }
+  });
+});
+
+describe("Prototypenvergiftung", () => {
+  it("laesst Object.prototype unberuehrt und wirft statt zu schreiben", () => {
+    const vorher = ({} as Record<string, unknown>)["istVergiftet"];
+    expect(vorher).toBeUndefined();
+
+    expect(() =>
+      wendeAn({ submodels: [] }, [{ op: "setzen", pfad: "/__proto__/istVergiftet", wert: "ja" }]),
+    ).toThrow(ZeigerFehler);
+
+    // Der eigentliche Beweis: ein voellig fremdes Objekt hat das Feld nicht bekommen.
+    expect(({} as Record<string, unknown>)["istVergiftet"]).toBeUndefined();
+  });
+
+  it("liest ein geerbtes Feld nicht als Inhalt", () => {
+    // "toString" steht auf jedem Objekt, ist aber kein Feld des Environments.
+    expect(lies({ submodels: [] }, "/toString")).toBeUndefined();
+  });
 });
 
 describe("lies", () => {

@@ -1,6 +1,18 @@
 {
   "version": 1,
   "skills": {
+    "owasp-security": {
+      "source": "agamm/claude-code-owasp",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/owasp-security/SKILL.md",
+      "computedHash": "ef7052e4845942cdd299d4b9b3a9f3f5ba4653988e25dd40fdad33e54fee7249"
+    },
+    "semgrep": {
+      "source": "trailofbits/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/static-analysis/skills/semgrep/SKILL.md",
+      "computedHash": "141471b8b7b9100ce5ff8614eb932f0f2cfc5a2bce9e00226c09bf3231e2b6ca"
+    },
     "shadcn": {
       "source": "shadcn-ui/ui",
       "sourceType": "github",
