@@ -6,6 +6,7 @@ import { startTestServer, type TestServer } from "./helpers/app.js";
 import {
   anhang,
   GUELTIG,
+  MCP_AUSWEIS,
   MIT_ANHANG,
   multipart,
   PDF_BASE64,
@@ -321,6 +322,7 @@ describe("Anhaenge in aas_datei_erzeugen", () => {
     const download = await app.inject({
       method: "GET",
       url: new URL(String(daten["url"])).pathname,
+      headers: MCP_AUSWEIS,
     });
     const gelesen = await importFile(new Uint8Array(download.rawPayload), "mit-anhang.aasx");
     expect([...gelesen.attachments.keys()].sort()).toEqual([
@@ -558,6 +560,7 @@ describe("aas_datei_lesen erhaelt die Anhaenge", () => {
     const download = await app.inject({
       method: "GET",
       url: new URL(String(erzeugt.daten["url"])).pathname,
+      headers: MCP_AUSWEIS,
     });
 
     /*

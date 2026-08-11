@@ -206,29 +206,33 @@ function base64urlZuJson(teil: string): Record<string, unknown> {
 }
 
 /**
- * Prueft das ID-Token vollstaendig: Signatur, Aussteller, Empfaenger, Ablauf und `nonce`.
+ * Prueft ein JWT des Ausstellers: Signatur, `iss`, `exp`, `iat`. Mehr nicht.
+ *
+ * Der gemeinsame Kern von ID-Token und Zugriffstoken. Was darueber hinaus gilt, haengt an
+ * der Art des Tokens und steht beim jeweiligen Aufrufer: das ID-Token braucht `aud`, `azp`
+ * und `nonce` (siehe unten), das Zugriffstoken am MCP-Zugang die Bindung an einen
+ * zugelassenen Client (siehe `mcp/zugang.ts`).
  *
  * Die Reihenfolge ist Absicht. Erst die Signatur, dann der Inhalt: alles andere hiesse,
  * Ansprueche zu glauben, die noch niemand beglaubigt hat.
  */
-export async function pruefeIdToken(
-  konf: Konfiguration,
-  idToken: string,
-  nonce: string,
-): Promise<IdToken> {
-  const teile = idToken.split(".");
-  if (teile.length !== 3) throw new OidcFehler("Das ID-Token hat nicht drei Teile.");
+export async function pruefeJwt(
+  aussteller: string,
+  token: string,
+): Promise<Record<string, unknown>> {
+  const teile = token.split(".");
+  if (teile.length !== 3) throw new OidcFehler("Das Token hat nicht drei Teile.");
   const [kopfTeil, nutzlastTeil, signaturTeil] = teile as [string, string, string];
 
   const kopf = base64urlZuJson(kopfTeil) as { alg?: string; kid?: string };
-  if (!kopf.kid) throw new OidcFehler("Dem ID-Token fehlt die Schluesselkennung.");
+  if (!kopf.kid) throw new OidcFehler("Dem Token fehlt die Schluesselkennung.");
   if (kopf.alg !== "ES256" && kopf.alg !== "RS256") {
     // HS256 waere symmetrisch: der Aussteller und wir teilten dann ein Geheimnis, und
     // jeder, der es hat, koennte Token erfinden. Der Hub steht auf ES256.
     throw new OidcFehler(`Unerwartetes Signaturverfahren: ${String(kopf.alg)}.`);
   }
 
-  const { jwks_uri, issuer } = await holeEntdeckung(konf.aussteller);
+  const { jwks_uri, issuer } = await holeEntdeckung(aussteller);
   const jwk = await holeSchluessel(jwks_uri, kopf.kid);
 
   const istEc = kopf.alg === "ES256";
@@ -248,13 +252,36 @@ export async function pruefeIdToken(
     Buffer.from(signaturTeil, "base64url"),
     Buffer.from(`${kopfTeil}.${nutzlastTeil}`),
   );
-  if (!gueltig) throw new OidcFehler("Die Signatur des ID-Tokens stimmt nicht.");
+  if (!gueltig) throw new OidcFehler("Die Signatur des Tokens stimmt nicht.");
 
-  const nutzlast = base64urlZuJson(nutzlastTeil) as unknown as IdToken;
+  const nutzlast = base64urlZuJson(nutzlastTeil);
 
-  if (nutzlast.iss !== issuer) {
-    throw new OidcFehler(`Fremder Aussteller: ${String(nutzlast.iss)}.`);
+  if (nutzlast["iss"] !== issuer) {
+    throw new OidcFehler(`Fremder Aussteller: ${String(nutzlast["iss"])}.`);
   }
+  // Eine Minute Nachsicht fuer auseinanderlaufende Uhren, mehr nicht.
+  const jetzt = Math.floor(Date.now() / 1000);
+  const exp = nutzlast["exp"];
+  const iat = nutzlast["iat"];
+  if (typeof exp !== "number" || exp + 60 < jetzt) {
+    throw new OidcFehler("Das Token ist abgelaufen.");
+  }
+  if (typeof iat === "number" && iat - 60 > jetzt) {
+    throw new OidcFehler("Das Token stammt aus der Zukunft.");
+  }
+  return nutzlast;
+}
+
+/**
+ * Prueft das ID-Token vollstaendig: Signatur, Aussteller, Empfaenger, Ablauf und `nonce`.
+ */
+export async function pruefeIdToken(
+  konf: Konfiguration,
+  idToken: string,
+  nonce: string,
+): Promise<IdToken> {
+  const nutzlast = (await pruefeJwt(konf.aussteller, idToken)) as unknown as IdToken;
+
   const empfaenger = Array.isArray(nutzlast.aud) ? nutzlast.aud : [nutzlast.aud];
   if (!empfaenger.includes(konf.clientId)) {
     throw new OidcFehler("Das ID-Token ist nicht fuer diesen Client ausgestellt.");
@@ -266,14 +293,6 @@ export async function pruefeIdToken(
    */
   if (empfaenger.length > 1 && nutzlast.azp !== konf.clientId) {
     throw new OidcFehler("Das ID-Token nennt einen anderen berechtigten Client (azp).");
-  }
-  // Eine Minute Nachsicht fuer auseinanderlaufende Uhren, mehr nicht.
-  const jetzt = Math.floor(Date.now() / 1000);
-  if (typeof nutzlast.exp !== "number" || nutzlast.exp + 60 < jetzt) {
-    throw new OidcFehler("Das ID-Token ist abgelaufen.");
-  }
-  if (typeof nutzlast.iat === "number" && nutzlast.iat - 60 > jetzt) {
-    throw new OidcFehler("Das ID-Token stammt aus der Zukunft.");
   }
   if (!nutzlast.nonce || !gleich(nutzlast.nonce, nonce)) {
     // Ohne diese Pruefung koennte ein aufgefangenes Token ein zweites Mal eingeloest

@@ -1,5 +1,6 @@
 import { decodeIdentifier } from "@aas-editor/core";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { wurzelVon } from "../basisUrl.js";
 import type { Db } from "../db/client.js";
 import type { ServerEnv } from "../env.js";
 import { AppError, badRequest } from "../errors.js";
@@ -75,18 +76,9 @@ function decode(encoded: string): string {
   }
 }
 
-/**
- * Die Basis-Adresse, aus der Anfrage abgeleitet.
- *
- * Dieselbe Ueberlegung wie bei den Download-Links des MCP-Zugangs: der Server steht mal
- * unter `localhost:3200`, mal hinter Caddy unter `axon-editor.sliplane.app`. Ein fest
- * eingetragener Wert waere genau einmal richtig. `trustProxy` steht in `app.ts`.
- */
+/** Die Basis-Adresse dieses Repositories. Die Wurzel dahinter steht in `basisUrl.ts`. */
 function basisAdresse(req: FastifyRequest, env: ServerEnv, repoId: string): string {
-  // PUBLIC_BASE_URL schlaegt den Host-Kopf, siehe die gleiche Stelle in `routes/mcp.ts`.
-  const wurzel =
-    env.publicBaseUrl ?? `${req.protocol}://${req.headers.host ?? "localhost"}`;
-  return `${wurzel}/api/repo/${repoId}`;
+  return `${wurzelVon(req, env)}/api/repo/${repoId}`;
 }
 
 export function repositoryRoutes(app: FastifyInstance, db: Db, env: ServerEnv): void {

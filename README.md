@@ -161,10 +161,27 @@ pnpm vorlagen     # meldet, wenn die IDTA eine neuere Fassung veroeffentlicht ha
 Zur Laufzeit fragt der Server beim Herausgeber **nichts** nach. Die Pruefung ist ein
 Handgriff, kein Automatismus, und haengt bewusst nicht an der CI.
 
-Anbinden:
+### Der Zugang ist angemeldet
+
+Seit dem 11.08.2026 verlangt `/api/mcp` einen Ausweis. Es gibt zwei Tueren und dahinter
+eine Pruefung (`apps/server/src/mcp/zugang.ts`).
+
+**claude.ai: OAuth ueber AXON Studio.** Der Editor stellt keine Token aus, er prueft sie;
+ausgestellt hat sie der Hub. Im Verbindungsdialog die Adresse eintragen und unter den
+erweiterten Einstellungen die OAuth-Client-ID und das Geheimnis des Clients, der im Hub
+fuer claude.ai angelegt ist (Umgebung `connector`, Rueckweg
+`https://claude.ai/api/mcp/auth_callback`). Diese beiden Felder sind der Ausweis der
+**Anwendung**, nicht der des Menschen: angemeldet wird man danach auf der
+Zustimmungsseite des Hubs, mit der gewohnten Hub-Adresse und dem Hub-Passwort.
+
+**Shell und Claude Code: fester Bearer-Token.** Kein Notnagel, sondern die einzige
+Moeglichkeit. Claude Code braucht Dynamic Client Registration oder ein
+Client-ID-Metadata-Dokument und eine portunabhaengige Rueckleitung auf `localhost`; nichts
+davon bietet der Hub an.
 
 ```bash
-claude mcp add --transport http axon-editor http://localhost:3200/api/mcp
+claude mcp add --transport http axon-editor http://localhost:3200/api/mcp \
+  --header "Authorization: Bearer $MCP_TOKEN"
 ```
 
 Nachsehen, ob er antwortet:
@@ -173,18 +190,25 @@ Nachsehen, ob er antwortet:
 curl -s -X POST http://localhost:3200/api/mcp \
   -H "content-type: application/json" \
   -H "accept: application/json, text/event-stream" \
+  -H "authorization: Bearer $MCP_TOKEN" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-**Der Zugang ist nicht abgesichert.** Wer die Adresse kennt, kann pruefen, umwandeln,
-Dateien erzeugen und Anhaenge hochladen; Projekte, deren Anhaenge und die Einstellungen
-sind nicht erreichbar, die Werkzeuge sehen `db` gar nicht. Fuer claude.ai braucht es
-ohnehin OAuth: feste Bearer-Token nimmt dort nur ein Beta-Feld entgegen, das nicht bei
-jedem freigeschaltet ist.
+Ohne Ausweis kommt ein 401 mit der Aufforderung nach RFC 6750, die auf das Dokument nach
+RFC 9728 unter `/.well-known/oauth-protected-resource/api/mcp` zeigt. Bleibt eine
+Verbindung in claude.ai mit "Couldn't reach the MCP server" stehen, ist fast immer dieses
+Dokument schuld und nicht die Anmeldung: der `resource`-Eintrag darin muss **buchstaben-
+genau** die Adresse sein, die im Dialog steht. In Produktion sorgt `PUBLIC_BASE_URL` dafuer.
+Die verraeterische Spur ist, dass der Editor die Anfrage sieht und der Hub gar keine.
+
+Was der Zugang **nicht** kann, ist unveraendert: Projekte, deren Anhaenge und die
+Einstellungen sind unerreichbar, die Werkzeuge bekommen `db` gar nicht erst zu sehen.
 
 Erzeugte Dateien liegen unter `DATA_DIR/mcp-ausgabe`, hochgeladene unter
-`DATA_DIR/mcp-anhaenge`. Beide leben eine Stunde und werden beim Start und bei jedem
-Ablegen weggeraeumt.
+`DATA_DIR/mcp-anhaenge`, Entwuerfe unter `DATA_DIR/mcp-entwuerfe`. Alle drei leben 24
+Stunden und werden beim Start und bei jedem Ablegen weggeraeumt. Der Token darin ist die
+Adresse, aber nicht mehr die Berechtigung: jeder Eintrag gehoert dem, der ihn angelegt
+hat, und ein Download-Link laesst sich nicht weitergeben.
 
 ## Pruefen
 

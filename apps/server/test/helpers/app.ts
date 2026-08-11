@@ -17,6 +17,15 @@ import { readEnv, type ServerEnv } from "../../src/env.js";
 export const BENUTZER = "pruefer";
 export const PASSWORT = "geheim-genug";
 
+/**
+ * Der feste Bearer-Token der Abnahme.
+ *
+ * Die Vorgabe ist `MCP_AUTH=an`, und das gilt auch hier: liefe die Abnahme grundsaetzlich
+ * mit offenem Zugang, prueften die MCP-Tests einen Server, den es so nirgends gibt. Wer
+ * den offenen Fall braucht, setzt `MCP_AUTH: "offen"` als Override.
+ */
+export const MCP_TOKEN = "abnahme-token-lang-genug-fuer-die-pruefung";
+
 const MIGRATIONS = fileURLToPath(new URL("../../drizzle", import.meta.url));
 
 export interface TestServer {
@@ -38,13 +47,20 @@ export async function startTestServer(overrides: Record<string, string> = {}): P
     AUTH_USERNAME: BENUTZER,
     AUTH_PASSWORD: PASSWORT,
     SESSION_SECRET: "test-geheimnis-lang-genug",
+    MCP_TOKEN,
     DATA_DIR: dir,
     LOG_LEVEL: "silent",
     ...overrides,
   } as NodeJS.ProcessEnv);
 
   const built = await buildServer(env, MIGRATIONS);
-  const cookie = await anmelden(built.app);
+  /*
+   * Im OIDC-Betrieb gibt es kein Anmeldeformular, und der Versuch endet in "Keine Sitzung
+   * erhalten". Dann bleibt das Cookie leer: wer den Hub braucht, kann ihn in einem
+   * Unit-Test ohnehin nicht haben, und die Tests, die diesen Betrieb einstellen, pruefen
+   * den MCP-Zugang und nicht die angemeldete Oberflaeche.
+   */
+  const cookie = env.authModus === "oidc" ? "" : await anmelden(built.app);
 
   return {
     app: built.app,

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildServer } from "../src/app.js";
 import { readEnv } from "../src/env.js";
+import { MCP_TOKEN } from "./helpers/app.js";
 
 /**
  * Der Server liefert das gebaute Frontend aus.
@@ -26,6 +27,7 @@ function umgebung() {
     AUTH_USERNAME: "pruefer",
     AUTH_PASSWORD: "geheim-genug",
     SESSION_SECRET: "test-geheimnis-lang-genug",
+    MCP_TOKEN,
     DATA_DIR: datenDir,
     LOG_LEVEL: "silent",
   } as NodeJS.ProcessEnv);

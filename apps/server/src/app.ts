@@ -17,6 +17,7 @@ import { projectRoutes } from "./routes/projects.js";
 import { repositoryRoutes } from "./routes/repository.js";
 import { frontendVorhanden, statischeDateien } from "./routes/statisch.js";
 import { submodelRoutes } from "./routes/submodels.js";
+import { wohlbekannteRoutes } from "./routes/wohlbekannt.js";
 
 export interface BuiltServer {
   readonly app: FastifyInstance;
@@ -97,9 +98,18 @@ export async function buildServer(
   repositoryRoutes(app, db, env);
   einstellungsRoutes(app, db, env);
   assistentRoutes(app, db, env);
-  // Ohne requireAuth und ohne db: der MCP-Zugang ist eine Werkbank ueber
-  // @aas-editor/core, kein Fernzugriff auf die Ablage. Siehe routes/mcp.ts.
+  // Ohne requireAuth und ohne db: der MCP-Zugang haengt an seiner eigenen Pruefung
+  // (mcp/zugang.ts) und ist eine Werkbank ueber @aas-editor/core, kein Fernzugriff auf die
+  // Ablage. Siehe routes/mcp.ts.
   await mcpRoutes(app, env);
+  // Muss offen bleiben: ein Klient liest die Metadaten, bevor er ein Token hat.
+  wohlbekannteRoutes(app, env);
+  if (!env.mcpAuth) {
+    app.log.warn(
+      "MCP_AUTH=offen: der MCP-Zugang nimmt jeden Anrufer an und legt alles unter einem " +
+        "gemeinsamen Eigentuemer ab. Nur fuer lokale Arbeit gedacht.",
+    );
+  }
 
   // Zuletzt, damit keine API-Route verdeckt wird.
   if (hatFrontend) await statischeDateien(app, frontendFolder as string);

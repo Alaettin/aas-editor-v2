@@ -47,6 +47,29 @@ export interface ServerEnv {
    */
   readonly mcpNetzErlaubt: readonly string[];
   /**
+   * Verlangt der MCP-Zugang eine Anmeldung? Vorgabe ja.
+   *
+   * `MCP_AUTH=offen` ist der ausdrueckliche Verzicht fuer lokale Arbeit und wird beim Start
+   * als Warnung protokolliert. Die Vorgabe steht auf "an", weil die andere Richtung, ein
+   * vergessener Wert und ein offener Zugang, unbemerkt bleibt.
+   */
+  readonly mcpAuth: boolean;
+  /**
+   * Der feste Bearer-Token fuer Shell und Abnahme, oder `null`.
+   *
+   * Claude Code kann den OAuth-Weg nicht gehen: der Hub bietet weder Dynamic Client
+   * Registration noch Client-ID-Metadata-Dokumente. Siehe `mcp/zugang.ts`.
+   */
+  readonly mcpToken: string | null;
+  /**
+   * Die OAuth-Clients, deren Zugriffstoken der MCP-Zugang annimmt.
+   *
+   * Der eigentliche Zaun. Bei Supabase steht in `aud` immer `authenticated`, die von der
+   * MCP-Spezifikation verlangte Bindung an den Empfaenger laeuft deshalb ueber `client_id`.
+   * Leer heisst: kein Token des Hubs wird angenommen, nur der feste Token.
+   */
+  readonly mcpClients: readonly string[];
+  /**
    * Die oeffentliche Basis-Adresse, ohne abschliessenden Schraegstrich, oder `null`.
    *
    * Gesetzt, wird sie fuer die Download-Links des MCP-Servers und die Basis-Adresse des
@@ -75,6 +98,14 @@ function number(name: string, value: string | undefined, fallback: number): numb
     throw new ConfigError(`${name} muss eine positive Zahl sein, gelesen wurde "${value}".`);
   }
   return parsed;
+}
+
+/** Eine kommagetrennte Aufzaehlung, kleingeschrieben und ohne leere Glieder. */
+function liste(value: string | undefined): string[] {
+  return (value ?? "")
+    .split(",")
+    .map((eintrag) => eintrag.trim().toLowerCase())
+    .filter((eintrag) => eintrag !== "");
 }
 
 export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
@@ -123,6 +154,38 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     ? required("AUTH_PASSWORD", source["AUTH_PASSWORD"])
     : (source["AUTH_PASSWORD"] ?? "");
 
+  const rohMcpAuth = source["MCP_AUTH"] ?? "an";
+  if (rohMcpAuth !== "an" && rohMcpAuth !== "offen") {
+    throw new ConfigError(`MCP_AUTH muss "an" oder "offen" sein, gelesen wurde "${rohMcpAuth}".`);
+  }
+  const mcpAuth = rohMcpAuth === "an";
+
+  /*
+   * Ein kurzer Token ist kein Token. 32 Zeichen sind die Untergrenze, unter der ein
+   * Wert erratbar wird, und ein `MCP_TOKEN=test` in einer Produktionsumgebung soll den
+   * Start abbrechen und nicht jahrelang unbemerkt offen stehen.
+   */
+  const rohMcpToken = source["MCP_TOKEN"]?.trim();
+  const mcpToken = rohMcpToken === undefined || rohMcpToken === "" ? null : rohMcpToken;
+  if (mcpToken !== null && mcpToken.length < 32) {
+    throw new ConfigError(
+      `MCP_TOKEN ist mit ${String(mcpToken.length)} Zeichen zu kurz, mindestens 32 sind noetig.`,
+    );
+  }
+
+  const mcpClients = liste(source["MCP_CLIENTS"]);
+
+  /*
+   * Ein Server, der niemanden hereinlassen kann, soll nicht gesund aussehen. Dieselbe
+   * Haltung wie bei den vier OIDC-Pflichtwerten weiter oben.
+   */
+  if (mcpAuth && mcpToken === null && (oidc === null || mcpClients.length === 0)) {
+    throw new ConfigError(
+      "MCP_AUTH=an, aber es gibt keinen Weg herein: entweder MCP_TOKEN setzen oder " +
+        "AUTH_MODE=oidc zusammen mit MCP_CLIENTS.",
+    );
+  }
+
   return {
     port: number("PORT", source["PORT"], 3200),
     host: source["HOST"] ?? "0.0.0.0",
@@ -138,10 +201,10 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): ServerEnv {
     sessionSecret: required("SESSION_SECRET", source["SESSION_SECRET"]),
     sessionTtlMs: ttlHours * 60 * 60 * 1000,
     maxUploadBytes: maxUploadMb * 1024 * 1024,
-    mcpNetzErlaubt: (source["MCP_NETZ_ERLAUBT"] ?? "")
-      .split(",")
-      .map((eintrag) => eintrag.trim().toLowerCase())
-      .filter((eintrag) => eintrag !== ""),
+    mcpNetzErlaubt: liste(source["MCP_NETZ_ERLAUBT"]),
+    mcpAuth,
+    mcpToken,
+    mcpClients,
     publicBaseUrl: (() => {
       const roh = source["PUBLIC_BASE_URL"]?.trim();
       return roh === undefined || roh === "" ? null : roh.replace(/\/+$/, "");

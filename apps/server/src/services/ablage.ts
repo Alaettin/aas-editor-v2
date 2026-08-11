@@ -27,8 +27,13 @@ import { AppError } from "../errors.js";
  * einen Neustart, ein Speicher-Map taete das nicht, und ein Link, der nach einem Deploy
  * ins Leere zeigt, waere die haesslichste Art, diese Funktion kaputt zu machen.
  *
- * Der Token ist die einzige Adresse. Es gibt kein Verzeichnislisting, und 32 zufaellige
- * Bytes sind nicht zu raten.
+ * Der Token ist die Adresse, **nicht mehr die Berechtigung**. Bis zum 11.08.2026 war er
+ * beides: wer einen Entwurfs-Token kannte, konnte ihn lesen und ueberschreiben, gleich wer
+ * ihn angelegt hatte. Solange der Zugang unangemeldet war, fiel das nicht auf, weil es
+ * ohnehin nur einen Anrufer gab. Seit es angemeldete Nutzer gibt, waere es eine Luecke
+ * zwischen ihnen, und deshalb traegt jeder Eintrag jetzt seinen Eigentuemer.
+ *
+ * Es gibt kein Verzeichnislisting, und 32 zufaellige Bytes sind nicht zu raten.
  */
 
 /**
@@ -43,10 +48,12 @@ export const TAG_MS = 24 * 60 * 60 * 1000;
 /**
  * Obergrenzen je Ablage, gegen das Volllaufen des Volumes.
  *
- * Der MCP-Zugang ist unangemeldet: ohne diese Grenzen legt ein Anrufer, der die Adresse
- * kennt, in der 24-Stunden-Frist beliebig viele 25-MB-Anhaenge ab, bis die Platte voll ist
- * (Sicherheitsaudit 11.08.2026, mittlerer Befund). Gedeckelt wird an der Zahl **und** an der
- * Summe: viele kleine Dateien fuellen sonst das Verzeichnis, wenige grosse den Platz.
+ * Ohne diese Grenzen legt ein Anrufer in der 24-Stunden-Frist beliebig viele 25-MB-Anhaenge
+ * ab, bis die Platte voll ist (Sicherheitsaudit 11.08.2026, mittlerer Befund). Sie gelten
+ * weiter, seit der Zugang angemeldet ist: die Grenzen sind nicht gegen Unbekannte gerichtet,
+ * sondern gegen ein volles Volume, und das laeuft mit Anmeldung genauso voll. Gedeckelt wird
+ * an der Zahl **und** an der Summe: viele kleine Dateien fuellen sonst das Verzeichnis,
+ * wenige grosse den Platz. Die Grenze gilt je Ablage, nicht je Nutzer.
  */
 export const MAX_EINTRAEGE = 200;
 export const MAX_GESAMT_BYTES = 500 * 1024 * 1024;
@@ -81,29 +88,41 @@ export interface Ablage {
     bytes: Uint8Array;
     dateiname: string;
     contentType: string;
+    /** Wem der Eintrag gehoert. Nur dieser Anrufer bekommt ihn je wieder zu sehen. */
+    eigentuemer: string;
     unvollstaendig?: boolean;
     teil?: number;
   }): AblageInfo;
-  /** Der Eintrag, oder `null` fuer unbekannt, abgelaufen und verunstaltet. */
-  abrufen(token: string, jetzt?: number): Abruf | null;
+  /**
+   * Der Eintrag, oder `null` fuer unbekannt, abgelaufen, verunstaltet **und fremd**.
+   *
+   * Die vier Faelle bekommen absichtlich dieselbe Antwort. Ein eigener Fehler fuer "gibt es,
+   * gehoert aber jemand anderem" verriete, dass der Token echt ist, und damit genau das,
+   * was der Token verbergen soll.
+   */
+  abrufen(token: string, eigentuemer: string, jetzt?: number): Abruf | null;
   /**
    * Neue Bytes unter demselben Token, mit **frischer** Frist.
    *
    * Gleitende Haltbarkeit, und das ist hier keine Bequemlichkeit: ein Entwurf, an dem
    * gerade gearbeitet wird, darf nicht mitten in der Arbeit ablaufen. `null` heisst, dass
-   * der Token unbekannt oder bereits abgelaufen war; dann entsteht auch keiner.
+   * der Token unbekannt, abgelaufen oder fremd war; dann entsteht auch keiner.
    *
    * `zusatz` schreibt den Zustand eines stueckweisen Uploads fort. Was nicht darin steht,
    * bleibt stehen; `unvollstaendig: false` schliesst ab.
    */
   aktualisieren(
     token: string,
+    eigentuemer: string,
     bytes: Uint8Array,
     zusatz?: { unvollstaendig?: boolean; teil?: number },
     jetzt?: number,
   ): AblageInfo | null;
-  /** Einen Eintrag samt Bytes entfernen. Fuer einen Upload, der die Pruefung nicht besteht. */
-  verwerfen(token: string): void;
+  /**
+   * Einen Eintrag samt Bytes entfernen. Fuer einen Upload, der die Pruefung nicht besteht.
+   * Ein fremder Eintrag bleibt unberuehrt.
+   */
+  verwerfen(token: string, eigentuemer: string): void;
   raeumeAuf(jetzt?: number): number;
 }
 
@@ -111,6 +130,15 @@ interface Kopf {
   readonly dateiname: string;
   readonly contentType: string;
   readonly erstellt: number;
+  /**
+   * Wem der Eintrag gehoert.
+   *
+   * Optional im Typ, aber nicht in der Sache: seit dem 11.08.2026 schreibt `ablegen` das
+   * Feld immer. Fehlt es, stammt der Eintrag aus der Zeit davor, und dann gehoert er
+   * niemandem und ist damit fuer niemanden mehr abrufbar. Eine Wanderung braucht es dafuer
+   * nicht, die Frist steht bei 24 Stunden.
+   */
+  readonly eigentuemer?: string;
   readonly unvollstaendig?: boolean;
   readonly teil?: number;
 }
@@ -212,6 +240,7 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
         dateiname: datei.dateiname,
         contentType: datei.contentType,
         erstellt: Date.now(),
+        eigentuemer: datei.eigentuemer,
         ...(datei.unvollstaendig === true ? { unvollstaendig: true } : {}),
         ...(datei.teil === undefined ? {} : { teil: datei.teil }),
       };
@@ -223,11 +252,12 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
       return { token, ...kopf, groesse: datei.bytes.byteLength };
     },
 
-    abrufen(token, jetzt = Date.now()) {
+    abrufen(token, eigentuemer, jetzt = Date.now()) {
       if (!istToken(token)) return null;
       const pfad = ordner();
       const kopf = liesKopf(pfad, token);
       if (kopf === null || jetzt - kopf.erstellt >= lebensdauerMs) return null;
+      if (kopf.eigentuemer !== eigentuemer) return null;
 
       const bytesPfad = resolve(pfad, `${token}.bin`);
       if (!existsSync(bytesPfad)) return null;
@@ -236,13 +266,14 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
       return { info: { token, ...kopf, groesse: bytes.byteLength }, bytes };
     },
 
-    aktualisieren(token, bytes, zusatz, jetzt = Date.now()) {
+    aktualisieren(token, eigentuemer, bytes, zusatz, jetzt = Date.now()) {
       if (!istToken(token)) return null;
       const pfad = ordner();
       const kopf = liesKopf(pfad, token);
       // Ein abgelaufener Token wird nicht wiederbelebt: sonst brauchte es nur einen
       // Patch, um einen Entwurf beliebig lange am Leben zu halten.
       if (kopf === null || jetzt - kopf.erstellt >= lebensdauerMs) return null;
+      if (kopf.eigentuemer !== eigentuemer) return null;
 
       const neu: Kopf = { ...kopf, ...zusatz, erstellt: jetzt };
       // `unvollstaendig: false` gehoert nicht in die Datei, sondern heisst "Feld weg".
@@ -255,9 +286,12 @@ function ablageIn(env: ServerEnv, verzeichnis: string, lebensdauerMs: number): A
       return { token, ...neu, groesse: bytes.byteLength };
     },
 
-    verwerfen(token) {
+    verwerfen(token, eigentuemer) {
       if (!istToken(token)) return;
       const pfad = ordner();
+      // Auch das Wegwerfen ist ein Zugriff: sonst loescht ein fremder Token den Entwurf
+      // eines anderen, selbst wenn er ihn nie lesen konnte.
+      if (liesKopf(pfad, token)?.eigentuemer !== eigentuemer) return;
       rmSync(resolve(pfad, `${token}.json`), { force: true });
       rmSync(resolve(pfad, `${token}.bin`), { force: true });
     },

@@ -1,5 +1,16 @@
 import { expect } from "vitest";
 import type { FastifyInstance } from "fastify";
+import { MCP_TOKEN } from "./app.js";
+
+/**
+ * Der Ausweis der Abnahme.
+ *
+ * Der Zugang ist seit dem 11.08.2026 angemeldet (`mcp/zugang.ts`), und die Abnahme nimmt
+ * den festen Token statt des OAuth-Wegs: der braeuchte einen laufenden Hub, und dann
+ * pruefte jeder dieser Tests nebenbei die Erreichbarkeit eines fremden Dienstes. Dass die
+ * Tuer selbst zu ist, prueft `mcpZugang.test.ts`.
+ */
+export const MCP_AUSWEIS = { authorization: `Bearer ${MCP_TOKEN}` };
 
 /**
  * Der MCP-Zugang von aussen, ueber `app.inject()`.
@@ -38,6 +49,7 @@ export async function rpc(
       "content-type": "application/json",
       // Beides, so verlangt es Streamable HTTP, auch wenn der Server hier JSON antwortet.
       accept: "application/json, text/event-stream",
+      ...MCP_AUSWEIS,
     },
     payload: { jsonrpc: "2.0", id: laufendeId, method: methode, ...(params ? { params } : {}) },
   });
@@ -88,7 +100,9 @@ export function multipart(
     Buffer.from(`\r\n--${grenze}--\r\n`),
   ]);
   return {
-    headers: { "content-type": `multipart/form-data; boundary=${grenze}` },
+    // Der Ausweis gehoert dazu: der Upload haengt an derselben Pruefung wie der
+    // Werkzeugaufruf, und ein Aufruf ohne ihn kaeme nie beim Formularleser an.
+    headers: { "content-type": `multipart/form-data; boundary=${grenze}`, ...MCP_AUSWEIS },
     payload,
   };
 }

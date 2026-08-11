@@ -65,9 +65,11 @@ import {
  * Die Werkzeuge des MCP-Servers.
  *
  * Bewusst ohne Fastify- und ohne MCP-Typen: hier stehen reine Funktionen ueber
- * `@aas-editor/core`, `mcp/server.ts` haengt nur die Schemata davor. Das ist die Naht,
- * an der eine spaetere Absicherung einen Benutzer durchreichen kann, ohne dass ein
- * Werkzeug davon wissen muss.
+ * `@aas-editor/core`, `mcp/server.ts` haengt nur die Schemata davor. Das war die Naht, an
+ * der eine spaetere Absicherung einen Benutzer durchreichen kann, ohne dass ein Werkzeug
+ * davon wissen muss, und genau so ist es am 11.08.2026 gekommen: `Umgebung.benutzer` ist
+ * das einzige, was dazugekommen ist, und kein Werkzeug prueft ihn selbst. Er wandert nur
+ * weiter an die Ablage, die damit ihre Eintraege auseinanderhaelt.
  *
  * **Zustandslos.** Kein Werkzeug sieht die Datenbank, keines kennt ein Projekt. Der
  * Zwischenstand einer entstehenden AAS lebt im Gespraech, nicht auf dem Server; nur
@@ -78,6 +80,14 @@ export interface Umgebung {
   readonly env: ServerEnv;
   /** Wurzel fuer Download-Links, aus der Anfrage abgeleitet, ohne abschliessenden Schraegstrich. */
   readonly basisUrl: string;
+  /**
+   * Wer angerufen hat, geprueft in `mcp/zugang.ts`.
+   *
+   * Die Kennung des Nutzers beim Hub, oder die feste Kennung des Bearer-Tokens. Sie ist
+   * hier kein Recht, sondern ein Namensraum: Entwuerfe, Anhaenge und erzeugte Dateien
+   * gehoeren dem, der sie angelegt hat, und niemandem sonst.
+   */
+  readonly benutzer: string;
 }
 
 export interface Ergebnis {
@@ -484,7 +494,7 @@ async function loeseAnhaenge(
       bytes = gelesen;
     } else {
       const token = String(eintrag.token).trim();
-      const abruf = ablage.abrufen(token);
+      const abruf = ablage.abrufen(token, umgebung.benutzer);
       if (abruf === null) {
         return fehler(
           `"${pfad}": der Token ist unbekannt oder abgelaufen.`,
@@ -849,7 +859,7 @@ function bilanziere(
  * hochgeladener Anhang.
  */
 function entwurfLesen(umgebung: Umgebung, token: string): JsonObject | Ergebnis {
-  const abruf = entwuerfe(umgebung.env).abrufen(token.trim());
+  const abruf = entwuerfe(umgebung.env).abrufen(token.trim(), umgebung.benutzer);
   if (abruf === null) {
     return fehler(
       "Der Entwurf ist unbekannt oder abgelaufen.",
@@ -870,6 +880,7 @@ function entwurfSchreiben(umgebung: Umgebung, environment: JsonObject): string {
     bytes: alsBytes(environment),
     dateiname: "entwurf.json",
     contentType: "application/json",
+    eigentuemer: umgebung.benutzer,
   });
   return info.token;
 }
@@ -1188,7 +1199,13 @@ export async function teilmodellErzeugen(
   const gelesen = await pruefeEnvironment(environment, pfade);
   if (istErgebnis(gelesen)) return gelesen;
 
-  if (entwuerfe(umgebung.env).aktualisieren(token, alsBytes(gelesen.environment)) === null) {
+  if (
+    entwuerfe(umgebung.env).aktualisieren(
+      token,
+      umgebung.benutzer,
+      alsBytes(gelesen.environment),
+    ) === null
+  ) {
     return fehler("Der Entwurf ist zwischenzeitlich abgelaufen.");
   }
 
@@ -1242,7 +1259,7 @@ export async function entwurfAendern(
   if (istErgebnis(gelesen)) return gelesen;
 
   const bytes = new TextEncoder().encode(JSON.stringify(gelesen.environment));
-  if (entwuerfe(umgebung.env).aktualisieren(token, bytes) === null) {
+  if (entwuerfe(umgebung.env).aktualisieren(token, umgebung.benutzer, bytes) === null) {
     return fehler("Der Entwurf ist zwischenzeitlich abgelaufen.");
   }
 
@@ -1387,6 +1404,7 @@ export async function aasDateiErzeugen(
     bytes: datei.bytes,
     dateiname,
     contentType: datei.contentType,
+    eigentuemer: umgebung.benutzer,
   });
 
   const bilanz = bilanziere(gelesen.model, gelesen.environment, new Set(anhangsMap.keys()));
@@ -1467,12 +1485,13 @@ export function anhangHochladen(umgebung: Umgebung, eingabe: HochladeEingabe): E
     );
   }
 
-  if (!stueckweise) return einteilig(ablage, eingabe, gelesen);
-  return stueckweiser(ablage, eingabe, gelesen, fortsetzung, teil ?? 1);
+  if (!stueckweise) return einteilig(ablage, umgebung.benutzer, eingabe, gelesen);
+  return stueckweiser(ablage, umgebung.benutzer, eingabe, gelesen, fortsetzung, teil ?? 1);
 }
 
 function einteilig(
   ablage: Ablage,
+  eigentuemer: string,
   eingabe: HochladeEingabe,
   bytes: Uint8Array,
 ): Ergebnis {
@@ -1485,7 +1504,7 @@ function einteilig(
   const signatur = pruefeSignatur(bytes, geprueft, dateiname);
   if (signatur !== null) return fehler(signatur.grund, signatur.hinweis);
 
-  const info = ablage.ablegen({ bytes, dateiname, contentType: geprueft });
+  const info = ablage.ablegen({ bytes, dateiname, contentType: geprueft, eigentuemer });
 
   return gib({
     token: info.token,
@@ -1516,6 +1535,7 @@ function einteilig(
  */
 function stueckweiser(
   ablage: Ablage,
+  eigentuemer: string,
   eingabe: HochladeEingabe,
   bytes: Uint8Array,
   fortsetzung: string,
@@ -1538,12 +1558,13 @@ function stueckweiser(
     if (istErgebnis(geprueft)) return geprueft;
 
     // Ein einziger Teil mit letzter=true ist derselbe Fall wie ein einteiliger Upload.
-    if (letzter) return einteilig(ablage, eingabe, bytes);
+    if (letzter) return einteilig(ablage, eigentuemer, eingabe, bytes);
 
     const info = ablage.ablegen({
       bytes,
       dateiname,
       contentType: geprueft,
+      eigentuemer,
       unvollstaendig: true,
       teil: 1,
     });
@@ -1558,7 +1579,7 @@ function stueckweiser(
     });
   }
 
-  const vorher = ablage.abrufen(fortsetzung);
+  const vorher = ablage.abrufen(fortsetzung, eigentuemer);
   if (vorher === null) {
     return fehler(
       "Der token ist unbekannt oder abgelaufen.",
@@ -1588,7 +1609,7 @@ function stueckweiser(
   zusammen.set(bytes, vorher.bytes.byteLength);
 
   if (zusammen.byteLength > MAX_ANHANG_BYTES) {
-    ablage.verwerfen(fortsetzung);
+    ablage.verwerfen(fortsetzung, eigentuemer);
     return fehler(
       `Die Teile zusammen sind groesser als ${MAX_ANHANG_BYTES / 1024 / 1024} MB. ` +
         "Der Upload wurde verworfen.",
@@ -1596,7 +1617,10 @@ function stueckweiser(
   }
 
   if (!letzter) {
-    const info = ablage.aktualisieren(fortsetzung, zusammen, { unvollstaendig: true, teil });
+    const info = ablage.aktualisieren(fortsetzung, eigentuemer, zusammen, {
+      unvollstaendig: true,
+      teil,
+    });
     if (info === null) return fehler("Der token ist zwischenzeitlich abgelaufen.");
     return gib({
       token: fortsetzung,
@@ -1610,16 +1634,19 @@ function stueckweiser(
   const dateiname = vorher.info.dateiname;
   const zusage = pruefeZusage(zusammen, eingabe, dateiname);
   if (zusage !== null) {
-    ablage.verwerfen(fortsetzung);
+    ablage.verwerfen(fortsetzung, eigentuemer);
     return fehler(zusage.grund, `${zusage.hinweis ?? ""} Der Upload wurde verworfen.`.trim());
   }
   const signatur = pruefeSignatur(zusammen, vorher.info.contentType, dateiname);
   if (signatur !== null) {
-    ablage.verwerfen(fortsetzung);
+    ablage.verwerfen(fortsetzung, eigentuemer);
     return fehler(signatur.grund, `${signatur.hinweis ?? ""} Der Upload wurde verworfen.`.trim());
   }
 
-  const info = ablage.aktualisieren(fortsetzung, zusammen, { unvollstaendig: false, teil });
+  const info = ablage.aktualisieren(fortsetzung, eigentuemer, zusammen, {
+    unvollstaendig: false,
+    teil,
+  });
   if (info === null) return fehler("Der token ist zwischenzeitlich abgelaufen.");
 
   return gib({
@@ -1708,6 +1735,7 @@ export async function aasDateiLesen(
         bytes: teil.bytes,
         dateiname: teil.path.split("/").pop() ?? "anhang",
         contentType: teil.contentType,
+        eigentuemer: umgebung.benutzer,
       });
       return {
         pfad: teil.path,

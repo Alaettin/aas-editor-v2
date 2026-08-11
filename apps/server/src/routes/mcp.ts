@@ -1,9 +1,12 @@
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { wurzelVon } from "../basisUrl.js";
 import type { ServerEnv } from "../env.js";
 import { pruefeSignatur, sha256Von } from "../mcp/bytes.js";
 import { baueMcpServer } from "../mcp/server.js";
 import { ERLAUBTE_TYPEN, MAX_ANHANG_BYTES } from "../mcp/werkzeuge.js";
+import { anruferVon, baueMcpWaechter } from "../mcp/zugang.js";
 import { anhaenge, ausgabe, entwuerfe } from "../services/ablage.js";
 import { badRequest } from "../errors.js";
 
@@ -18,33 +21,37 @@ import { badRequest } from "../errors.js";
  * beides; ohne einen langlaufenden Aufruf, der Zwischenstaende meldet, ist der Strom nur
  * eine Verbindung, die offen bleibt, und ein Puls, den jemand pflegen muss.
  *
- * **Ohne Absicherung.** Wer die Adresse kennt, kann pruefen, umwandeln, Dateien erzeugen
- * und Anhaenge hochladen. Projekte, Anhaenge der Projekte und Einstellungen sind nicht
- * erreichbar: die Werkzeuge bekommen `db` gar nicht erst zu sehen. Gegen den
- * verbleibenden Missbrauch stehen die Ratenbegrenzung hier, die Groessengrenzen und die
- * Positivliste in `mcp/werkzeuge.ts` sowie der Zaun gegen das interne Netz in
- * `mcp/netz.ts`.
+ * **Angemeldet seit dem 11.08.2026.** Vorher konnte jeder, der die Adresse kannte,
+ * pruefen, umwandeln, Dateien erzeugen und Anhaenge hochladen. Wer herein darf, entscheidet
+ * jetzt `mcp/zugang.ts`: ein Zugriffstoken des Hubs oder der feste Bearer-Token. Projekte,
+ * Anhaenge der Projekte und Einstellungen bleiben unerreichbar, die Werkzeuge bekommen `db`
+ * weiterhin gar nicht erst zu sehen. Daneben gelten unveraendert die Ratenbegrenzung hier,
+ * die Groessengrenzen und die Positivliste in `mcp/werkzeuge.ts` sowie der Zaun gegen das
+ * interne Netz in `mcp/netz.ts`.
  */
 
 /** Eine Runde kostet Rechenzeit, AASX schreiben nicht wenig. */
-const GRENZE = { max: 120, timeWindow: "5 minutes" } as const;
-
-/**
- * Die Wurzel fuer Download-Links, aus der Anfrage abgeleitet.
- *
- * Bewusst keine eigene Einstellung: der Server steht hinter Caddy mal unter
- * `localhost:3200`, mal unter `axon-editor.sliplane.app`, und ein fest eingetragener
- * Wert waere genau einmal richtig. `trustProxy` steht in `app.ts`, deshalb traegt
- * `req.protocol` bereits `x-forwarded-proto`.
- */
-function basisUrlVon(req: FastifyRequest, env: ServerEnv): string {
-  // PUBLIC_BASE_URL schlaegt den Host-Kopf: der ist Nutzerdaten, und ein untergeschobener
-  // Aufruf bekaeme sonst Download-Links auf eine fremde Domain (Sicherheitsaudit
-  // 11.08.2026). Ohne die Einstellung bleibt es beim Host, wie bisher.
-  if (env.publicBaseUrl !== null) return env.publicBaseUrl;
-  const host = req.headers.host ?? "localhost";
-  return `${req.protocol}://${host}`;
-}
+const GRENZE = {
+  max: 120,
+  timeWindow: "5 minutes",
+  /*
+   * Auf den vorgezeigten Ausweis, nicht auf die Adresse. Der gesamte Verkehr von claude.ai
+   * kommt aus einem einzigen Bereich (`160.79.104.0/21`); mit `req.ip` als Schluessel
+   * teilten sich alle Nutzer **ein** Kontingent und behinderten sich gegenseitig.
+   *
+   * Der Token ist hier absichtlich **ungeprueft**: die Ratenbegrenzung haengt als
+   * onRequest-Haken vor jedem preHandler, der gepruefte Anrufer aus `mcp/zugang.ts` steht
+   * also noch nicht fest. Fuer einen Eimer genuegt das. Wer mit erfundenen Token um sich
+   * wirft, bekommt zwar je Token einen eigenen Eimer, aber auch je Anfrage ein 401, und
+   * ohne Kopfzeile faellt es ohnehin auf die Adresse zurueck. Gehasht, damit kein
+   * Zugangsdatum als Schluessel im Speicher der Begrenzung liegt.
+   */
+  keyGenerator: (req: FastifyRequest) => {
+    const kopf = req.headers.authorization;
+    if (typeof kopf !== "string" || !/^Bearer\s/i.test(kopf)) return req.ip;
+    return createHash("sha256").update(kopf).digest("base64url");
+  },
+} as const;
 
 /** Ein Fehlerrumpf, den ein MCP-Klient lesen kann. JSON-RPC kennt kein 405. */
 const NICHT_ERLAUBT = {
@@ -63,9 +70,22 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
 
   // Die Ratenbegrenzung selbst steht in `app.ts`: sie ist ein fp-Plugin und vertraegt genau
   // eine Anmeldung. Hier wird sie nur noch je Route in Anspruch genommen.
+  const waechter = baueMcpWaechter(env);
+
   app.register(async (scope) => {
+    /*
+     * Die Pruefung gilt fuer **alle** Routen dieses Bereichs, auch fuer den Upload und den
+     * Download. Ein Zugang, bei dem nur der Werkzeugaufruf angemeldet ist, waere keiner:
+     * die Ablage haengt an denselben Token.
+     */
+    scope.addHook("preHandler", waechter);
+
     scope.post("/api/mcp", { config: { rateLimit: GRENZE } }, async (req, reply) => {
-      const server = baueMcpServer({ env, basisUrl: basisUrlVon(req, env) });
+      const server = baueMcpServer({
+        env,
+        basisUrl: wurzelVon(req, env),
+        benutzer: anruferVon(req).benutzer,
+      });
       const transport = new StreamableHTTPServerTransport({
         // Zustandslos. Ohne diese Zeile vergibt der Transport Sitzungskennungen und
         // weist jede Folgeanfrage ohne passende Kennung mit 400 ab.
@@ -139,7 +159,12 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
         }
 
         const ablage = anhaenge(env);
-        const info = ablage.ablegen({ bytes, dateiname, contentType: typ });
+        const info = ablage.ablegen({
+          bytes,
+          dateiname,
+          contentType: typ,
+          eigentuemer: anruferVon(req).benutzer,
+        });
 
         void reply.code(201);
         return {
@@ -155,14 +180,17 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
     );
 
     /*
-     * Der Download. Der Token ist die einzige Adresse und wird in `services/ablage.ts`
-     * gegen sein Muster geprueft, bevor er an einen Pfad geraet: sonst waere
-     * "../../aas-editor.db" ein gueltiger Token.
+     * Der Download. Der Token wird in `services/ablage.ts` gegen sein Muster geprueft,
+     * bevor er an einen Pfad geraet: sonst waere "../../aas-editor.db" ein gueltiger Token.
+     *
+     * Er ist die Adresse, aber seit dem 11.08.2026 nicht mehr die Berechtigung: die Datei
+     * bekommt nur zu sehen, wer sie hat erzeugen lassen. Ein Link aus dem Gespraech laesst
+     * sich damit nicht mehr weitergeben, und das ist die Absicht.
      */
     scope.get("/api/mcp/dateien/:token", { config: { rateLimit: GRENZE } }, (req, reply) => {
       const { token } = req.params as { token: string };
-      const datei = ausgabe(env).abrufen(token);
-      // Abgelaufen und erfunden geben dieselbe Antwort. Ein eigener Code fuer
+      const datei = ausgabe(env).abrufen(token, anruferVon(req).benutzer);
+      // Abgelaufen, erfunden und fremd geben dieselbe Antwort. Ein eigener Code fuer
       // "gab es mal" verriete, dass der Token echt war.
       if (datei === null) {
         return reply.code(404).send({ code: "datei-abgelaufen", message: "File not found." });

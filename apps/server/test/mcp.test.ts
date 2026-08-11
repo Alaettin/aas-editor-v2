@@ -3,6 +3,7 @@ import { denormalize } from "@aas-editor/core";
 import { importFile } from "@aas-editor/core/io";
 import type { FastifyInstance } from "fastify";
 import { startTestServer, type TestServer } from "./helpers/app.js";
+import { MCP_AUSWEIS as AUSWEIS } from "./helpers/mcp.js";
 
 /**
  * Der MCP-Zugang, gefahren wie jeder andere Test ueber `app.inject()`: echte Instanz,
@@ -45,6 +46,9 @@ async function rpc(methode: string, params?: unknown): Promise<RpcAntwort> {
       "content-type": "application/json",
       // Beides, so verlangt es Streamable HTTP, auch wenn der Server hier JSON antwortet.
       accept: "application/json, text/event-stream",
+      // Der Zugang ist angemeldet, siehe `mcp/zugang.ts`. Die Abnahme nimmt den festen
+      // Token; der OAuth-Weg ist in `mcpZugang.test.ts` fuer sich geprueft.
+      ...AUSWEIS,
     },
     payload: { jsonrpc: "2.0", id: laufendeId, method: methode, ...(params ? { params } : {}) },
   });
@@ -120,7 +124,7 @@ describe("Protokoll", () => {
   });
 
   it("weist GET ab, statt eine Verbindung offen zu halten", async () => {
-    const antwort = await app.inject({ method: "GET", url: "/api/mcp" });
+    const antwort = await app.inject({ method: "GET", url: "/api/mcp", headers: AUSWEIS });
     expect(antwort.statusCode).toBe(405);
   });
 });
@@ -203,7 +207,7 @@ describe("aas_datei_erzeugen", () => {
     expect(daten["verstoesse"]).toBe(0);
 
     const url = new URL(String(daten["url"]));
-    const download = await app.inject({ method: "GET", url: url.pathname });
+    const download = await app.inject({ method: "GET", url: url.pathname, headers: AUSWEIS });
     expect(download.statusCode).toBe(200);
     expect(download.headers["content-disposition"]).toContain("Temperatursensor.aasx");
     expect(download.rawPayload.byteLength).toBe(daten["groesse"]);
@@ -246,7 +250,11 @@ describe("aas_datei_erzeugen", () => {
 
   it("gibt einem erfundenen Token 404", async () => {
     const erfunden = "a".repeat(43);
-    const antwort = await app.inject({ method: "GET", url: `/api/mcp/dateien/${erfunden}` });
+    const antwort = await app.inject({
+      method: "GET",
+      url: `/api/mcp/dateien/${erfunden}`,
+      headers: AUSWEIS,
+    });
     expect(antwort.statusCode).toBe(404);
   });
 
@@ -254,6 +262,7 @@ describe("aas_datei_erzeugen", () => {
     const antwort = await app.inject({
       method: "GET",
       url: "/api/mcp/dateien/..%2F..%2Faas-editor.db",
+      headers: AUSWEIS,
     });
     expect(antwort.statusCode).toBe(404);
   });
