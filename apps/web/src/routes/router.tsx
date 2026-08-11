@@ -28,6 +28,11 @@ const ProjectsRoute = lazy(() =>
   import("./ProjectsRoute").then((modul) => ({ default: modul.ProjectsRoute })),
 );
 
+/** Der zweite Bereich des Zwischenmenues, aus denselben Gruenden nachgeladen. */
+const RepositoryRoute = lazy(() =>
+  import("./RepositoryRoute").then((modul) => ({ default: modul.RepositoryRoute })),
+);
+
 function EditorLaedt() {
   return (
     <div className="flex h-screen flex-col gap-3 p-6">
@@ -58,6 +63,15 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<EditorLaedt />}>
             <ProjectsRoute />
+          </Suspense>
+        ),
+      },
+      {
+        path: "/repository",
+        errorElement: <RouteFehler />,
+        element: (
+          <Suspense fallback={<EditorLaedt />}>
+            <RepositoryRoute />
           </Suspense>
         ),
       },

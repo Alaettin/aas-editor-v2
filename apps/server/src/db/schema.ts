@@ -157,6 +157,67 @@ export const einstellungen = sqliteTable("einstellungen", {
   aktualisiert: integer("aktualisiert").notNull(),
 });
 
+/**
+ * Das Submodel Repository eines Nutzers, genau eines je Besitzer.
+ *
+ * Die `id` ist **nicht** die Kennung des Besitzers, obwohl beides UUIDs sind und eine
+ * Spalte gespart waere. Sie steht in einer oeffentlich abrufbaren Adresse
+ * (`/api/repo/<id>/submodels`), und die Kennung aus dem Hub ist die Identitaet des
+ * Nutzers: sie steht im ID-Token, im Konto des Hubs und an jedem seiner Projekte. Wer die
+ * eine kennt, soll damit nicht die andere kennen.
+ */
+export const repositories = sqliteTable(
+  "repositories",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("owner_id").notNull(),
+    createdAt: integer("created_at").notNull(),
+  },
+  (t) => [uniqueIndex("uq_repositories_owner").on(t.ownerId)],
+);
+
+/**
+ * Ein uebernommenes Teilmodell, als **Momentaufnahme**.
+ *
+ * Das `json` ist eine Kopie, kein Verweis auf die Projektzeile. Wer sein Projekt
+ * weiterbearbeitet, aendert damit nicht, was nach aussen ausgeliefert wird; das Repository
+ * folgt erst, wenn dasselbe Teilmodell erneut uebernommen und dabei ausdruecklich
+ * ueberschrieben wird.
+ *
+ * Deshalb auch **kein Fremdschluessel** auf `projects`: die Momentaufnahme muss das
+ * Loeschen ihres Projekts ueberleben. Herkunftskennung und -name stehen nur zur Anzeige da
+ * und sind mitkopiert, weil ein Projekt spaeter umbenannt werden darf.
+ */
+export const repositorySubmodels = sqliteTable(
+  "repository_submodels",
+  {
+    rowId: text("row_id").primaryKey(),
+    repositoryId: text("repository_id")
+      .notNull()
+      .references((): AnySQLiteColumn => repositories.id, { onDelete: "cascade" }),
+    /** Die fachliche `id` des Teilmodells, unter der es ausgeliefert wird. */
+    id: text("id").notNull(),
+    idShort: text("id_short"),
+    json: text("json").notNull(),
+    herkunftProjektId: text("herkunft_projekt_id").notNull(),
+    herkunftProjektName: text("herkunft_projekt_name").notNull(),
+    uebernommenAm: integer("uebernommen_am").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (t) => [
+    /**
+     * Anders als bei `submodels` **nicht** partiell: ein Teilmodell ohne `id` laesst sich
+     * gar nicht abrufen, IDTA-01002 adressiert ausschliesslich darueber. Ein leeres Feld
+     * ist im Editor erlaubt, hier waere es eine Zeile ohne Adresse.
+     */
+    uniqueIndex("uq_repository_submodels_id").on(t.repositoryId, t.id),
+    /** Die oeffentliche Liste blaettert nach der fachlichen id. */
+    index("idx_repository_submodels").on(t.repositoryId, t.id, t.rowId),
+  ],
+);
+
 export type ProjectRow = typeof projects.$inferSelect;
 export type IdentifiableRow = typeof submodels.$inferSelect;
 export type FileRow = typeof files.$inferSelect;
+export type RepositoryRow = typeof repositories.$inferSelect;
+export type RepositorySubmodelRow = typeof repositorySubmodels.$inferSelect;

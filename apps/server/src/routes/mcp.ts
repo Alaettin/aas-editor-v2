@@ -1,5 +1,4 @@
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import rateLimit from "@fastify/rate-limit";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ServerEnv } from "../env.js";
 import { pruefeSignatur, sha256Von } from "../mcp/bytes.js";
@@ -58,8 +57,8 @@ export async function mcpRoutes(app: FastifyInstance, env: ServerEnv): Promise<v
   anhaenge(env).raeumeAuf();
   entwuerfe(env).raeumeAuf();
 
-  await app.register(rateLimit, { global: false });
-
+  // Die Ratenbegrenzung selbst steht in `app.ts`: sie ist ein fp-Plugin und vertraegt genau
+  // eine Anmeldung. Hier wird sie nur noch je Route in Anspruch genommen.
   app.register(async (scope) => {
     scope.post("/api/mcp", { config: { rateLimit: GRENZE } }, async (req, reply) => {
       const server = baueMcpServer({ env, basisUrl: basisUrlVon(req) });

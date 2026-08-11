@@ -2,12 +2,17 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Search } from "lucide-react";
 
+import { Bereichsreiter } from "@/components/Shell/Bereichsreiter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useProjects } from "@/store/projects";
 
 /**
- * Die Arbeitszeile des Einstiegs: Titel, Suche, Knopf fuer ein neues Projekt.
+ * Die Arbeitszeile des Einstiegs: Bereichsreiter, Suche, Knopf fuer ein neues Projekt.
+ *
+ * Seit dem 11.08.2026 steht links der Reiter statt der Ueberschrift "Projekte". Suche und
+ * "Neu" bleiben hier: sie gehoeren zu den Projekten und nicht zum Repository, das den
+ * Reiter zwar teilt, aber seine eigene Aktion daneben stellt.
  *
  * Die Suche fuehrt einen eigenen Entwurf und meldet erst nach einer Pause nach oben. Ohne
  * das ginge je Tastendruck eine Anfrage an den Server, und die Liste flackerte.
@@ -33,7 +38,7 @@ export function Kopfzeile({ onNeu }: { readonly onNeu: () => void }) {
 
   return (
     <div className="flex h-(--h-toolbar) shrink-0 items-center gap-3 border-b border-border bg-card px-4">
-      <h1 className="text-lg font-medium text-foreground">{t("projekte.titel")}</h1>
+      <Bereichsreiter />
 
       <div className="relative ml-auto w-full max-w-(--w-einstiegssuche)">
         <Search

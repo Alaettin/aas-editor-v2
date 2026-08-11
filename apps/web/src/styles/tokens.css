@@ -387,6 +387,12 @@
     --w-einstiegsdetail: 330px;
     --w-einstiegssuche: 340px;
     --min-w-einstiegstabelle: 900px;
+
+    /* Masse des Uebernahmedialogs im Repository. Breiter als ein gewoehnlicher Dialog,
+       weil zwei Listen nebeneinanderstehen; die Hoehe ist eine Untergrenze, damit der
+       Dialog beim Wechsel des Projekts nicht springt. */
+    --w-uebernahmedialog: 720px;
+    --h-uebernahmeliste: 320px;
   }
 
   * {
