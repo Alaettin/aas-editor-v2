@@ -21,10 +21,10 @@
     "@aas-core-works/aas-core3.0-typescript": "1.0.5",
     "@aas-core-works/aas-core3.1-typescript": "1.0.1",
     "aas-package3-typescript": "1.0.0",
-    "immer": "^11.1.15"
+    "immer": "^11.1.16"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
+    "@types/node": "^26.2.0",
     "fflate": "^0.8.3",
     "typescript": "5.9.3",
     "vitest": "^4.1.10"
